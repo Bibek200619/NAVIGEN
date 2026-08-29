@@ -1,0 +1,117 @@
+Panels:
+  - Class: rviz_common/Displays
+    Name: Displays
+  - Class: nav2_rviz_plugins/Navigation 2
+    Name: Navigation 2
+  - Class: rviz_common/Views
+    Name: Views
+Visualization Manager:
+  Class: ""
+  Displays:
+    - Class: rviz_default_plugins/Grid
+      Name: Grid
+      Enabled: true
+      Cell Size: 1
+      Plane Cell Count: 20
+    - Class: rviz_default_plugins/Map
+      Name: Known Map
+      Enabled: true
+      Alpha: 0.8
+      Color Scheme: map
+      Topic:
+        Depth: 1
+        Durability Policy: Transient Local
+        Reliability Policy: Reliable
+        Value: /map
+    - Class: rviz_default_plugins/Map
+      Name: Global Costmap
+      Enabled: true
+      Alpha: 0.35
+      Color Scheme: costmap
+      Topic:
+        Depth: 1
+        Durability Policy: Transient Local
+        Reliability Policy: Reliable
+        Value: /global_costmap/costmap
+    - Class: rviz_default_plugins/Map
+      Name: Local Costmap
+      Enabled: true
+      Alpha: 0.55
+      Color Scheme: costmap
+      Topic:
+        Depth: 1
+        Durability Policy: Transient Local
+        Reliability Policy: Reliable
+        Value: /local_costmap/costmap
+    - Class: rviz_default_plugins/Path
+      Name: Planned Path
+      Enabled: true
+      Color: 255; 30; 30
+      Line Style: Lines
+      Line Width: 0.05
+      Topic:
+        Depth: 5
+        Reliability Policy: Reliable
+        Value: /plan
+    - Class: rviz_default_plugins/Odometry
+      Name: Wheel Odometry Trajectory
+      Enabled: true
+      Keep: 500
+      Color: 40; 120; 255
+      Topic:
+        Depth: 10
+        Reliability Policy: Reliable
+        Value: /wheel/odom
+    - Class: rviz_default_plugins/Pose
+      Name: Goal Pose
+      Enabled: true
+      Shape: Arrow
+      Color: 255; 70; 255
+      Topic:
+        Depth: 5
+        Reliability Policy: Reliable
+        Value: /goal_pose
+    - Class: rviz_default_plugins/RobotModel
+      Name: Robot Model
+      Enabled: true
+      Description Topic:
+        Depth: 5
+        Durability Policy: Transient Local
+        Reliability Policy: Reliable
+        Value: /robot_description
+    - Class: rviz_default_plugins/TF
+      Name: TF
+      Enabled: true
+      Show Arrows: true
+      Show Axes: true
+      Show Names: true
+    - Class: rviz_default_plugins/Image
+      Name: Live Camera
+      Enabled: true
+      Topic:
+        Depth: 5
+        Reliability Policy: Best Effort
+        Value: /camera/image_raw
+    - Class: rviz_default_plugins/Image
+      Name: Traversability Overlay (Phase 7)
+      Enabled: false
+      Topic:
+        Depth: 5
+        Reliability Policy: Best Effort
+        Value: /traversability/debug_image
+  Global Options:
+    Fixed Frame: map
+    Frame Rate: 30
+  Tools:
+    - Class: rviz_default_plugins/Interact
+    - Class: rviz_default_plugins/MoveCamera
+    - Class: rviz_default_plugins/Select
+    - Class: nav2_rviz_plugins/GoalTool
+  Views:
+    Current:
+      Class: rviz_default_plugins/TopDownOrtho
+      Scale: 35
+      Target Frame: map
+      X: 3.5
+      Y: 0.0
+    Saved: ~
