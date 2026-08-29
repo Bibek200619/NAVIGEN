@@ -1,7 +1,7 @@
 # colcon / ROS 2 build artifacts
-ros2_ws/build/
-ros2_ws/install/
-ros2_ws/log/
+**/ros2_ws/build/
+**/ros2_ws/install/
+**/ros2_ws/log/
 log/
 
 # Python
@@ -10,12 +10,18 @@ __pycache__/
 .pytest_cache/
 
 # PlatformIO
-firmware/**/.pio/
+**/.pio/
 
 # Recorded data
 rosbags/
 *.db3
 *.mcap
+
+# Web / Mobile
+**/node_modules/
+**/dist/
+**/build/
+**/.expo/
 
 # Editors
 .vscode/
