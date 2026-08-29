@@ -1,0 +1,86 @@
+Panels:
+  - Class: rviz_common/Displays
+    Name: Displays
+  - Class: rviz_common/Views
+    Name: Views
+Visualization Manager:
+  Class: ""
+  Displays:
+    - Class: rviz_default_plugins/Grid
+      Name: Grid
+      Enabled: true
+    - Class: rviz_default_plugins/TF
+      Name: TF
+      Enabled: true
+    - Class: rviz_default_plugins/RobotModel
+      Name: RobotModel
+      Enabled: true
+      Description Topic:
+        Depth: 5
+        Durability Policy: Transient Local
+        Reliability Policy: Reliable
+        Value: /robot_description
+    - Class: rviz_default_plugins/Image
+      Name: Camera
+      Enabled: true
+      Topic:
+        Depth: 5
+        Reliability Policy: Best Effort
+        Value: /camera/image_raw
+    - Class: rviz_default_plugins/Image
+      Name: TraversabilityDebug
+      Enabled: false
+      Topic:
+        Depth: 5
+        Reliability Policy: Best Effort
+        Value: /traversability/debug_image
+    - Class: rviz_default_plugins/Odometry
+      Name: WheelOdom
+      Enabled: true
+      Keep: 200
+      Topic:
+        Value: /wheel/odom
+    - Class: rviz_default_plugins/Odometry
+      Name: FilteredOdom
+      Enabled: false
+      Keep: 200
+      Topic:
+        Value: /odometry/filtered
+    - Class: rviz_default_plugins/Odometry
+      Name: VisualOdom
+      Enabled: false
+      Keep: 200
+      Topic:
+        Value: /visual_odom
+    - Class: rviz_default_plugins/Map
+      Name: LocalCostmap
+      Enabled: false
+      Topic:
+        Value: /local_costmap/costmap
+    - Class: rviz_default_plugins/Path
+      Name: PlannedPath
+      Enabled: false
+      Topic:
+        Value: /plan
+    - Class: rviz_default_plugins/Pose
+      Name: GoalPose
+      Enabled: false
+      Topic:
+        Value: /goal_pose
+  Global Options:
+    Fixed Frame: odom
+    Frame Rate: 30
+  Tools:
+    - Class: rviz_default_plugins/Interact
+    - Class: rviz_default_plugins/MoveCamera
+    - Class: rviz_default_plugins/SetInitialPose
+    - Class: rviz_default_plugins/SetGoal
+      Topic:
+        Value: /goal_pose
+  Views:
+    Current:
+      Class: rviz_default_plugins/Orbit
+      Distance: 10
+      Pitch: 0.6
+      Yaw: 3.14
+    Saved: ~
