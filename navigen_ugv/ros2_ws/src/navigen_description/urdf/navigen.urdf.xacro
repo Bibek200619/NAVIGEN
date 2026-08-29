@@ -18,14 +18,19 @@
   <xacro:property name="chassis_bottom" value="${clearance - wr}"/>
   <xacro:property name="chassis_top" value="${chassis_bottom + ch}"/>
 
+  <!-- base_link is the moving TF root. Keeping base_footprint below it avoids
+       giving base_link two parents when odometry publishes odom -> base_link. -->
   <link name="base_footprint"/>
   <joint name="base_footprint_joint" type="fixed">
-    <parent link="base_footprint"/>
-    <child link="base_link"/>
-    <origin xyz="0 0 ${wr}" rpy="0 0 0"/>
+    <parent link="base_link"/>
+    <child link="base_footprint"/>
+    <origin xyz="0 0 ${-wr}" rpy="0 0 0"/>
   </joint>
 
-  <link name="base_link">
+  <!-- KDL requires a massless root. Physical chassis properties live on a
+       fixed child while odometry and the public TF contract use base_link. -->
+  <link name="base_link"/>
+  <link name="base_chassis_link">
     <visual>
       <origin xyz="0 0 ${chassis_bottom + ch/2}"/>
       <geometry><box size="${cl} ${cw} ${ch}"/></geometry>
@@ -42,6 +47,11 @@
                izz="${cm/12.0*(cl*cl+cw*cw)}" ixy="0" ixz="0" iyz="0"/>
     </inertial>
   </link>
+  <joint name="base_chassis_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="base_chassis_link"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+  </joint>
 
   <xacro:macro name="wheel" params="prefix x y">
     <link name="${prefix}_wheel_link">

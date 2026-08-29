@@ -1,0 +1,26 @@
+# Gazebo-only tuning. These values are deterministic simulation defaults and are
+# intentionally separate from physical measurements in vehicle.yaml.
+motion:
+  odom_publish_frequency: 50.0  # [Hz]
+  max_linear_velocity: 0.4      # [m/s], conservative demo limit
+  max_angular_velocity: 1.0     # [rad/s]
+  max_linear_acceleration: 0.5  # [m/s^2]
+  max_angular_acceleration: 1.5 # [rad/s^2]
+joint_states:
+  update_rate: 50.0             # [Hz]
+camera:
+  update_rate: 15.0             # [Hz]
+  width: 320                    # [pixels], Pi-target inference resolution
+  height: 240                   # [pixels]
+  horizontal_fov: 1.25          # [rad]
+  near_clip: 0.05               # [m]
+  far_clip: 50.0                # [m]
+  gaussian_noise_mean: 0.0
+  gaussian_noise_stddev: 0.002
+imu:
+  update_rate: 100.0            # [Hz]
+  gaussian_noise_mean: 0.0
+  gaussian_noise_stddev: 0.0002
+wheel_friction:
+  longitudinal: 1.2
+  lateral: 0.9

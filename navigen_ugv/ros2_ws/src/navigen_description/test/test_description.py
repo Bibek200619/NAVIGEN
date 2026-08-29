@@ -10,6 +10,7 @@ import xacro
 EXPECTED_LINKS = {
     'base_footprint',
     'base_link',
+    'base_chassis_link',
     'front_left_wheel_link',
     'front_right_wheel_link',
     'rear_left_wheel_link',
@@ -41,8 +42,13 @@ def test_real_description_has_complete_static_tree_and_no_gps() -> None:
         joint.find('child').attrib['link']
         for joint in robot.findall('joint')
     }
-    assert child_links == links - {'base_footprint'}
+    assert child_links == links - {'base_link'}
     assert all(joint.find('parent') is not None for joint in robot.findall('joint'))
+    footprint_joint = robot.find("joint[@name='base_footprint_joint']")
+    assert footprint_joint.find('parent').attrib['link'] == 'base_link'
+    assert footprint_joint.find('child').attrib['link'] == 'base_footprint'
+    assert robot.find("link[@name='base_link']/inertial") is None
+    assert robot.find("link[@name='base_chassis_link']/inertial") is not None
     assert 'gps' not in ElementTree.tostring(robot, encoding='unicode').lower()
     assert robot.findall('.//plugin') == []
 

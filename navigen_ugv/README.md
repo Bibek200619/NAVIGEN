@@ -80,13 +80,16 @@ colcon test && colcon test-result --verbose
 
 ## 8. Gazebo Simulation
 
-Phase 2 provides these commands. Until Phase 2 is marked green in
-[PROJECT_PROGRESS.md](PROJECT_PROGRESS.md), the launch file is intentionally unavailable.
-
 ```bash
 ros2 launch navigen_bringup sim.launch.py            # world + robot + bridge + RViz
 ros2 launch navigen_bringup sim.launch.py rviz:=false
+ros2 launch navigen_bringup sim.launch.py headless:=true rviz:=false
 ```
+
+For a container or machine without GPU access, add `software_rendering:=true`. The launch file
+also accepts `world`, `world_name`, `spawn_x`, `spawn_y`, `spawn_z`, `spawn_yaw`, `headless`,
+`rviz`, and `gz_verbosity`. The supplied outdoor world is self-contained and requires no model
+downloads.
 
 ## 9. Teleoperation
 
@@ -176,7 +179,7 @@ The detailed evidence and activity log are maintained in [PROJECT_PROGRESS.md](P
 | Phase | Scope | Status |
 |---|---|---|
 | 1 | Repo, packages, URDF, TF, config | ✅ Green (`787917e`) |
-| 2 | Gazebo sim + teleop | ⬜ Incomplete |
+| 2 | Gazebo sim + teleop | 🚧 Integration implemented; final gate pending |
 | 3 | Nav2 point-to-point (sim) | ⬜ |
 | 4 | ESP32 firmware + serial bridge | ⬜ |
 | 5 | Real teleop | ⬜ |

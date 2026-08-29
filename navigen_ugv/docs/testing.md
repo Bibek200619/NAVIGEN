@@ -21,9 +21,11 @@ colcon test
 colcon test-result --verbose
 ```
 
-Current Phase 1 coverage validates xacro expansion, the static TF/link tree, four wheel joints,
-simulation plugin/sensor inclusion, and the no-GPS invariant. Later phase tests are added only
-with their implementations: kinematics/serial in Phase 4, perception in Phase 7, and safety in
+Current coverage validates xacro expansion, the static TF/link tree, four wheel joints,
+simulation plugin/sensor inclusion, the no-GPS invariant, world/bridge assets, and a live
+headless Gazebo test. The live test waits for camera, camera info, IMU, wheel odometry, joint
+states, clock and odometry TF, then commands 0.2 m/s and requires at least 0.15 m of odometry
+motion. Later phase tests add kinematics/serial in Phase 4, perception in Phase 7, and safety in
 Phase 10.
 
 ## Mock hardware mode (available after Phase 4)
@@ -36,11 +38,20 @@ ros2 topic pub -r 10 /cmd_vel_nav geometry_msgs/msg/Twist '{linear: {x: 0.2}}'
 ros2 topic echo /motor/telemetry
 ```
 
-## Simulation smoke test (available after Phase 2)
+## Simulation smoke test
 
 ```bash
 ros2 launch navigen_bringup sim.launch.py
 ./scripts/teleop.sh    # drive around, verify /wheel/odom, /imu/data, /camera/image_raw, TF
+
+# Headless / CI:
+ros2 launch navigen_bringup sim.launch.py \
+  headless:=true software_rendering:=true rviz:=false
+
+# Run only the automated live simulation gate:
+colcon test --packages-select navigen_bringup \
+  --ctest-args -R test_test_simulation.launch.py
+colcon test-result --verbose
 ```
 
 ## Bag replay debugging

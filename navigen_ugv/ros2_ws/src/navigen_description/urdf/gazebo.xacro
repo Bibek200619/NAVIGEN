@@ -1,6 +1,7 @@
 <?xml version="1.0"?>
 <!-- Gazebo Harmonic (gz-sim) plugins and sensors. Only included when use_sim:=true. -->
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+  <xacro:property name="sim_cfg" value="${xacro.load_yaml('$(find navigen_description)/config/simulation.yaml')}"/>
 
   <gazebo>
     <!-- 4WD skid-steer: both joints per side driven together -->
@@ -16,36 +17,71 @@
       <tf_topic>/model/navigen/tf</tf_topic>
       <frame_id>odom</frame_id>
       <child_frame_id>base_link</child_frame_id>
-      <odom_publish_frequency>50</odom_publish_frequency>
+      <odom_publish_frequency>${sim_cfg['motion']['odom_publish_frequency']}</odom_publish_frequency>
+      <max_linear_velocity>${sim_cfg['motion']['max_linear_velocity']}</max_linear_velocity>
+      <min_linear_velocity>${-sim_cfg['motion']['max_linear_velocity']}</min_linear_velocity>
+      <max_angular_velocity>${sim_cfg['motion']['max_angular_velocity']}</max_angular_velocity>
+      <min_angular_velocity>${-sim_cfg['motion']['max_angular_velocity']}</min_angular_velocity>
+      <max_linear_acceleration>${sim_cfg['motion']['max_linear_acceleration']}</max_linear_acceleration>
+      <min_linear_acceleration>${-sim_cfg['motion']['max_linear_acceleration']}</min_linear_acceleration>
+      <max_angular_acceleration>${sim_cfg['motion']['max_angular_acceleration']}</max_angular_acceleration>
+      <min_angular_acceleration>${-sim_cfg['motion']['max_angular_acceleration']}</min_angular_acceleration>
     </plugin>
     <plugin filename="gz-sim-joint-state-publisher-system" name="gz::sim::systems::JointStatePublisher">
       <topic>/joint_states</topic>
+      <update_rate>${sim_cfg['joint_states']['update_rate']}</update_rate>
     </plugin>
   </gazebo>
 
   <gazebo reference="camera_link">
     <sensor name="rgb_camera" type="camera">
-      <update_rate>15</update_rate>
+      <always_on>true</always_on>
+      <update_rate>${sim_cfg['camera']['update_rate']}</update_rate>
       <topic>/camera/image_raw</topic>
-      <gz_frame_id>camera_link</gz_frame_id>
+      <gz_frame_id>camera_optical_frame</gz_frame_id>
       <camera>
-        <horizontal_fov>1.25</horizontal_fov>
-        <image><width>640</width><height>480</height><format>R8G8B8</format></image>
-        <clip><near>0.05</near><far>50.0</far></clip>
+        <horizontal_fov>${sim_cfg['camera']['horizontal_fov']}</horizontal_fov>
+        <image>
+          <width>${sim_cfg['camera']['width']}</width>
+          <height>${sim_cfg['camera']['height']}</height>
+          <format>R8G8B8</format>
+        </image>
+        <clip>
+          <near>${sim_cfg['camera']['near_clip']}</near>
+          <far>${sim_cfg['camera']['far_clip']}</far>
+        </clip>
+        <noise>
+          <type>gaussian</type>
+          <mean>${sim_cfg['camera']['gaussian_noise_mean']}</mean>
+          <stddev>${sim_cfg['camera']['gaussian_noise_stddev']}</stddev>
+        </noise>
       </camera>
     </sensor>
   </gazebo>
 
   <gazebo reference="imu_link">
     <sensor name="imu_sensor" type="imu">
-      <update_rate>100</update_rate>
+      <always_on>true</always_on>
+      <update_rate>${sim_cfg['imu']['update_rate']}</update_rate>
       <topic>/imu/data</topic>
       <gz_frame_id>imu_link</gz_frame_id>
+      <imu>
+        <angular_velocity>
+          <x><noise type="gaussian"><mean>${sim_cfg['imu']['gaussian_noise_mean']}</mean><stddev>${sim_cfg['imu']['gaussian_noise_stddev']}</stddev></noise></x>
+          <y><noise type="gaussian"><mean>${sim_cfg['imu']['gaussian_noise_mean']}</mean><stddev>${sim_cfg['imu']['gaussian_noise_stddev']}</stddev></noise></y>
+          <z><noise type="gaussian"><mean>${sim_cfg['imu']['gaussian_noise_mean']}</mean><stddev>${sim_cfg['imu']['gaussian_noise_stddev']}</stddev></noise></z>
+        </angular_velocity>
+        <linear_acceleration>
+          <x><noise type="gaussian"><mean>${sim_cfg['imu']['gaussian_noise_mean']}</mean><stddev>${sim_cfg['imu']['gaussian_noise_stddev']}</stddev></noise></x>
+          <y><noise type="gaussian"><mean>${sim_cfg['imu']['gaussian_noise_mean']}</mean><stddev>${sim_cfg['imu']['gaussian_noise_stddev']}</stddev></noise></y>
+          <z><noise type="gaussian"><mean>${sim_cfg['imu']['gaussian_noise_mean']}</mean><stddev>${sim_cfg['imu']['gaussian_noise_stddev']}</stddev></noise></z>
+        </linear_acceleration>
+      </imu>
     </sensor>
   </gazebo>
 
-  <gazebo reference="front_left_wheel_link"><mu1>1.2</mu1><mu2>0.9</mu2></gazebo>
-  <gazebo reference="front_right_wheel_link"><mu1>1.2</mu1><mu2>0.9</mu2></gazebo>
-  <gazebo reference="rear_left_wheel_link"><mu1>1.2</mu1><mu2>0.9</mu2></gazebo>
-  <gazebo reference="rear_right_wheel_link"><mu1>1.2</mu1><mu2>0.9</mu2></gazebo>
+  <gazebo reference="front_left_wheel_link"><mu1>${sim_cfg['wheel_friction']['longitudinal']}</mu1><mu2>${sim_cfg['wheel_friction']['lateral']}</mu2></gazebo>
+  <gazebo reference="front_right_wheel_link"><mu1>${sim_cfg['wheel_friction']['longitudinal']}</mu1><mu2>${sim_cfg['wheel_friction']['lateral']}</mu2></gazebo>
+  <gazebo reference="rear_left_wheel_link"><mu1>${sim_cfg['wheel_friction']['longitudinal']}</mu1><mu2>${sim_cfg['wheel_friction']['lateral']}</mu2></gazebo>
+  <gazebo reference="rear_right_wheel_link"><mu1>${sim_cfg['wheel_friction']['longitudinal']}</mu1><mu2>${sim_cfg['wheel_friction']['lateral']}</mu2></gazebo>
 </robot>

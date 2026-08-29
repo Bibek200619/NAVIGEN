@@ -23,14 +23,16 @@
 ## TF tree
 
 ```
-map → odom → base_footprint → base_link
+map → odom → base_link
+  base_link → base_footprint / base_chassis_link
   base_link → camera_link → camera_optical_frame
   base_link → imu_link
   base_link → ultrasonic_left_link / ultrasonic_right_link
   base_link → {front,rear}_{left,right}_wheel_link
 ```
 
-- `odom → base_*`: Gazebo DiffDrive plugin (sim, Phases 2-5) then robot_localization EKF (Phase 6+; disable the plugin TF bridge then).
+- `odom → base_link`: Gazebo DiffDrive plugin in simulation, then robot_localization EKF on
+  hardware (Phase 6+). Only one source may publish this transform at a time.
 - `map → odom`: ORB-SLAM3 adapter (Phase 8).
 - All sensor transforms come from `navigen_description/config/vehicle.yaml` — never hard-coded.
 
@@ -54,6 +56,15 @@ map → odom → base_footprint → base_link
 | /safety/e_stop | std_msgs/Bool | operator / GUI |
 | /safety/state | navigen_interfaces/SafetyState | safety supervisor |
 | /slam/tracking_state | navigen_interfaces/TrackingState | ORB-SLAM3 adapter |
+
+## Phase 2 simulation contract
+
+`navigen_bringup/sim.launch.py` expands the same robot xacro used by real mode, starts Gazebo
+Harmonic, spawns the model, starts `robot_state_publisher`, bridges simulation transport, and
+optionally opens RViz. The bridge directions are deliberate: `/cmd_vel` flows ROS→Gazebo;
+clock, wheel odometry, odometry TF, joint states, image, camera info, and IMU flow Gazebo→ROS.
+The world uses only inline primitives so test and demo startup never depends on an internet
+connection.
 
 Class ids in `/traversability/mask`: 0=UNKNOWN, 1=TRAVERSABLE, 2=NON_TRAVERSABLE, 3=OBSTACLE.
 
