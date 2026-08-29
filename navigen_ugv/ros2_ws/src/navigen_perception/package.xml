@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>navigen_perception</name>
+  <version>0.1.0</version>
+  <description>Camera-first traversability perception and obstacle detection adapters.</description>
+  <maintainer email="team@navigen.local">NAVIGEN Team</maintainer>
+  <license>MIT</license>
+
+  <test_depend>python3-pytest</test_depend>
+
+  <export>
+    <build_type>ament_python</build_type>
+  </export>
+</package>
