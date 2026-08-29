@@ -26,3 +26,6 @@ rosbags/
 # Editors
 .vscode/
 .idea/
+
+# Local codebase analysis artifacts
+graphify-out/

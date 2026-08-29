@@ -1,0 +1,47 @@
+<?xml version="1.0"?>
+<!-- Sensor links/frames. All poses come from vehicle.yaml (properties inherited from navigen.urdf.xacro). -->
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <link name="camera_link">
+    <visual>
+      <geometry><box size="0.03 0.09 0.03"/></geometry>
+      <material name="sensor"><color rgba="0.2 0.2 0.2 1.0"/></material>
+    </visual>
+  </link>
+  <joint name="camera_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="camera_link"/>
+    <origin xyz="${cfg['camera']['x']} ${cfg['camera']['y']} ${chassis_top + cfg['camera']['z_above_chassis']}"
+            rpy="${cfg['camera']['roll']} ${cfg['camera']['pitch']} ${cfg['camera']['yaw']}"/>
+  </joint>
+
+  <!-- REP-103 optical frame (z forward, x right, y down) for vision pipelines -->
+  <link name="camera_optical_frame"/>
+  <joint name="camera_optical_joint" type="fixed">
+    <parent link="camera_link"/>
+    <child link="camera_optical_frame"/>
+    <origin xyz="0 0 0" rpy="${-pi/2} 0 ${-pi/2}"/>
+  </joint>
+
+  <link name="imu_link"/>
+  <joint name="imu_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="imu_link"/>
+    <origin xyz="${cfg['imu']['x']} ${cfg['imu']['y']} ${chassis_top + cfg['imu']['z']}"
+            rpy="${cfg['imu']['roll']} ${cfg['imu']['pitch']} ${cfg['imu']['yaw']}"/>
+  </joint>
+
+  <xacro:macro name="ultrasonic" params="side y yaw">
+    <link name="ultrasonic_${side}_link"/>
+    <joint name="ultrasonic_${side}_joint" type="fixed">
+      <parent link="base_link"/>
+      <child link="ultrasonic_${side}_link"/>
+      <origin xyz="${cfg['ultrasonic']['x']} ${y} ${chassis_bottom + cfg['ultrasonic']['z']}"
+              rpy="${cfg['ultrasonic']['roll']} ${cfg['ultrasonic']['pitch']} ${yaw}"/>
+    </joint>
+  </xacro:macro>
+  <xacro:ultrasonic side="left" y="${cfg['ultrasonic']['y_offset']}"
+                      yaw="${cfg['ultrasonic']['left_yaw']}"/>
+  <xacro:ultrasonic side="right" y="${-cfg['ultrasonic']['y_offset']}"
+                      yaw="${cfg['ultrasonic']['right_yaw']}"/>
+</robot>

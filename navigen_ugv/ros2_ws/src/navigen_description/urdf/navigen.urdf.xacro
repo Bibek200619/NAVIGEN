@@ -1,0 +1,92 @@
+<?xml version="1.0"?>
+<!-- NAVIGEN 4WD skid-steer UGV. All geometry comes from config/vehicle.yaml. -->
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="navigen">
+  <xacro:arg name="use_sim" default="false"/>
+  <xacro:property name="cfg" value="${xacro.load_yaml('$(find navigen_description)/config/vehicle.yaml')}"/>
+
+  <xacro:property name="cl" value="${cfg['chassis']['length']}"/>
+  <xacro:property name="cw" value="${cfg['chassis']['width']}"/>
+  <xacro:property name="ch" value="${cfg['chassis']['height']}"/>
+  <xacro:property name="cm" value="${cfg['chassis']['mass']}"/>
+  <xacro:property name="wr" value="${cfg['wheel']['radius']}"/>
+  <xacro:property name="ww" value="${cfg['wheel']['width']}"/>
+  <xacro:property name="wm" value="${cfg['wheel']['mass']}"/>
+  <xacro:property name="track" value="${cfg['track_width']}"/>
+  <xacro:property name="wbase" value="${cfg['wheel_base']}"/>
+  <xacro:property name="clearance" value="${cfg['ground_clearance']}"/>
+  <!-- base_link origin is at wheel axle height -->
+  <xacro:property name="chassis_bottom" value="${clearance - wr}"/>
+  <xacro:property name="chassis_top" value="${chassis_bottom + ch}"/>
+
+  <!-- base_link is the moving TF root. Keeping base_footprint below it avoids
+       giving base_link two parents when odometry publishes odom -> base_link. -->
+  <link name="base_footprint"/>
+  <joint name="base_footprint_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="base_footprint"/>
+    <origin xyz="0 0 ${-wr}" rpy="0 0 0"/>
+  </joint>
+
+  <!-- KDL requires a massless root. Physical chassis properties live on a
+       fixed child while odometry and the public TF contract use base_link. -->
+  <link name="base_link"/>
+  <link name="base_chassis_link">
+    <visual>
+      <origin xyz="0 0 ${chassis_bottom + ch/2}"/>
+      <geometry><box size="${cl} ${cw} ${ch}"/></geometry>
+      <material name="body"><color rgba="0.12 0.35 0.65 1.0"/></material>
+    </visual>
+    <collision>
+      <origin xyz="0 0 ${chassis_bottom + ch/2}"/>
+      <geometry><box size="${cl} ${cw} ${ch}"/></geometry>
+    </collision>
+    <inertial>
+      <origin xyz="0 0 ${chassis_bottom + ch/2}"/>
+      <mass value="${cm}"/>
+      <inertia ixx="${cm/12.0*(cw*cw+ch*ch)}" iyy="${cm/12.0*(cl*cl+ch*ch)}"
+               izz="${cm/12.0*(cl*cl+cw*cw)}" ixy="0" ixz="0" iyz="0"/>
+    </inertial>
+  </link>
+  <joint name="base_chassis_joint" type="fixed">
+    <parent link="base_link"/>
+    <child link="base_chassis_link"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+  </joint>
+
+  <xacro:macro name="wheel" params="prefix x y">
+    <link name="${prefix}_wheel_link">
+      <visual>
+        <origin rpy="${pi/2} 0 0"/>
+        <geometry><cylinder radius="${wr}" length="${ww}"/></geometry>
+        <material name="tire"><color rgba="0.08 0.08 0.08 1.0"/></material>
+      </visual>
+      <collision>
+        <origin rpy="${pi/2} 0 0"/>
+        <geometry><cylinder radius="${wr}" length="${ww}"/></geometry>
+      </collision>
+      <inertial>
+        <origin rpy="${pi/2} 0 0"/>
+        <mass value="${wm}"/>
+        <inertia ixx="${wm/12.0*(3*wr*wr+ww*ww)}" iyy="${wm/12.0*(3*wr*wr+ww*ww)}"
+                 izz="${wm*wr*wr/2.0}" ixy="0" ixz="0" iyz="0"/>
+      </inertial>
+    </link>
+    <joint name="${prefix}_wheel_joint" type="continuous">
+      <parent link="base_link"/>
+      <child link="${prefix}_wheel_link"/>
+      <origin xyz="${x} ${y} 0" rpy="0 0 0"/>
+      <axis xyz="0 1 0"/>
+    </joint>
+  </xacro:macro>
+
+  <xacro:wheel prefix="front_left"  x="${wbase/2}"  y="${track/2}"/>
+  <xacro:wheel prefix="front_right" x="${wbase/2}"  y="${-track/2}"/>
+  <xacro:wheel prefix="rear_left"   x="${-wbase/2}" y="${track/2}"/>
+  <xacro:wheel prefix="rear_right"  x="${-wbase/2}" y="${-track/2}"/>
+
+  <xacro:include filename="$(find navigen_description)/urdf/sensors.xacro"/>
+
+  <xacro:if value="$(arg use_sim)">
+    <xacro:include filename="$(find navigen_description)/urdf/gazebo.xacro"/>
+  </xacro:if>
+</robot>
