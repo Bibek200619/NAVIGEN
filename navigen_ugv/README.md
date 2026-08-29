@@ -179,7 +179,7 @@ The detailed evidence and activity log are maintained in [PROJECT_PROGRESS.md](P
 | Phase | Scope | Status |
 |---|---|---|
 | 1 | Repo, packages, URDF, TF, config | ✅ Green (`787917e`) |
-| 2 | Gazebo sim + teleop | 🚧 Integration implemented; final gate pending |
+| 2 | Gazebo sim + teleop | ✅ Green (`edd8468`) |
 | 3 | Nav2 point-to-point (sim) | ⬜ |
 | 4 | ESP32 firmware + serial bridge | ⬜ |
 | 5 | Real teleop | ⬜ |
