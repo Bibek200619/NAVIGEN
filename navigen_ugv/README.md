@@ -91,6 +91,13 @@ also accepts `world`, `world_name`, `spawn_x`, `spawn_y`, `spawn_z`, `spawn_yaw`
 `rviz`, and `gz_verbosity`. The supplied outdoor world is self-contained and requires no model
 downloads.
 
+Phase 3 autonomous point-to-point simulation:
+
+```bash
+ros2 launch navigen_navigation nav2_sim.launch.py
+# Select Nav2 Goal in RViz and click a free point in the known local map.
+```
+
 ## 9. Teleoperation
 
 ```bash
@@ -146,11 +153,13 @@ ORB-SLAM3 will be integrated through an adapter and never vendored. Preferred mo
 fallback Mono+IMU. Phase 8 will add tested installation and licensing instructions to
 `ros2_ws/src/navigen_localization/README.md`.
 
-## 17. Nav2 Setup (Phase 3)
+## 17. Nav2 Setup
 
-Phase 3 will configure SmacPlanner2D + RegulatedPurePursuitController in
-`ros2_ws/src/navigen_navigation/`; Collision Monitor is gated in Phase 10. Goals use
-`geometry_msgs/PoseStamped` in the local map frame.
+Phase 3 provides SmacPlanner2D + RegulatedPurePursuitController, a Gazebo-aligned known map,
+static/inflation costmaps, recovery behavior tree, lifecycle launch, and an RViz Nav2 goal tool.
+Run `ros2 launch navigen_navigation nav2_sim.launch.py`; goals are `PoseStamped` values in
+`map`. The temporary identity `map → odom` publisher is simulation-only and must be disabled
+when Phase 8 visual localization is active. Collision Monitor remains gated to Phase 10.
 
 ## 18. Autonomous Demo (Phase 11 acceptance target)
 
@@ -180,7 +189,7 @@ The detailed evidence and activity log are maintained in [PROJECT_PROGRESS.md](P
 |---|---|---|
 | 1 | Repo, packages, URDF, TF, config | ✅ Green (`787917e`) |
 | 2 | Gazebo sim + teleop | ✅ Green (`edd8468`) |
-| 3 | Nav2 point-to-point (sim) | ⬜ |
+| 3 | Nav2 point-to-point (sim) | ✅ Green (see `PROJECT_PROGRESS.md`) |
 | 4 | ESP32 firmware + serial bridge | ⬜ |
 | 5 | Real teleop | ⬜ |
 | 6 | Wheel odom + IMU + EKF | ⬜ |

@@ -169,7 +169,8 @@ bt_navigator:
     odom_topic: /wheel/odom
     transform_tolerance: 0.20
     bt_loop_duration: 10
-    default_server_timeout: 20
+    # Milliseconds. The upstream 20 ms default is too brittle under Pi/CI load.
+    default_server_timeout: 1000
     wait_for_service_timeout: 2000
     action_server_result_timeout: 120.0
     navigators: ["navigate_to_pose"]

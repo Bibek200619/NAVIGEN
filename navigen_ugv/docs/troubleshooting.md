@@ -8,6 +8,10 @@
 | Headless Gazebo cannot initialize rendering | Add `headless:=true software_rendering:=true rviz:=false`; verify Mesa/EGL packages are installed |
 | Custom world loads but robot does not spawn | Set `world_name:=<name-inside-sdf>` as well as `world:=/absolute/path/world.sdf` |
 | TF errors `odom → base_link missing` | In sim: check the DiffDrive `tf_topic` bridge entry; on real hardware: EKF is not running (Phase 6) |
+| Nav2 goal tool says server unavailable | Wait for lifecycle activation; inspect `ros2 lifecycle get /bt_navigator` and map/controller/planner logs |
+| Nav2 reports start or goal occupied | Confirm the selected goal is inside `navigen_outdoor.yaml`; view `/global_costmap/costmap` and avoid black/inflated cells |
+| Nav2 has `map → odom` TF conflicts | Phase 3 bootstrap and localization are both running; relaunch with `publish_map_to_odom:=false` when SLAM owns the transform |
+| Nav2 runs but simulation does not advance | Verify `/clock` is live and every Nav2 node has `use_sim_time:=true` |
 | Serial permission denied | `sudo usermod -aG dialout $USER` and re-login |
 | ESP32 telemetry garbage | Baud mismatch; check CRC error counter in bridge log |
 | Motors stop every ~300 ms | Watchdog: command rate too low — bridge must send ≥ 20 Hz |

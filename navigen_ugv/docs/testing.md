@@ -22,11 +22,12 @@ colcon test-result --verbose
 ```
 
 Current coverage validates xacro expansion, the static TF/link tree, four wheel joints,
-simulation plugin/sensor inclusion, the no-GPS invariant, world/bridge assets, and a live
-headless Gazebo test. The live test waits for camera, camera info, IMU, wheel odometry, joint
-states, clock and odometry TF, then commands 0.2 m/s and requires at least 0.15 m of odometry
-motion. Later phase tests add kinematics/serial in Phase 4, perception in Phase 7, and safety in
-Phase 10.
+simulation plugin/sensor inclusion, the no-GPS invariant, world/bridge assets, and two live
+headless Gazebo gates. The Phase 2 test checks sensor/odometry topics and bounded teleoperation.
+The Phase 3 test activates the complete Nav2 lifecycle, sends a 7 m `NavigateToPose` goal,
+requires Smac's path to deviate around the mapped central obstacle, verifies command limits,
+checks arrival tolerance, and requires a final zero command. Later phase tests add
+kinematics/serial in Phase 4, perception in Phase 7, and safety in Phase 10.
 
 ## Mock hardware mode (available after Phase 4)
 
@@ -53,6 +54,24 @@ colcon test --packages-select navigen_bringup \
   --ctest-args -R test_test_simulation.launch.py
 colcon test-result --verbose
 ```
+
+## Autonomous Nav2 simulation
+
+```bash
+ros2 launch navigen_navigation nav2_sim.launch.py
+
+# In another sourced terminal (equivalent to clicking Nav2 Goal in RViz):
+ros2 action send_goal /navigate_to_pose nav2_msgs/action/NavigateToPose \
+  "{pose: {header: {frame_id: map}, pose: {position: {x: 7.0, y: 0.0}, orientation: {w: 1.0}}}}"
+
+# Headless Phase 3 acceptance test only:
+colcon test --packages-select navigen_navigation \
+  --ctest-args -R test_test_navigation.launch.py
+colcon test-result --verbose
+```
+
+Do not start `navigation.launch.py` with `publish_map_to_odom:=true` if visual SLAM or another
+localization source is already publishing `map → odom`.
 
 ## Bag replay debugging
 

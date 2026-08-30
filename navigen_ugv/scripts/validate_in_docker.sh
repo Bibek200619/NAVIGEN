@@ -17,8 +17,9 @@ docker run --rm \
   bash -lc '
     source /opt/ros/jazzy/setup.bash
     set -eo pipefail
-    cp -a /repository/navigen_ugv/ros2_ws /tmp/navigen_ros2_ws
-    cd /tmp/navigen_ros2_ws
+    NAVIGEN_TEST_WS=$(mktemp -d)
+    cp -a /repository/navigen_ugv/ros2_ws/src "${NAVIGEN_TEST_WS}/src"
+    cd "${NAVIGEN_TEST_WS}"
     colcon build --symlink-install --event-handlers console_direct+
     source install/setup.bash
     set -u
