@@ -109,22 +109,25 @@ the physical target. Both consume the same `/cmd_vel` interface.
 
 ## 10. ESP32 Flashing
 
-Phase 4 implements and validates the firmware. The current board configuration is deliberately
-unarmed; do not flash it expecting motor control yet.
+Phase 4 provides tested firmware and the ROS bridge. The checked-in board configuration is
+deliberately unarmed: fill and verify every required pin, calibration, limit, and PID value before
+expecting propulsion.
 
 ```bash
 cd firmware/esp32_motor_controller
-# 1. Fill include/board_config.h (pins, PID, wheel geometry)
-pio run -t upload            # PlatformIO; see firmware README
+# 1. Fill include/board_config.h (pins, encoders, PID, geometry, safety)
+../../scripts/validate_firmware.sh
+pio run -t upload            # physical flash; see firmware README safety procedure
 ```
 
 ## 11. Real UGV Launch
 
-This is the Phase 5 target interface and is not available before the hardware and safety gates.
+The serial bridge is available now; complete physical-UGV composition remains the Phase 5 gate.
 
 ```bash
-ros2 launch navigen_bringup real.launch.py serial_port:=/dev/ttyUSB0
-ros2 launch navigen_bringup real.launch.py mock_hardware:=true   # no hardware needed
+ros2 launch navigen_hardware esp32_bridge.launch.py \
+  serial_port:=/dev/ttyUSB0 baud_rate:=115200
+ros2 launch navigen_hardware esp32_bridge.launch.py mock_hardware:=true
 ```
 
 ## 12. Camera Calibration
@@ -190,7 +193,7 @@ The detailed evidence and activity log are maintained in [PROJECT_PROGRESS.md](P
 | 1 | Repo, packages, URDF, TF, config | ✅ Green (`787917e`) |
 | 2 | Gazebo sim + teleop | ✅ Green (`edd8468`) |
 | 3 | Nav2 point-to-point (sim) | ✅ Green (see `PROJECT_PROGRESS.md`) |
-| 4 | ESP32 firmware + serial bridge | ⬜ |
+| 4 | ESP32 firmware + serial bridge | ✅ Green (see `PROJECT_PROGRESS.md`) |
 | 5 | Real teleop | ⬜ |
 | 6 | Wheel odom + IMU + EKF | ⬜ |
 | 7 | Camera + perception | ⬜ |

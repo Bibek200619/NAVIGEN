@@ -7,6 +7,7 @@ RUN apt-get update \
         liburdfdom-tools \
         python3-colcon-common-extensions \
         python3-pytest \
+        python3-serial \
         ros-jazzy-ament-cmake-pytest \
         ros-jazzy-joint-state-publisher \
         ros-jazzy-joint-state-publisher-gui \

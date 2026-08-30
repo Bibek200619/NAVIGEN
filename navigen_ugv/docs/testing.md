@@ -26,16 +26,30 @@ simulation plugin/sensor inclusion, the no-GPS invariant, world/bridge assets, a
 headless Gazebo gates. The Phase 2 test checks sensor/odometry topics and bounded teleoperation.
 The Phase 3 test activates the complete Nav2 lifecycle, sends a 7 m `NavigateToPose` goal,
 requires Smac's path to deviate around the mapped central obstacle, verifies command limits,
-checks arrival tolerance, and requires a final zero command. Later phase tests add
-kinematics/serial in Phase 4, perception in Phase 7, and safety in Phase 10.
+checks arrival tolerance, and requires a final zero command. Phase 4 adds protocol/CRC/sequence,
+kinematics, encoder conversion, PID, watchdog, reconnect, mock-controller, and ROS bridge tests.
+Later phases add perception in Phase 7 and full safety arbitration in Phase 10.
 
-## Mock hardware mode (available after Phase 4)
+## Phase 4 firmware and mock hardware
+
+Compile native protocol/control tests and the pinned ESP32 target:
+
+```bash
+./scripts/validate_firmware.sh
+```
+
+Run only the ROS bridge tests after building/sourcing the workspace:
+
+```bash
+colcon test --packages-select navigen_hardware
+colcon test-result --verbose
+```
 
 The whole workspace runs without any hardware:
 
 ```bash
-ros2 launch navigen_bringup real.launch.py mock_hardware:=true
-ros2 topic pub -r 10 /cmd_vel_nav geometry_msgs/msg/Twist '{linear: {x: 0.2}}'
+ros2 launch navigen_hardware esp32_bridge.launch.py mock_hardware:=true
+ros2 topic pub -r 20 /cmd_vel geometry_msgs/msg/Twist '{linear: {x: 0.2}}'
 ros2 topic echo /motor/telemetry
 ```
 

@@ -22,15 +22,22 @@
 
 ## Encoders
 
-1. `ticks_per_revolution = encoder CPR × gear ratio × quadrature factor (4)`.
-2. In Phase 4, set it in `navigen_hardware/config/hardware.yaml` AND `board_config.h`.
+1. Determine the **decoded ticks at the gearbox output shaft** for one wheel revolution. Encoder
+   datasheets use CPR/PPR inconsistently, so do not multiply by four unless the quoted value is
+   explicitly single-channel cycles before quadrature decoding.
+2. Set the measured value in `navigen_hardware/config/hardware.yaml` and `TICKS_PER_REV` in
+   `firmware/esp32_motor_controller/include/board_config.h`.
 3. Validate: push the UGV exactly 1.000 m; integrated `/wheel/odom` should read 1.00 ± 0.02 m.
 4. Rotate the UGV 360° in place; adjust `track_width` (effective, usually slightly larger than
    measured for skid-steer) until yaw matches.
+5. Keep `wheel_radius` and `track_width` identical in the ROS and firmware configs. Reverse wheel
+   direction only through the per-motor/per-encoder inversion switches.
 
 ## Wheel PID (ESP32)
 
-1. Wheels off the ground. Command a velocity step (e.g. 0.3 m/s) via the bridge.
+1. Wheels off the ground. Begin with a velocity step <=0.1 m/s through the bridge, then increase
+   only after direction, encoder sign, e-stop, and watchdog checks pass.
 2. Plot `/motor/telemetry` setpoint vs measured.
 3. Raise Kp until fast response with slight overshoot, add Ki to remove steady-state error,
-   small Kd only if oscillating. Tune each side independently, then re-verify on the ground.
+   small Kd only if oscillating. Tune `LEFT_PID_*` and `RIGHT_PID_*` independently, then re-verify
+   at low speed on the ground. Never tune with the robot restrained by hand.
