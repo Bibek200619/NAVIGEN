@@ -28,7 +28,9 @@ The Phase 3 test activates the complete Nav2 lifecycle, sends a 7 m `NavigateToP
 requires Smac's path to deviate around the mapped central obstacle, verifies command limits,
 checks arrival tolerance, and requires a final zero command. Phase 4 adds protocol/CRC/sequence,
 kinematics, encoder conversion, PID, watchdog, reconnect, mock-controller, and ROS bridge tests.
-Later phases add perception in Phase 7 and full safety arbitration in Phase 10.
+Phase 5 adds a no-Gazebo real-launch gate that proves startup inhibition, explicit release,
+bounded mock motion, encoder odometry, TF, and e-stop override. Later phases add perception in
+Phase 7 and full safety arbitration in Phase 10.
 
 ## Phase 4 firmware and mock hardware
 
@@ -52,6 +54,24 @@ ros2 launch navigen_hardware esp32_bridge.launch.py mock_hardware:=true
 ros2 topic pub -r 20 /cmd_vel geometry_msgs/msg/Twist '{linear: {x: 0.2}}'
 ros2 topic echo /motor/telemetry
 ```
+
+## Phase 5 physical-mode software gate
+
+```bash
+ros2 launch navigen_bringup real.launch.py mock_hardware:=true rviz:=false
+./scripts/estop.sh release --confirm
+./scripts/teleop.sh
+./scripts/estop.sh engage
+
+# Focused automated gate:
+colcon test --packages-select navigen_bringup \
+  --ctest-args -R 'test_real_bringup'
+colcon test-result --verbose
+```
+
+This proves the software command chain but does not certify motor wiring, encoder polarity,
+physical e-stop wiring, USB-loss stopping time, or chassis behavior. Complete and record the
+lifted-wheel procedure in [hardware.md](hardware.md) before marking Phase 5 green.
 
 ## Simulation smoke test
 

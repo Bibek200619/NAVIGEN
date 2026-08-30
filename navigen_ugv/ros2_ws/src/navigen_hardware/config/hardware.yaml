@@ -2,6 +2,8 @@ esp32_bridge:
   ros__parameters:
     # Set true for development/CI. Real mode refuses to start until encoder calibration is set.
     mock_hardware: false
+    # Real launch keeps propulsion inhibited until an operator explicitly publishes false.
+    start_with_software_estop: true
     serial_port: /dev/ttyUSB0
     baud_rate: 115200
     reconnect_interval_s: 1.0

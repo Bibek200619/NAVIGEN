@@ -73,13 +73,53 @@ Set geometry, encoder calibration, limits, timeouts, and serial settings in
 `ticks_per_revolution` is zero. Hardware-free mode uses the same packet encoder/parser:
 
 ```bash
-ros2 launch navigen_hardware esp32_bridge.launch.py mock_hardware:=true
+ros2 launch navigen_bringup real.launch.py mock_hardware:=true rviz:=false
+./scripts/estop.sh release --confirm
 ros2 topic pub -r 20 /cmd_vel geometry_msgs/msg/Twist '{linear: {x: 0.2}}'
 ros2 topic echo /motor/telemetry
 ros2 topic echo /wheel/odom
 ros2 topic echo /diagnostics
-ros2 topic pub --once /safety/e_stop std_msgs/msg/Bool '{data: true}'
+./scripts/estop.sh engage
 ```
 
 Published outputs are `/motor/telemetry`, `/wheel/odom`, `/battery`, both front ultrasonic `Range`
 topics, and `/diagnostics`. Do not run `pio device monitor` while the bridge owns the serial port.
+
+## First physical teleoperation gate
+
+Do not perform this gate alone. One person operates commands while another remains beside the
+physical e-stop. Keep the chassis securely on stands with every wheel clear of the floor.
+
+Preparation:
+
+1. Fill and peer-review `board_config.h`; the checked-in `-1`/`0.0` defaults deliberately keep
+   propulsion invalid. Keep motor power disconnected and flash only after
+   `./scripts/validate_firmware.sh` passes.
+2. Enter measured `ticks_per_revolution`, wheel radius, track width, speed/acceleration limits,
+   and serial settings in `navigen_hardware/config/hardware.yaml`. Keep first-test limits at or
+   below 0.10 m/s linear and 0.30 rad/s angular.
+3. Keep the matching geometry in `navigen_description/config/vehicle.yaml`; do not copy the
+   simulation defaults as measurements.
+4. On the Pi, add the operator to `dialout`, re-login, and identify the stable ESP32 path with
+   `ls -l /dev/serial/by-id/`. Never depend on a changing `/dev/ttyUSB0` name for the demo.
+
+Lifted-wheel sequence:
+
+1. Engage the physical e-stop, disconnect motor power, and connect ESP32 USB.
+2. Launch `real.launch.py` with the stable serial path. Do not release software e-stop yet.
+3. Confirm `/motor/telemetry` reports `serial_connected=true`, `configuration_valid=true`, zero
+   wheel velocities, and `estop_active=true`; confirm `/diagnostics` has no transport error.
+4. Apply motor power while the physical e-stop remains engaged. Verify no wheel moves.
+5. Release the physical e-stop; software e-stop must still prevent motion.
+6. Run `./scripts/estop.sh release --confirm`, then `./scripts/teleop.sh`. Command each side and
+   direction briefly. Verify wheel direction, encoder tick sign, measured velocity, and odometry.
+7. While moving slowly, run `./scripts/estop.sh engage`; both sides must stop immediately. Repeat
+   with the physical e-stop. Releasing the physical switch must not resume motion: the bridge
+   latches the event and requires a fresh `release --confirm`.
+8. Re-release both stops, move slowly, then unplug USB. Both sides must stop within the configured
+   300 ms watchdog interval. Reconnect must not cause motion without a fresh command.
+9. Stop teleop, engage both stops, remove motor power, and save telemetry/diagnostic evidence.
+
+Any unexpected motion, wrong encoder sign, serial loss, stale telemetry, or failed stop is a red
+gate. Cut motor power, correct configuration/wiring, and repeat from step 1. Ground testing is not
+allowed until every lifted-wheel check is green.

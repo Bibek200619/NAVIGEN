@@ -101,11 +101,12 @@ ros2 launch navigen_navigation nav2_sim.launch.py
 ## 9. Teleoperation
 
 ```bash
-./scripts/teleop.sh          # or: ros2 run teleop_twist_keyboard teleop_twist_keyboard
+./scripts/teleop.sh          # publishes /cmd_vel; bridge enforces configured limits
 ```
 
-The publisher script is available now. Phase 2 supplies its simulation target; Phase 5 supplies
-the physical target. Both consume the same `/cmd_vel` interface.
+Gazebo and Phase 5 hardware bringup consume the same `/cmd_vel` interface. Real bringup starts
+with software e-stop asserted; release it only after the lifted-wheel checks in
+[docs/hardware.md](docs/hardware.md).
 
 ## 10. ESP32 Flashing
 
@@ -122,13 +123,27 @@ pio run -t upload            # physical flash; see firmware README safety proced
 
 ## 11. Real UGV Launch
 
-The serial bridge is available now; complete physical-UGV composition remains the Phase 5 gate.
+Test the complete physical composition against protocol-backed mock hardware first:
 
 ```bash
-ros2 launch navigen_hardware esp32_bridge.launch.py \
-  serial_port:=/dev/ttyUSB0 baud_rate:=115200
-ros2 launch navigen_hardware esp32_bridge.launch.py mock_hardware:=true
+ros2 launch navigen_bringup real.launch.py mock_hardware:=true rviz:=true
+./scripts/estop.sh release --confirm
+./scripts/teleop.sh
+./scripts/estop.sh engage
 ```
+
+After filling and validating every physical parameter, launch using the stable device path shown
+by `ls -l /dev/serial/by-id/`:
+
+```bash
+ros2 launch navigen_bringup real.launch.py \
+  serial_port:=/dev/serial/by-id/<YOUR_ESP32> baud_rate:=115200
+```
+
+Startup remains inhibited until `./scripts/estop.sh release --confirm`. The bridge commands zero
+for stale/invalid input, latches controller e-stop events, asserts e-stop on shutdown, and the
+firmware independently stops after approximately 300 ms of communication loss. Physical
+validation is not replaceable by mock tests.
 
 ## 12. Camera Calibration
 
@@ -194,7 +209,7 @@ The detailed evidence and activity log are maintained in [PROJECT_PROGRESS.md](P
 | 2 | Gazebo sim + teleop | ✅ Green (`edd8468`) |
 | 3 | Nav2 point-to-point (sim) | ✅ Green (see `PROJECT_PROGRESS.md`) |
 | 4 | ESP32 firmware + serial bridge | ✅ Green (see `PROJECT_PROGRESS.md`) |
-| 5 | Real teleop | ⬜ |
+| 5 | Real teleop | 🟨 Software gate green; physical UGV validation pending |
 | 6 | Wheel odom + IMU + EKF | ⬜ |
 | 7 | Camera + perception | ⬜ |
 | 8 | ORB-SLAM3 | ⬜ |

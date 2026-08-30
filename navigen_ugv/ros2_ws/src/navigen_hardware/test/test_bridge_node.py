@@ -28,6 +28,7 @@ def test_installed_configuration_is_safe_and_consistent() -> None:
         (PACKAGE_ROOT / 'config' / 'hardware.yaml').read_text(encoding='utf-8')
     )['esp32_bridge']['ros__parameters']
     assert parameters['mock_hardware'] is False
+    assert parameters['start_with_software_estop'] is True
     assert parameters['ticks_per_revolution'] == 0.0
     assert parameters['mock_ticks_per_revolution'] > 0.0
     assert parameters['command_rate_hz'] >= 20.0
@@ -41,6 +42,7 @@ def test_installed_configuration_is_safe_and_consistent() -> None:
     )
     assert "executable='esp32_bridge'" in launch_text
     assert "DeclareLaunchArgument('mock_hardware'" in launch_text
+    assert "DeclareLaunchArgument('start_with_software_estop'" in launch_text
     assert 'ParameterValue' in launch_text
 
 
@@ -54,6 +56,7 @@ def bridge_runtime():
     rclpy.init()
     bridge = Esp32Bridge(parameter_overrides=[
         Parameter('mock_hardware', value=True),
+        Parameter('start_with_software_estop', value=False),
         Parameter('command_timeout_s', value=0.15),
         Parameter('telemetry_timeout_s', value=0.20),
     ])
@@ -93,7 +96,7 @@ def _publish_for(executor, publisher, message, duration, rate_hz=30.0):
 
 
 def test_mock_bridge_topics_motion_stale_invalid_and_estop(bridge_runtime):
-    _, probe, executor = bridge_runtime
+    bridge, probe, executor = bridge_runtime
     received = {}
     telemetry_history = []
 
@@ -173,6 +176,22 @@ def test_mock_bridge_topics_motion_stale_invalid_and_estop(bridge_runtime):
         }.get('navigen/motion_command') == 'invalid motion command rejected',
         timeout=2.0,
     ), 'A NaN /cmd_vel was not rejected with an immediate stop diagnostic'
+
+    _publish_for(executor, command_publisher, forward, duration=0.25)
+    assert _spin_until(executor, lambda: received['telemetry'].left_velocity > 0.05)
+
+    bridge._mock.hardware_estop = True
+    assert _spin_until(
+        executor,
+        lambda: received['telemetry'].estop_active
+        and abs(received['telemetry'].left_velocity) < 0.001,
+    ), 'Controller-reported physical e-stop did not override motion'
+    bridge._mock.hardware_estop = False
+    _publish_for(executor, command_publisher, forward, duration=0.20)
+    assert received['telemetry'].estop_active
+    assert abs(received['telemetry'].left_velocity) < 0.001
+    estop_publisher.publish(Bool(data=False))
+    assert _spin_until(executor, lambda: not received['telemetry'].estop_active)
 
     _publish_for(executor, command_publisher, forward, duration=0.25)
     assert _spin_until(executor, lambda: received['telemetry'].left_velocity > 0.05)

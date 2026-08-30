@@ -27,6 +27,7 @@ from navigen_hardware.serial_transport import ReconnectingSerial
 
 DEFAULT_PARAMETERS = {
     'mock_hardware': False,
+    'start_with_software_estop': True,
     'serial_port': '/dev/ttyUSB0',
     'baud_rate': 115200,
     'reconnect_interval_s': 1.0,
@@ -127,7 +128,7 @@ class Esp32Bridge(Node):
         self._last_poll_cycle = self._last_command_cycle
         self._last_estop_refresh = 0.0
         self._invalid_command = False
-        self._software_estop = False
+        self._software_estop = bool(self._parameter('start_with_software_estop'))
         self._left_setpoint = 0.0
         self._right_setpoint = 0.0
         self._latest_telemetry = None
@@ -176,7 +177,10 @@ class Esp32Bridge(Node):
         self.create_timer(1.0, self._publish_diagnostics)
 
         mode = 'mock' if self._mock_hardware else 'serial'
-        self.get_logger().info(f'ESP32 bridge started in {mode} mode')
+        interlock = 'asserted' if self._software_estop else 'released'
+        self.get_logger().info(
+            f'ESP32 bridge started in {mode} mode; software e-stop {interlock}'
+        )
 
     def _parameter(self, name):
         return self.get_parameter(name).value
@@ -282,8 +286,22 @@ class Esp32Bridge(Node):
                 continue
             self._track_telemetry_sequence(frame.sequence)
             self._last_telemetry_time = now
+            self._latch_controller_estop(telemetry, now)
             self._latest_telemetry = telemetry
             self._publish_telemetry(telemetry)
+
+    def _latch_controller_estop(self, telemetry: protocol.Telemetry, now: float):
+        """Require an explicit Pi-side reset after any controller e-stop event."""
+        if not telemetry.estop_active or self._software_estop:
+            return
+        self._software_estop = True
+        self._stop_immediately(now)
+        self._send(protocol.encode_estop(True, self._next_sequence()), now)
+        self._last_estop_refresh = now
+        self.get_logger().warning(
+            'Controller e-stop latched; clear hardware stop, then explicitly '
+            'release software e-stop'
+        )
 
     def _track_telemetry_sequence(self, sequence: int):
         if self._last_telemetry_sequence is not None:
@@ -526,9 +544,12 @@ class Esp32Bridge(Node):
         self._closed = True
         now = time.monotonic()
         try:
+            self._software_estop = True
+            self._left_setpoint, self._right_setpoint = self._limiter.reset()
             self._send(
                 protocol.encode_velocity_command(0.0, 0.0, self._next_sequence()), now
             )
+            self._send(protocol.encode_estop(True, self._next_sequence()), now)
         finally:
             if self._transport is not None:
                 self._transport.close()

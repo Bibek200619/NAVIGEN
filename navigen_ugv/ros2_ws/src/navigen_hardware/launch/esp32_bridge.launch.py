@@ -17,6 +17,7 @@ def generate_launch_description():
             'params_file', default_value=str(share / 'config' / 'hardware.yaml')
         ),
         DeclareLaunchArgument('mock_hardware', default_value='false'),
+        DeclareLaunchArgument('start_with_software_estop', default_value='true'),
         DeclareLaunchArgument('serial_port', default_value='/dev/ttyUSB0'),
         DeclareLaunchArgument('baud_rate', default_value='115200'),
         Node(
@@ -29,6 +30,9 @@ def generate_launch_description():
                 {
                     'mock_hardware': ParameterValue(
                         LaunchConfiguration('mock_hardware'), value_type=bool
+                    ),
+                    'start_with_software_estop': ParameterValue(
+                        LaunchConfiguration('start_with_software_estop'), value_type=bool
                     ),
                     'serial_port': LaunchConfiguration('serial_port'),
                     'baud_rate': ParameterValue(

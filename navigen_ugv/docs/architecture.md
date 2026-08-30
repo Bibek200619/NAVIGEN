@@ -83,4 +83,4 @@ Class ids in `/traversability/mask`: 0=UNKNOWN, 1=TRAVERSABLE, 2=NON_TRAVERSABLE
 
 ## Command chain (real mode)
 
-Nav2/teleop → `/cmd_vel_nav` → **safety supervisor** (e-stop, staleness, NaN, ultrasonic, SLAM-lost checks; speed cap 0.4 m/s) → `/cmd_vel` → ESP32 bridge (Twist → left/right wheel velocity) → serial → ESP32 PID (100 Hz) → motors. The ESP32 additionally enforces a 300 ms command watchdog and the hardware e-stop. Phase 3 simulation connects Nav2 directly to `/cmd_vel`; the safety arbitration chain is inserted in Phase 10.
+Nav2/teleop → `/cmd_vel_nav` → **safety supervisor** (e-stop, staleness, NaN, ultrasonic, SLAM-lost checks; speed cap 0.4 m/s) → `/cmd_vel` → ESP32 bridge (Twist → left/right wheel velocity) → serial → ESP32 PID (100 Hz) → motors. The ESP32 additionally enforces a 300 ms command watchdog and the hardware e-stop. Phase 3 simulation and Phase 5 teleoperation connect directly to `/cmd_vel`; Phase 5 adds startup/stale/invalid/e-stop gating in the bridge, and Phase 10 inserts the complete safety arbitration chain.
