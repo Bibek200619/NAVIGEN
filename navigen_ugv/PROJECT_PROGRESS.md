@@ -18,7 +18,7 @@ A phase is `GREEN` only when its acceptance checklist is complete, the ROS works
 | 1 | Repository, ROS packages, URDF, TF, configuration | GREEN | 100% | Eight packages build; real/sim xacro and URDF/TF tests pass; manifests, configurable transforms, docs, and validation tooling are committed in `787917e`. |
 | 2 | Gazebo Harmonic simulation and teleoperation | GREEN | 100% | Self-contained outdoor world, installed launch/bridge/config, live camera/IMU/TF/odometry, bounded motion, and deterministic headless integration test are committed in `edd8468`. |
 | 3 | Nav2 point-to-point simulation | GREEN | 100% | Known-map Nav2 stack, SmacPlanner2D, Regulated Pure Pursuit, RViz, lifecycle checks, and a collision-free 7 m live acceptance run are committed in `66b500a` and `7b59fd3`. |
-| 4 | ESP32 firmware and Raspberry Pi serial bridge | NOT STARTED | 0% | A pre-existing unmerged bridge draft is present at commit `69c3a69`; it must be reviewed and gated during Phase 4. Firmware is still a template. |
+| 4 | ESP32 firmware and Raspberry Pi serial bridge | GREEN | 100% | Versioned CRC serial protocol, configurable bridge/mock transport, odometry/telemetry, four-motor ESP32 control, PID/watchdog/e-stop behavior, firmware builds, and tests are committed in `2da087c`. |
 | 5 | Real UGV teleoperation | NOT STARTED | 0% | Requires confirmed wiring, flashed firmware, serial link, lifted-wheel test, and e-stop validation. |
 | 6 | Wheel odometry, IMU, EKF | NOT STARTED | 0% | Drivers, calibration, EKF configuration, and fused odometry tests are missing. |
 | 7 | Camera and traversability perception | NOT STARTED | 0% | Camera driver, backend abstraction, mock/ONNX inference, messages, and performance tests are missing. |
@@ -27,7 +27,7 @@ A phase is `GREEN` only when its acceptance checklist is complete, the ROS works
 | 10 | Collision avoidance and safety supervisor | NOT STARTED | 0% | Safety arbitration, stale-data checks, ultrasonic filtering, Collision Monitor, and fault tests are missing. |
 | 11 | Full outdoor A-to-B autonomous demo | NOT STARTED | 0% | Requires all earlier phase gates plus the physical acceptance run and recorded evidence. |
 
-**Overall completion: 27%.**
+**Overall completion: 36%.**
 
 ## Current gate
 
@@ -74,20 +74,32 @@ A phase is `GREEN` only when its acceptance checklist is complete, the ROS works
 - [x] README/testing/troubleshooting commands match tested behavior.
 - [x] Full workspace build/tests are green and Phase 3 is committed locally (`7b59fd3`).
 
-### Phase 4 acceptance checklist — next gate
+### Phase 4 acceptance checklist — GREEN
 
-- [ ] Audit the existing `69c3a69` hardware draft and integrate only compatible, tested work.
-- [ ] Define a versioned framed serial protocol with sequence number, CRC, bounded payloads, and invalid-packet rejection.
-- [ ] Implement configurable differential-drive Twist-to-wheel conversion with velocity and acceleration limiting.
-- [ ] Implement the Raspberry Pi ROS serial bridge with reconnect handling, command cadence, telemetry, diagnostics, and mock mode.
-- [ ] Implement ESP32 quadrature encoder sampling and left/right 100 Hz PID speed loops.
-- [ ] Keep every motor, encoder, ultrasonic, e-stop, serial, geometry, PID, PWM, and watchdog setting configurable and unarmed by default.
-- [ ] Enforce approximately 300 ms firmware communication watchdog and immediate physical/software e-stop motor disable.
-- [ ] Publish wheel odometry inputs, ultrasonic ranges, telemetry, battery/status, and communication health over standard/custom ROS interfaces as appropriate.
-- [ ] Unit-test kinematics, encoder conversion, PID, parser/CRC rejection, watchdog, e-stop, reconnect, and mock hardware behavior.
-- [ ] Compile firmware and build/test the complete ROS workspace without physical hardware.
-- [ ] Document wiring placeholders, configuration, flashing, mock launch, serial diagnostics, and bench-test safety procedure.
-- [ ] Commit Phase 4 in logically separated local checkpoints; do not push.
+- [x] Audit the existing `69c3a69` hardware draft and integrate only compatible, tested work.
+- [x] Define a versioned framed serial protocol with sequence number, CRC, bounded payloads, and invalid-packet rejection.
+- [x] Implement configurable differential-drive Twist-to-wheel conversion with velocity and acceleration limiting.
+- [x] Implement the Raspberry Pi ROS serial bridge with reconnect handling, command cadence, telemetry, diagnostics, and mock mode.
+- [x] Implement ESP32 quadrature encoder sampling and left/right 100 Hz PID speed loops.
+- [x] Keep every motor, encoder, ultrasonic, e-stop, serial, geometry, PID, PWM, and watchdog setting configurable and unarmed by default.
+- [x] Enforce approximately 300 ms firmware communication watchdog and immediate physical/software e-stop motor disable.
+- [x] Publish wheel odometry inputs, ultrasonic ranges, telemetry, battery/status, and communication health over standard/custom ROS interfaces as appropriate.
+- [x] Unit-test kinematics, encoder conversion, PID, parser/CRC rejection, watchdog, e-stop, reconnect, and mock hardware behavior.
+- [x] Compile firmware and build/test the complete ROS workspace without physical hardware.
+- [x] Document wiring placeholders, configuration, flashing, mock launch, serial diagnostics, and bench-test safety procedure.
+- [x] Commit the Phase 4 implementation locally (`2da087c`); do not push.
+
+### Phase 5 acceptance checklist — next gate
+
+- [ ] Add a real-hardware bringup composition that uses the shared robot description and ESP32 bridge without Gazebo.
+- [ ] Provide a bounded keyboard/gamepad teleoperation path to `/cmd_vel` with the 0.4 m/s demo limit.
+- [ ] Ensure physical and software e-stop state overrides teleoperation and leaves propulsion disabled on startup or shutdown.
+- [ ] Validate the real launch contract and all required parameters without connected hardware.
+- [ ] Run a mock end-to-end real-mode test from `/cmd_vel` through serial protocol telemetry and wheel odometry.
+- [ ] Document Raspberry Pi serial permissions, device discovery, first power-on, lifted-wheel, direction, and e-stop checks.
+- [ ] Fill measured pins, encoder counts, geometry, PID, and limits before arming firmware; do not invent hardware values.
+- [ ] Flash the configured ESP32 and verify both motor sides, encoder signs, watchdog, e-stop, and bounded teleoperation on the physical UGV.
+- [ ] Build/test the complete workspace and commit the Phase 5 checkpoint locally; do not push.
 
 ## Activity log
 
@@ -113,6 +125,12 @@ A phase is `GREEN` only when its acceptance checklist is complete, the ROS works
 | A018 | 2026-08-30 | Exercised Phase 3 after the Phase 2 test under full-suite load. | The first full run exposed a brittle 20 ms BT action acknowledgment timeout; raised it to a bounded 1000 ms and added a regression assertion. |
 | A019 | 2026-08-30 | Passed the complete Phase 3 release gate. | Eight packages build; 16 tests report 0 errors/failures/skips. The UGV plans around the central obstacle, travels to x=7 m, respects command bounds, reaches tolerance, and stops. |
 | A020 | 2026-08-30 | Hardened reproducibility and committed the Phase 3 gate locally. | Validator now copies only source into a fresh temporary workspace; Gazebo tests use isolated partitions; operator docs and troubleshooting are current. Commit `7b59fd3`; no push was performed by this work. |
+| A021 | 2026-08-30 | Audited the prior Phase 4 draft and defined one shared wire contract. | Python and C++ now use the same bounded, versioned, sequenced CRC-8/ATM frame format; a checked golden packet prevents protocol drift. |
+| A022 | 2026-08-30 | Implemented the Raspberry Pi hardware layer. | Added differential-drive conversion, acceleration limiting, reconnecting serial transport, protocol-backed mock ESP32, wheel odometry, telemetry, battery/range topics, diagnostics, and launch/config assets. |
+| A023 | 2026-08-30 | Implemented the ESP32 controller. | Four motor channels feed independent 100 Hz side PID loops; quadrature encoders, nonblocking ultrasonics, physical/software e-stop, 300 ms watchdog, battery status, and 30 Hz telemetry are implemented with an unarmed board configuration. |
+| A024 | 2026-08-30 | Closed Phase 4 defects through focused micro-loops. | Corrected sensor QoS, native C++ warnings, isolated PlatformIO cache permissions, fresh diagnostic sampling, command-sequence recovery after endpoint reboot, and the clean-image `python3-serial` dependency; every fix was retested. |
+| A025 | 2026-08-30 | Passed the complete Phase 4 release gate. | Native firmware tests and ESP32 compilation pass; the clean ROS image satisfies rosdep and launch checks; eight packages build and 35 tests report 0 errors/failures/skips. |
+| A026 | 2026-08-30 | Committed the Phase 4 implementation locally. | Commit `2da087c`; no push was performed. |
 
 ## Test and validation ledger
 
@@ -131,6 +149,11 @@ A phase is `GREEN` only when its acceptance checklist is complete, the ROS works
 | Phase 3 autonomous goal | Headless `NavigateToPose` to `(7.0, 0.0)` | GREEN | Five lifecycle nodes active; path deviates around the mapped obstacle; bounded commands move >5 m; result succeeds inside 0.28 m and ends at zero command. |
 | Phase 3 exact team command | `./scripts/validate_in_docker.sh` | GREEN | Eight packages built; 16 tests, 0 errors, 0 failures, 0 skipped, including sequential Phase 2 and Phase 3 Gazebo gates. |
 | Phase 3 dependency/API checks | rosdep + both navigation launch files `--show-args` | GREEN | All dependencies satisfied; map/params/time/RViz/spawn/bootstrap arguments load from the installed packages. |
+| Phase 4 protocol/bridge unit tests | `colcon test --packages-select navigen_hardware` | GREEN | 19 tests cover kinematics, acceleration limits, framing/CRC rejection, sequence rollover, reconnect/partial writes, mock watchdog/e-stop, ROS topics, odometry, stale/invalid commands, and diagnostics. |
+| Phase 4 native firmware tests | `./scripts/validate_firmware.sh` native target | GREEN | Golden protocol vector, parser recovery, telemetry layout, PID, watchdog/millis rollover, encoder velocity/tick rollover, and sequence ordering pass under `-Werror`. |
+| Phase 4 ESP32 firmware build | `./scripts/validate_firmware.sh` PlatformIO target | GREEN | Pinned ESP32 platform builds for `esp32dev`; RAM 6.7%, flash 20.9%. Hardware remains deliberately unarmed until measured values are supplied. |
+| Phase 4 dependency/API checks | rosdep + bridge launch `--show-args` | GREEN | All system dependencies are satisfied; parameter file, mock mode, serial device, and baud arguments load from the installed package. |
+| Phase 4 exact team command | `./scripts/validate_in_docker.sh` | GREEN | Eight packages built; 35 tests, 0 errors, 0 failures, 0 skipped, including Phase 2/3 live Gazebo and Phase 4 bridge gates. |
 
 ## Commit ledger
 
@@ -143,24 +166,32 @@ A phase is `GREEN` only when its acceptance checklist is complete, the ROS works
 | `d836649` | Human-facing Phase 2 evidence and next-gate status | GREEN checkpoint recorded. |
 | `66b500a` | Phase 3 map, Nav2 configuration/launch, behavior tree, RViz, tests, and Jazzy compatibility fixes | Implementation checkpoint. |
 | `7b59fd3` | Phase 3 reliability timeout, clean-room validator, test isolation, and operator documentation | GREEN. |
+| `2da087c` | Phase 4 ESP32 firmware, serial protocol/bridge, mock hardware, configuration, tests, and operator documentation | GREEN. |
 
 ## What is done now
 
-- Phases 1, 2, and 3 are complete and locally committed.
+- Phases 1 through 4 are complete and locally committed.
 - The exact same xacro and `/cmd_vel`/sensor interfaces now run in Gazebo Harmonic.
 - Outdoor simulation, camera, camera info, IMU, joint states, wheel odometry, and TF are live and tested.
 - Both manual and automated bounded-motion checks prove teleoperation drives the 4WD model.
 - Nav2 now plans with SmacPlanner2D, controls with Regulated Pure Pursuit, avoids known mapped
   obstacles, reaches a 7 m goal, and stops in a deterministic headless acceptance test.
+- The Raspberry Pi side converts bounded Twist commands into side-wheel targets, maintains a
+  reconnecting CRC-protected serial session, and publishes telemetry, wheel odometry, battery,
+  range, and diagnostics; the same path runs against deterministic mock hardware.
+- The separately built ESP32 firmware runs four motor outputs as two independent PID-controlled
+  sides, reads encoders and backup sensors, and disables propulsion on watchdog or e-stop.
 - The exact Linux/ROS 2 Jazzy validation command is reproducible through Docker.
 - Baseline state and unrelated user IDE edits remain preserved and excluded.
 
 ## What is missing now
 
-- Phases 4 through 11.
-- Phase 4 specifically needs audited serial/kinematics code, complete ESP32 firmware, mock and
-  reconnect behavior, firmware compilation, protocol/PID/watchdog/e-stop tests, and bench docs.
+- Phases 5 through 11.
+- Phase 5 software composition and mock acceptance remain to be implemented.
+- Physical Phase 5 acceptance additionally requires the team to enter measured hardware values,
+  wire and flash the ESP32, place the chassis on stands, and perform motor direction, encoder,
+  watchdog, e-stop, and bounded teleoperation checks on the real UGV.
 
 ## Next action
 
-Begin Phase 4: audit the existing hardware draft, then implement and test the configurable ESP32 motor/encoder firmware and Raspberry Pi serial bridge without requiring physical hardware for the software gate.
+Begin Phase 5: compose and test real-hardware teleoperation in mock mode first, then follow the documented lifted-wheel procedure on the physical UGV after the team supplies measured wiring and calibration values.
