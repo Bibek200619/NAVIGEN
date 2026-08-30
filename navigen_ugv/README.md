@@ -91,34 +91,59 @@ also accepts `world`, `world_name`, `spawn_x`, `spawn_y`, `spawn_z`, `spawn_yaw`
 `rviz`, and `gz_verbosity`. The supplied outdoor world is self-contained and requires no model
 downloads.
 
+Phase 3 autonomous point-to-point simulation:
+
+```bash
+ros2 launch navigen_navigation nav2_sim.launch.py
+# Select Nav2 Goal in RViz and click a free point in the known local map.
+```
+
 ## 9. Teleoperation
 
 ```bash
-./scripts/teleop.sh          # or: ros2 run teleop_twist_keyboard teleop_twist_keyboard
+./scripts/teleop.sh          # publishes /cmd_vel; bridge enforces configured limits
 ```
 
-The publisher script is available now. Phase 2 supplies its simulation target; Phase 5 supplies
-the physical target. Both consume the same `/cmd_vel` interface.
+Gazebo and Phase 5 hardware bringup consume the same `/cmd_vel` interface. Real bringup starts
+with software e-stop asserted; release it only after the lifted-wheel checks in
+[docs/hardware.md](docs/hardware.md).
 
 ## 10. ESP32 Flashing
 
-Phase 4 implements and validates the firmware. The current board configuration is deliberately
-unarmed; do not flash it expecting motor control yet.
+Phase 4 provides tested firmware and the ROS bridge. The checked-in board configuration is
+deliberately unarmed: fill and verify every required pin, calibration, limit, and PID value before
+expecting propulsion.
 
 ```bash
 cd firmware/esp32_motor_controller
-# 1. Fill include/board_config.h (pins, PID, wheel geometry)
-pio run -t upload            # PlatformIO; see firmware README
+# 1. Fill include/board_config.h (pins, encoders, PID, geometry, safety)
+../../scripts/validate_firmware.sh
+pio run -t upload            # physical flash; see firmware README safety procedure
 ```
 
 ## 11. Real UGV Launch
 
-This is the Phase 5 target interface and is not available before the hardware and safety gates.
+Test the complete physical composition against protocol-backed mock hardware first:
 
 ```bash
-ros2 launch navigen_bringup real.launch.py serial_port:=/dev/ttyUSB0
-ros2 launch navigen_bringup real.launch.py mock_hardware:=true   # no hardware needed
+ros2 launch navigen_bringup real.launch.py mock_hardware:=true rviz:=true
+./scripts/estop.sh release --confirm
+./scripts/teleop.sh
+./scripts/estop.sh engage
 ```
+
+After filling and validating every physical parameter, launch using the stable device path shown
+by `ls -l /dev/serial/by-id/`:
+
+```bash
+ros2 launch navigen_bringup real.launch.py \
+  serial_port:=/dev/serial/by-id/<YOUR_ESP32> baud_rate:=115200
+```
+
+Startup remains inhibited until `./scripts/estop.sh release --confirm`. The bridge commands zero
+for stale/invalid input, latches controller e-stop events, asserts e-stop on shutdown, and the
+firmware independently stops after approximately 300 ms of communication loss. Physical
+validation is not replaceable by mock tests.
 
 ## 12. Camera Calibration
 
@@ -146,11 +171,13 @@ ORB-SLAM3 will be integrated through an adapter and never vendored. Preferred mo
 fallback Mono+IMU. Phase 8 will add tested installation and licensing instructions to
 `ros2_ws/src/navigen_localization/README.md`.
 
-## 17. Nav2 Setup (Phase 3)
+## 17. Nav2 Setup
 
-Phase 3 will configure SmacPlanner2D + RegulatedPurePursuitController in
-`ros2_ws/src/navigen_navigation/`; Collision Monitor is gated in Phase 10. Goals use
-`geometry_msgs/PoseStamped` in the local map frame.
+Phase 3 provides SmacPlanner2D + RegulatedPurePursuitController, a Gazebo-aligned known map,
+static/inflation costmaps, recovery behavior tree, lifecycle launch, and an RViz Nav2 goal tool.
+Run `ros2 launch navigen_navigation nav2_sim.launch.py`; goals are `PoseStamped` values in
+`map`. The temporary identity `map → odom` publisher is simulation-only and must be disabled
+when Phase 8 visual localization is active. Collision Monitor remains gated to Phase 10.
 
 ## 18. Autonomous Demo (Phase 11 acceptance target)
 
@@ -180,9 +207,9 @@ The detailed evidence and activity log are maintained in [PROJECT_PROGRESS.md](P
 |---|---|---|
 | 1 | Repo, packages, URDF, TF, config | ✅ Green (`787917e`) |
 | 2 | Gazebo sim + teleop | ✅ Green (`edd8468`) |
-| 3 | Nav2 point-to-point (sim) | ⬜ |
-| 4 | ESP32 firmware + serial bridge | ⬜ |
-| 5 | Real teleop | ⬜ |
+| 3 | Nav2 point-to-point (sim) | ✅ Green (see `PROJECT_PROGRESS.md`) |
+| 4 | ESP32 firmware + serial bridge | ✅ Green (see `PROJECT_PROGRESS.md`) |
+| 5 | Real teleop | 🟨 Software gate green; physical UGV validation pending |
 | 6 | Wheel odom + IMU + EKF | ⬜ |
 | 7 | Camera + perception | ⬜ |
 | 8 | ORB-SLAM3 | ⬜ |

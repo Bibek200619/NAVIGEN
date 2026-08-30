@@ -13,9 +13,12 @@ if(BUILD_TESTING)
   find_package(ament_cmake_pytest REQUIRED)
   ament_add_pytest_test(test_simulation_assets test/test_simulation_assets.py
     TIMEOUT 60)
+  ament_add_pytest_test(test_real_bringup_assets test/test_real_bringup_assets.py
+    TIMEOUT 60)
 
   find_package(launch_testing_ament_cmake REQUIRED)
   add_launch_test(test/test_simulation.launch.py TIMEOUT 120)
+  add_launch_test(test/test_real_bringup.launch.py TIMEOUT 60)
 endif()
 
 ament_package()

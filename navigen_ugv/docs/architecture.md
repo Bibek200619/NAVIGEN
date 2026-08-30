@@ -33,7 +33,8 @@ map → odom → base_link
 
 - `odom → base_link`: Gazebo DiffDrive plugin in simulation, then robot_localization EKF on
   hardware (Phase 6+). Only one source may publish this transform at a time.
-- `map → odom`: ORB-SLAM3 adapter (Phase 8).
+- `map → odom`: a documented identity bootstrap in Phase 3 simulation; ORB-SLAM3 visual
+  localization owns it from Phase 8 onward. Never run both publishers together.
 - All sensor transforms come from `navigen_description/config/vehicle.yaml` — never hard-coded.
 
 ## Topics
@@ -66,8 +67,20 @@ clock, wheel odometry, odometry TF, joint states, image, camera info, and IMU fl
 The world uses only inline primitives so test and demo startup never depends on an internet
 connection.
 
+## Phase 3 navigation contract
+
+`navigen_navigation/nav2_sim.launch.py` composes Phase 2 Gazebo with a minimal lifecycle-managed
+Nav2 stack: map server, SmacPlanner2D, Regulated Pure Pursuit, recovery behaviors, and BT
+navigator. The known map mirrors the primitive obstacles in `navigen_outdoor.sdf`; static and
+inflation layers are used without laser data or fabricated vision messages. Nav2 consumes the
+live Gazebo `/wheel/odom` and sends bounded `geometry_msgs/Twist` commands to `/cmd_vel`.
+
+The identity `map → odom` transform is valid only because the Phase 3 robot spawns at the map
+origin and Gazebo odometry starts there. It is an explicit temporary seam: Phase 8 disables it
+and supplies visual localization, while Phase 9 adds camera-derived traversability costs.
+
 Class ids in `/traversability/mask`: 0=UNKNOWN, 1=TRAVERSABLE, 2=NON_TRAVERSABLE, 3=OBSTACLE.
 
 ## Command chain (real mode)
 
-Nav2/teleop → `/cmd_vel_nav` → **safety supervisor** (e-stop, staleness, NaN, ultrasonic, SLAM-lost checks; speed cap 0.4 m/s) → `/cmd_vel` → ESP32 bridge (Twist → left/right wheel velocity) → serial → ESP32 PID (100 Hz) → motors. The ESP32 additionally enforces a 300 ms command watchdog and the hardware e-stop.
+Nav2/teleop → `/cmd_vel_nav` → **safety supervisor** (e-stop, staleness, NaN, ultrasonic, SLAM-lost checks; speed cap 0.4 m/s) → `/cmd_vel` → ESP32 bridge (Twist → left/right wheel velocity) → serial → ESP32 PID (100 Hz) → motors. The ESP32 additionally enforces a 300 ms command watchdog and the hardware e-stop. Phase 3 simulation and Phase 5 teleoperation connect directly to `/cmd_vel`; Phase 5 adds startup/stale/invalid/e-stop gating in the bridge, and Phase 10 inserts the complete safety arbitration chain.
