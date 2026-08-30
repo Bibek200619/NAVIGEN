@@ -2,7 +2,7 @@
 
 This is the human-facing engineering log for the UGV programming team. It records completed work, evidence, missing work, and the next gate. It is not an instruction file for coding agents.
 
-- Last updated: **2026-08-29 (Asia/Kolkata)**
+- Last updated: **2026-08-30 (Asia/Kolkata)**
 - Working branch: **`feature/ugv-phases-1-11`**
 - Baseline commit: **`420609f`**
 - Navigation invariant: **No GPS dependency. Camera/vision remains the primary navigation sensor.**
@@ -17,7 +17,7 @@ A phase is `GREEN` only when its acceptance checklist is complete, the ROS works
 |---|---|---:|---:|---|
 | 1 | Repository, ROS packages, URDF, TF, configuration | GREEN | 100% | Eight packages build; real/sim xacro and URDF/TF tests pass; manifests, configurable transforms, docs, and validation tooling are committed in `787917e`. |
 | 2 | Gazebo Harmonic simulation and teleoperation | GREEN | 100% | Self-contained outdoor world, installed launch/bridge/config, live camera/IMU/TF/odometry, bounded motion, and deterministic headless integration test are committed in `edd8468`. |
-| 3 | Nav2 point-to-point simulation | NOT STARTED | 0% | Planner/controller/costmap configuration and navigation acceptance test are missing. |
+| 3 | Nav2 point-to-point simulation | GREEN | 100% | Known-map Nav2 stack, SmacPlanner2D, Regulated Pure Pursuit, RViz, lifecycle checks, and a collision-free 7 m live acceptance run are committed in `66b500a` and `7b59fd3`. |
 | 4 | ESP32 firmware and Raspberry Pi serial bridge | NOT STARTED | 0% | A pre-existing unmerged bridge draft is present at commit `69c3a69`; it must be reviewed and gated during Phase 4. Firmware is still a template. |
 | 5 | Real UGV teleoperation | NOT STARTED | 0% | Requires confirmed wiring, flashed firmware, serial link, lifted-wheel test, and e-stop validation. |
 | 6 | Wheel odometry, IMU, EKF | NOT STARTED | 0% | Drivers, calibration, EKF configuration, and fused odometry tests are missing. |
@@ -27,7 +27,7 @@ A phase is `GREEN` only when its acceptance checklist is complete, the ROS works
 | 10 | Collision avoidance and safety supervisor | NOT STARTED | 0% | Safety arbitration, stale-data checks, ultrasonic filtering, Collision Monitor, and fault tests are missing. |
 | 11 | Full outdoor A-to-B autonomous demo | NOT STARTED | 0% | Requires all earlier phase gates plus the physical acceptance run and recorded evidence. |
 
-**Overall completion: 18%.**
+**Overall completion: 27%.**
 
 ## Current gate
 
@@ -59,20 +59,35 @@ A phase is `GREEN` only when its acceptance checklist is complete, the ROS works
 - [x] Full workspace build/tests and Phase 2 integration tests are green.
 - [x] Phase 2 checkpoint is committed locally (`edd8468`).
 
-### Phase 3 acceptance checklist — next gate
+### Phase 3 acceptance checklist — GREEN
 
-- [ ] `navigen_navigation` installs a simulation map, Nav2 parameters, behavior tree, and launch assets.
-- [ ] A documented simulation-only `map → odom` bootstrap replaces unavailable Phase 8 visual localization without using GPS.
-- [ ] Nav2 lifecycle nodes reach active state reliably after Gazebo startup.
-- [ ] Planner is `SmacPlanner2D`; controller is `RegulatedPurePursuitController`.
-- [ ] Nav2 consumes `/wheel/odom`, emits `/cmd_vel`, and respects the 0.4 m/s demo limit.
-- [ ] Global/local costmaps represent known Phase 3 world obstacles using static/inflation layers; no fake vision input is introduced.
-- [ ] A `NavigateToPose` goal in `map` produces a path around a mapped obstacle.
-- [ ] The simulated UGV reaches the selected point and stops within configured tolerances.
-- [ ] RViz displays the map, costmaps, path, robot pose, trajectory, and goal.
-- [ ] Static configuration tests and a deterministic headless point-to-point integration test pass.
-- [ ] README/testing/troubleshooting commands match tested behavior.
-- [ ] Full workspace build/tests are green and Phase 3 is committed locally.
+- [x] `navigen_navigation` installs a simulation map, Nav2 parameters, behavior tree, and launch assets.
+- [x] A documented simulation-only `map → odom` bootstrap replaces unavailable Phase 8 visual localization without using GPS.
+- [x] Nav2 lifecycle nodes reach active state reliably after Gazebo startup.
+- [x] Planner is `SmacPlanner2D`; controller is `RegulatedPurePursuitController`.
+- [x] Nav2 consumes `/wheel/odom`, emits `/cmd_vel`, and respects the 0.4 m/s demo limit.
+- [x] Global/local costmaps represent known Phase 3 world obstacles using static/inflation layers; no fake vision input is introduced.
+- [x] A `NavigateToPose` goal in `map` produces a path around a mapped obstacle.
+- [x] The simulated UGV reaches the selected point and stops within configured tolerances.
+- [x] RViz displays the map, costmaps, path, robot pose, trajectory, and goal.
+- [x] Static configuration tests and a deterministic headless point-to-point integration test pass.
+- [x] README/testing/troubleshooting commands match tested behavior.
+- [x] Full workspace build/tests are green and Phase 3 is committed locally (`7b59fd3`).
+
+### Phase 4 acceptance checklist — next gate
+
+- [ ] Audit the existing `69c3a69` hardware draft and integrate only compatible, tested work.
+- [ ] Define a versioned framed serial protocol with sequence number, CRC, bounded payloads, and invalid-packet rejection.
+- [ ] Implement configurable differential-drive Twist-to-wheel conversion with velocity and acceleration limiting.
+- [ ] Implement the Raspberry Pi ROS serial bridge with reconnect handling, command cadence, telemetry, diagnostics, and mock mode.
+- [ ] Implement ESP32 quadrature encoder sampling and left/right 100 Hz PID speed loops.
+- [ ] Keep every motor, encoder, ultrasonic, e-stop, serial, geometry, PID, PWM, and watchdog setting configurable and unarmed by default.
+- [ ] Enforce approximately 300 ms firmware communication watchdog and immediate physical/software e-stop motor disable.
+- [ ] Publish wheel odometry inputs, ultrasonic ranges, telemetry, battery/status, and communication health over standard/custom ROS interfaces as appropriate.
+- [ ] Unit-test kinematics, encoder conversion, PID, parser/CRC rejection, watchdog, e-stop, reconnect, and mock hardware behavior.
+- [ ] Compile firmware and build/test the complete ROS workspace without physical hardware.
+- [ ] Document wiring placeholders, configuration, flashing, mock launch, serial diagnostics, and bench-test safety procedure.
+- [ ] Commit Phase 4 in logically separated local checkpoints; do not push.
 
 ## Activity log
 
@@ -93,6 +108,11 @@ A phase is `GREEN` only when its acceptance checklist is complete, the ROS works
 | A013 | 2026-08-29 | Closed two integration-test defects through micro-loops. | Replaced an unavailable Jazzy clock QoS alias, then corrected command duration to use wall-clock 10 Hz publication; the focused live test passed after each repair. |
 | A014 | 2026-08-29 | Passed the full Phase 2 release gate. | Eight packages build; 10 tests report 0 errors/failures/skips; rosdep, simulation `check_urdf`, launch API, live sensors, TF, and motion all pass. |
 | A015 | 2026-08-29 | Committed the Phase 2 implementation locally. | Commit `edd8468`; no push was performed. |
+| A016 | 2026-08-30 | Implemented the Phase 3 known-map Nav2 baseline. | Added a Gazebo-aligned occupancy map, minimal lifecycle Nav2 composition, SmacPlanner2D, Regulated Pure Pursuit, recovery BT, RViz displays, and static/live acceptance tests in `66b500a`. |
+| A017 | 2026-08-30 | Closed initial Phase 3 launch-test defects through micro-loops. | Fixed a `Path` import collision, Jazzy integer costmap dimensions, and `/clock` sensor QoS; the focused autonomous test then passed. |
+| A018 | 2026-08-30 | Exercised Phase 3 after the Phase 2 test under full-suite load. | The first full run exposed a brittle 20 ms BT action acknowledgment timeout; raised it to a bounded 1000 ms and added a regression assertion. |
+| A019 | 2026-08-30 | Passed the complete Phase 3 release gate. | Eight packages build; 16 tests report 0 errors/failures/skips. The UGV plans around the central obstacle, travels to x=7 m, respects command bounds, reaches tolerance, and stops. |
+| A020 | 2026-08-30 | Hardened reproducibility and committed the Phase 3 gate locally. | Validator now copies only source into a fresh temporary workspace; Gazebo tests use isolated partitions; operator docs and troubleshooting are current. Commit `7b59fd3`; no push was performed by this work. |
 
 ## Test and validation ledger
 
@@ -107,6 +127,10 @@ A phase is `GREEN` only when its acceptance checklist is complete, the ROS works
 | Phase 2 bounded motion | Automated 0.2 m/s command at 10 Hz | GREEN | Integration test requires >0.15 m motion; manual probe observed x 0.00→0.74 m. |
 | Phase 2 exact team command | `./scripts/validate_in_docker.sh` | GREEN | Eight packages built; 10 tests, 0 errors, 0 failures, 0 skipped, including live Gazebo. |
 | Phase 2 dependency/API checks | rosdep + sim xacro/check_urdf + launch `--show-args` | GREEN | Dependencies satisfied; root is `base_link`; all configurable launch arguments load. |
+| Phase 3 static contracts | Installed-package pytest for map/config/launch/BT/RViz | GREEN | 3 tests verify exact plugins, limits, layers, map/world alignment, launch ownership, behavior tree, and displays. |
+| Phase 3 autonomous goal | Headless `NavigateToPose` to `(7.0, 0.0)` | GREEN | Five lifecycle nodes active; path deviates around the mapped obstacle; bounded commands move >5 m; result succeeds inside 0.28 m and ends at zero command. |
+| Phase 3 exact team command | `./scripts/validate_in_docker.sh` | GREEN | Eight packages built; 16 tests, 0 errors, 0 failures, 0 skipped, including sequential Phase 2 and Phase 3 Gazebo gates. |
+| Phase 3 dependency/API checks | rosdep + both navigation launch files `--show-args` | GREEN | All dependencies satisfied; map/params/time/RViz/spawn/bootstrap arguments load from the installed packages. |
 
 ## Commit ledger
 
@@ -116,22 +140,27 @@ A phase is `GREEN` only when its acceptance checklist is complete, the ROS works
 | `787917e` | Phase 1 package structure, lowercase path normalization, URDF/TF/config, tests, and validator | GREEN. |
 | `777d5a8` | Human-facing Phase 1 evidence and next-gate status | GREEN checkpoint recorded. |
 | `edd8468` | Phase 2 outdoor world, Gazebo launch/bridge, configurable simulation, TF fix, documentation, and live integration tests | GREEN. |
+| `d836649` | Human-facing Phase 2 evidence and next-gate status | GREEN checkpoint recorded. |
+| `66b500a` | Phase 3 map, Nav2 configuration/launch, behavior tree, RViz, tests, and Jazzy compatibility fixes | Implementation checkpoint. |
+| `7b59fd3` | Phase 3 reliability timeout, clean-room validator, test isolation, and operator documentation | GREEN. |
 
 ## What is done now
 
-- Phases 1 and 2 are complete and locally committed.
+- Phases 1, 2, and 3 are complete and locally committed.
 - The exact same xacro and `/cmd_vel`/sensor interfaces now run in Gazebo Harmonic.
 - Outdoor simulation, camera, camera info, IMU, joint states, wheel odometry, and TF are live and tested.
 - Both manual and automated bounded-motion checks prove teleoperation drives the 4WD model.
+- Nav2 now plans with SmacPlanner2D, controls with Regulated Pure Pursuit, avoids known mapped
+  obstacles, reaches a 7 m goal, and stops in a deterministic headless acceptance test.
 - The exact Linux/ROS 2 Jazzy validation command is reproducible through Docker.
 - Baseline state and unrelated user IDE edits remain preserved and excluded.
 
 ## What is missing now
 
-- Phases 3 through 11.
-- Phase 3 specifically needs a simulation map/bootstrap transform, Nav2 configuration/launch,
-  point-to-point goal handling, and an autonomous integration test.
+- Phases 4 through 11.
+- Phase 4 specifically needs audited serial/kinematics code, complete ESP32 firmware, mock and
+  reconnect behavior, firmware compilation, protocol/PID/watchdog/e-stop tests, and bench docs.
 
 ## Next action
 
-Begin Phase 3: configure Nav2 with SmacPlanner2D and Regulated Pure Pursuit, add a simulation-only known map and `map → odom` bootstrap, then prove a headless `NavigateToPose` goal plans around a mapped obstacle and reaches its target without any GPS input.
+Begin Phase 4: audit the existing hardware draft, then implement and test the configurable ESP32 motor/encoder firmware and Raspberry Pi serial bridge without requiring physical hardware for the software gate.
