@@ -2,7 +2,7 @@
 
 This is the human-facing engineering log for the UGV programming team. It records completed work, evidence, missing work, and the next gate. It is not an instruction file for coding agents.
 
-- Last updated: **2026-08-30 (Asia/Kolkata)**
+- Last updated: **2026-08-31 (Asia/Kolkata)**
 - Working branch: **`feature/ugv-phases-1-11`**
 - Baseline commit: **`420609f`**
 - Navigation invariant: **No GPS dependency. Camera/vision remains the primary navigation sensor.**
@@ -19,7 +19,7 @@ A phase is `GREEN` only when its acceptance checklist is complete, the ROS works
 | 2 | Gazebo Harmonic simulation and teleoperation | GREEN | 100% | Self-contained outdoor world, installed launch/bridge/config, live camera/IMU/TF/odometry, bounded motion, and deterministic headless integration test are committed in `edd8468`. |
 | 3 | Nav2 point-to-point simulation | GREEN | 100% | Known-map Nav2 stack, SmacPlanner2D, Regulated Pure Pursuit, RViz, lifecycle checks, and a collision-free 7 m live acceptance run are committed in `66b500a` and `7b59fd3`. |
 | 4 | ESP32 firmware and Raspberry Pi serial bridge | GREEN | 100% | Versioned CRC serial protocol, configurable bridge/mock transport, odometry/telemetry, four-motor ESP32 control, PID/watchdog/e-stop behavior, firmware builds, and tests are committed in `2da087c`. |
-| 5 | Real UGV teleoperation | NOT STARTED | 0% | Requires confirmed wiring, flashed firmware, serial link, lifted-wheel test, and e-stop validation. |
+| 5 | Real UGV teleoperation | AWAITING PHYSICAL TEST | 75% | Safe real/mock launch, startup and shutdown interlocks, controller e-stop latching, bounded teleop, odometry, docs, and mock acceptance are committed in `6256b16`. Measured configuration and lifted-wheel hardware evidence are still required. |
 | 6 | Wheel odometry, IMU, EKF | NOT STARTED | 0% | Drivers, calibration, EKF configuration, and fused odometry tests are missing. |
 | 7 | Camera and traversability perception | NOT STARTED | 0% | Camera driver, backend abstraction, mock/ONNX inference, messages, and performance tests are missing. |
 | 8 | Visual SLAM / visual-inertial odometry | NOT STARTED | 0% | ORB-SLAM3 adapter, tracking-state handling, calibration, and stop-on-loss integration are missing. |
@@ -27,7 +27,7 @@ A phase is `GREEN` only when its acceptance checklist is complete, the ROS works
 | 10 | Collision avoidance and safety supervisor | NOT STARTED | 0% | Safety arbitration, stale-data checks, ultrasonic filtering, Collision Monitor, and fault tests are missing. |
 | 11 | Full outdoor A-to-B autonomous demo | NOT STARTED | 0% | Requires all earlier phase gates plus the physical acceptance run and recorded evidence. |
 
-**Overall completion: 36%.**
+**Overall completion: 43%.**
 
 ## Current gate
 
@@ -89,17 +89,17 @@ A phase is `GREEN` only when its acceptance checklist is complete, the ROS works
 - [x] Document wiring placeholders, configuration, flashing, mock launch, serial diagnostics, and bench-test safety procedure.
 - [x] Commit the Phase 4 implementation locally (`2da087c`); do not push.
 
-### Phase 5 acceptance checklist — next gate
+### Phase 5 acceptance checklist — SOFTWARE GREEN / PHYSICAL TEST PENDING
 
-- [ ] Add a real-hardware bringup composition that uses the shared robot description and ESP32 bridge without Gazebo.
-- [ ] Provide a bounded keyboard/gamepad teleoperation path to `/cmd_vel` with the 0.4 m/s demo limit.
-- [ ] Ensure physical and software e-stop state overrides teleoperation and leaves propulsion disabled on startup or shutdown.
-- [ ] Validate the real launch contract and all required parameters without connected hardware.
-- [ ] Run a mock end-to-end real-mode test from `/cmd_vel` through serial protocol telemetry and wheel odometry.
-- [ ] Document Raspberry Pi serial permissions, device discovery, first power-on, lifted-wheel, direction, and e-stop checks.
+- [x] Add a real-hardware bringup composition that uses the shared robot description and ESP32 bridge without Gazebo.
+- [x] Provide a bounded keyboard teleoperation path to `/cmd_vel` with the 0.4 m/s demo limit.
+- [x] Implement and mock-test physical/software e-stop override, startup inhibition, shutdown assertion, and controller-event latching.
+- [x] Validate the real launch contract and all required parameters without connected hardware.
+- [x] Run a mock end-to-end real-mode test from `/cmd_vel` through serial protocol telemetry and wheel odometry.
+- [x] Document Raspberry Pi serial permissions, device discovery, first power-on, lifted-wheel, direction, and e-stop checks.
 - [ ] Fill measured pins, encoder counts, geometry, PID, and limits before arming firmware; do not invent hardware values.
 - [ ] Flash the configured ESP32 and verify both motor sides, encoder signs, watchdog, e-stop, and bounded teleoperation on the physical UGV.
-- [ ] Build/test the complete workspace and commit the Phase 5 checkpoint locally; do not push.
+- [x] Build/test the complete workspace and commit the Phase 5 software checkpoint locally (`6256b16`); no push.
 
 ## Activity log
 
@@ -131,6 +131,12 @@ A phase is `GREEN` only when its acceptance checklist is complete, the ROS works
 | A024 | 2026-08-30 | Closed Phase 4 defects through focused micro-loops. | Corrected sensor QoS, native C++ warnings, isolated PlatformIO cache permissions, fresh diagnostic sampling, command-sequence recovery after endpoint reboot, and the clean-image `python3-serial` dependency; every fix was retested. |
 | A025 | 2026-08-30 | Passed the complete Phase 4 release gate. | Native firmware tests and ESP32 compilation pass; the clean ROS image satisfies rosdep and launch checks; eight packages build and 35 tests report 0 errors/failures/skips. |
 | A026 | 2026-08-30 | Committed the Phase 4 implementation locally. | Commit `2da087c`; no push was performed. |
+| A027 | 2026-08-31 | Added the Phase 5 physical/mock bringup composition. | `real.launch.py` composes the shared non-Gazebo description and ESP32 bridge with configurable serial settings, optional RViz, and software e-stop asserted by default. |
+| A028 | 2026-08-31 | Hardened manual-control safety. | Added deliberate e-stop engage/release tooling, zero-plus-e-stop shutdown, and a Pi-side latch for controller-reported physical e-stop events so switch release cannot resume stale motion. |
+| A029 | 2026-08-31 | Added no-hardware Phase 5 acceptance coverage. | Installed-package checks and a live launch test prove static TF/joints, startup inhibition, explicit release, bounded Twist-to-protocol motion, encoder odometry, and immediate e-stop override. |
+| A030 | 2026-08-31 | Closed the Phase 5 validation micro-loop. | Docker registry metadata timed out before compilation; rerunning entirely from the cached Jazzy image removed the network dependency. Focused 29-test and final 39-test runs passed. |
+| A031 | 2026-08-31 | Documented and committed the Phase 5 software checkpoint. | Wiring/calibration placeholders and a two-person lifted-wheel procedure are documented. Commit `6256b16`; no push was performed. |
+| A032 | 2026-08-31 | Held the sequential gate at physical Phase 5 acceptance. | Software is green, but no physical UGV is attached to this workspace. Per the project rule, Phase 6 has not started and Phase 5 is not mislabeled green. |
 
 ## Test and validation ledger
 
@@ -154,6 +160,10 @@ A phase is `GREEN` only when its acceptance checklist is complete, the ROS works
 | Phase 4 ESP32 firmware build | `./scripts/validate_firmware.sh` PlatformIO target | GREEN | Pinned ESP32 platform builds for `esp32dev`; RAM 6.7%, flash 20.9%. Hardware remains deliberately unarmed until measured values are supplied. |
 | Phase 4 dependency/API checks | rosdep + bridge launch `--show-args` | GREEN | All system dependencies are satisfied; parameter file, mock mode, serial device, and baud arguments load from the installed package. |
 | Phase 4 exact team command | `./scripts/validate_in_docker.sh` | GREEN | Eight packages built; 35 tests, 0 errors, 0 failures, 0 skipped, including Phase 2/3 live Gazebo and Phase 4 bridge gates. |
+| Phase 5 real-launch API/dependencies | rosdep + installed `real.launch.py --show-args` | GREEN | All dependencies are satisfied; hardware params, mock mode, startup interlock, serial, baud, joint-state GUI, and RViz controls load. |
+| Phase 5 focused software gate | Hardware + bringup package tests | GREEN | 29 tests pass, including controller e-stop latching and live no-Gazebo startup/release/motion/odometry/stop behavior. |
+| Phase 5 full regression | Clean cached Jazzy image, all packages | GREEN | Eight packages build; 39 tests, 0 errors, 0 failures, 0 skipped. Earlier live Gazebo and Nav2 gates remain green. |
+| Phase 5 physical lifted-wheel gate | Procedure in `docs/hardware.md` | NOT RUN | Requires the configured, wired UGV, motor stands, two operators, and recorded motor/encoder/watchdog/e-stop observations. |
 
 ## Commit ledger
 
@@ -167,6 +177,7 @@ A phase is `GREEN` only when its acceptance checklist is complete, the ROS works
 | `66b500a` | Phase 3 map, Nav2 configuration/launch, behavior tree, RViz, tests, and Jazzy compatibility fixes | Implementation checkpoint. |
 | `7b59fd3` | Phase 3 reliability timeout, clean-room validator, test isolation, and operator documentation | GREEN. |
 | `2da087c` | Phase 4 ESP32 firmware, serial protocol/bridge, mock hardware, configuration, tests, and operator documentation | GREEN. |
+| `6256b16` | Phase 5 real/mock bringup, startup/shutdown interlocks, controller e-stop latch, live acceptance test, and physical procedure | Software GREEN; physical gate pending. |
 
 ## What is done now
 
@@ -181,17 +192,25 @@ A phase is `GREEN` only when its acceptance checklist is complete, the ROS works
   range, and diagnostics; the same path runs against deterministic mock hardware.
 - The separately built ESP32 firmware runs four motor outputs as two independent PID-controlled
   sides, reads encoders and backup sensors, and disables propulsion on watchdog or e-stop.
+- Phase 5 now has one `real.launch.py` contract for protocol-backed mock or physical serial mode,
+  deliberate e-stop controls, startup/shutdown inhibition, and controller-stop latching.
+- The complete no-hardware teleoperation path is tested from `/cmd_vel` through wheel setpoints,
+  mock firmware telemetry, encoder ticks, and `/wheel/odom`.
 - The exact Linux/ROS 2 Jazzy validation command is reproducible through Docker.
 - Baseline state and unrelated user IDE edits remain preserved and excluded.
 
 ## What is missing now
 
-- Phases 5 through 11.
-- Phase 5 software composition and mock acceptance remain to be implemented.
-- Physical Phase 5 acceptance additionally requires the team to enter measured hardware values,
-  wire and flash the ESP32, place the chassis on stands, and perform motor direction, encoder,
-  watchdog, e-stop, and bounded teleoperation checks on the real UGV.
+- The physical portion of Phase 5 and all of Phases 6 through 11.
+- Phase 5 needs measured hardware values entered in firmware/ROS configuration, a flashed and wired
+  ESP32, and recorded lifted-wheel motor direction, encoder sign, watchdog, physical/software
+  e-stop, reconnect, and bounded teleoperation results.
+- Mock results cannot certify electrical wiring or physical stopping behavior. Phase 6 must not
+  begin until those observations are green.
 
 ## Next action
 
-Begin Phase 5: compose and test real-hardware teleoperation in mock mode first, then follow the documented lifted-wheel procedure on the physical UGV after the team supplies measured wiring and calibration values.
+On the physical UGV, fill the measured values listed in `docs/hardware.md`, flash the validated
+firmware, and execute the two-person lifted-wheel sequence. Record each observed result and any
+diagnostic output. If every item passes, mark Phase 5 green and begin Phase 6; otherwise repair and
+repeat the failed check before advancing.
