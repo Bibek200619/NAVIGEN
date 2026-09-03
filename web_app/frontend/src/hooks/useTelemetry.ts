@@ -39,6 +39,7 @@ export const useTelemetry = (): UseTelemetryReturn => {
         connectionStatus: payload.connection_status,
         linearVelocity: payload.linear_velocity,
         angularVelocity: payload.angular_velocity,
+        isStale: payload.is_stale,
       });
     }
   }
