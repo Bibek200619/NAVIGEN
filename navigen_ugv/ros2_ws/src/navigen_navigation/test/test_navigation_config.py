@@ -35,6 +35,7 @@ def test_required_nav2_plugins_limits_and_layers() -> None:
     )
     assert controller['FollowPath']['desired_linear_vel'] <= 0.4
     assert controller['odom_topic'] == '/wheel/odom'
+    assert config['bt_navigator']['ros__parameters']['default_server_timeout'] >= 1000
     assert planner['GridBased']['plugin'] == 'nav2_smac_planner::SmacPlanner2D'
     assert planner['GridBased']['allow_unknown'] is False
 
@@ -107,4 +108,3 @@ def test_launch_behavior_tree_and_rviz_contract() -> None:
     ):
         assert topic in rviz
     assert 'nav2_rviz_plugins/GoalTool' in rviz
-

@@ -1,0 +1,43 @@
+esp32_bridge:
+  ros__parameters:
+    # Set true for development/CI. Real mode refuses to start until encoder calibration is set.
+    mock_hardware: false
+    # Real launch keeps propulsion inhibited until an operator explicitly publishes false.
+    start_with_software_estop: true
+    serial_port: /dev/ttyUSB0
+    baud_rate: 115200
+    reconnect_interval_s: 1.0
+    command_rate_hz: 30.0
+    telemetry_poll_rate_hz: 50.0
+    command_timeout_s: 0.20
+    telemetry_timeout_s: 0.25
+    firmware_watchdog_timeout_s: 0.30
+    mock_battery_voltage: 12.0
+    mock_ultrasonic_left: 2.5
+    mock_ultrasonic_right: 2.5
+
+    # Safe simulation defaults only; replace with measured physical values together with
+    # navigen_description/config/vehicle.yaml and firmware/include/board_config.h.
+    wheel_radius: 0.0625
+    track_width: 0.34
+    ticks_per_revolution: 0.0       # REQUIRED in real mode: CPR x gear ratio x 4
+    mock_ticks_per_revolution: 1320.0
+
+    max_linear_velocity: 0.40
+    max_angular_velocity: 1.00
+    max_wheel_velocity: 0.60
+    max_linear_acceleration: 0.80
+    max_angular_acceleration: 2.00
+
+    odom_frame: odom
+    base_frame: base_link
+    ultrasonic_left_frame: ultrasonic_left_link
+    ultrasonic_right_frame: ultrasonic_right_link
+    ultrasonic_min_range: 0.02
+    ultrasonic_max_range: 4.0
+    ultrasonic_field_of_view: 0.26
+
+    odom_pose_xy_variance: 0.05
+    odom_pose_yaw_variance: 0.10
+    odom_twist_linear_variance: 0.02
+    odom_twist_angular_variance: 0.05

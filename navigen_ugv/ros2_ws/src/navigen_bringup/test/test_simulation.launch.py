@@ -8,7 +8,7 @@ import unittest
 from ament_index_python.packages import get_package_share_directory
 from geometry_msgs.msg import Twist
 from launch import LaunchDescription
-from launch.actions import IncludeLaunchDescription, TimerAction
+from launch.actions import IncludeLaunchDescription, SetEnvironmentVariable, TimerAction
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 import launch_testing
 from nav_msgs.msg import Odometry
@@ -35,6 +35,7 @@ def generate_test_description():
         }.items(),
     )
     return LaunchDescription([
+        SetEnvironmentVariable('GZ_PARTITION', 'navigen_phase2_simulation_test'),
         simulation,
         TimerAction(
             period=STARTUP_SECONDS,

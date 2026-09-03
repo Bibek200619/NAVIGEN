@@ -5,11 +5,11 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="c1333c91-3c41-43a2-92d2-35a82d763717" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/navigen_ugv/docker/ros-jazzy-harmonic.Dockerfile" beforeDir="false" afterPath="$PROJECT_DIR$/navigen_ugv/docker/ros-jazzy-harmonic.Dockerfile" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/navigen_ugv/ros2_ws/src/navigen_navigation/CMakeLists.txt" beforeDir="false" afterPath="$PROJECT_DIR$/navigen_ugv/ros2_ws/src/navigen_navigation/CMakeLists.txt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/navigen_ugv/ros2_ws/src/navigen_navigation/package.xml" beforeDir="false" afterPath="$PROJECT_DIR$/navigen_ugv/ros2_ws/src/navigen_navigation/package.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/navigen_ugv/ros2_ws/src/navigen_hardware/config/hardware.yaml" beforeDir="false" afterPath="$PROJECT_DIR$/navigen_ugv/ros2_ws/src/navigen_hardware/config/hardware.yaml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/navigen_ugv/ros2_ws/src/navigen_hardware/launch/esp32_bridge.launch.py" beforeDir="false" afterPath="$PROJECT_DIR$/navigen_ugv/ros2_ws/src/navigen_hardware/launch/esp32_bridge.launch.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/navigen_ugv/ros2_ws/src/navigen_hardware/navigen_hardware/esp32_bridge_node.py" beforeDir="false" afterPath="$PROJECT_DIR$/navigen_ugv/ros2_ws/src/navigen_hardware/navigen_hardware/esp32_bridge_node.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/navigen_ugv/scripts/teleop.sh" beforeDir="false" afterPath="$PROJECT_DIR$/navigen_ugv/scripts/teleop.sh" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -17,7 +17,7 @@
     <option name="LAST_RESOLUTION" value="IGNORE" />
   </component>
   <component name="EmbeddingIndexingInfo">
-    <option name="cachedIndexableFilesCount" value="94" />
+    <option name="cachedIndexableFilesCount" value="1596" />
   </component>
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
@@ -92,6 +92,7 @@
       <workItem from="1788020524086" duration="1331000" />
       <workItem from="1788024411455" duration="69000" />
       <workItem from="1788030400705" duration="47000" />
+      <workItem from="1788085208824" duration="1253000" />
     </task>
     <servers />
   </component>
