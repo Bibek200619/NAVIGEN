@@ -194,9 +194,9 @@ schema_version: 1
 
 A breaking field removal, semantic change, or incompatible type change requires a new contract version. Adding an optional field does not necessarily require a new major version.
 
-## 4. Target Repository Structure
+## 4. Repository Structure
 
-The canonical web application location is `web_app/`.
+`web_app/` is the single canonical root for Web work. The former root-level `webapp/` project has already been consolidated into `web_app/frontend/`.
 
 ```text
 web_app/
@@ -212,6 +212,8 @@ web_app/
 ├── backend/
 │   ├── app/
 │   │   ├── api/
+│   │   ├── core/
+│   │   ├── db/
 │   │   ├── models/
 │   │   ├── schemas/
 │   │   ├── services/
@@ -227,15 +229,7 @@ web_app/
     └── DATABASE_SCHEMA.md
 ```
 
-### Current frontend branch note
-
-The working frontend currently exists under `webapp/` on the frontend branch. When frontend work is integrated into the monorepo, the team should converge on:
-
-```text
-web_app/frontend/
-```
-
-Do not keep both `webapp/` and `web_app/` as permanent roots; that would create two competing application locations.
+Do not reintroduce a second `webapp/` root.
 
 ## 5. Technology Responsibilities
 
@@ -752,8 +746,9 @@ When these are finalized, extend v1 with optional fields/tables where compatible
 
 The architecture contract is adopted when:
 
-- [ ] frontend is integrated under `web_app/frontend/`;
-- [ ] backend is created under `web_app/backend/`;
+- [x] frontend is integrated under `web_app/frontend/`;
+- [x] backend scaffold exists under `web_app/backend/`;
+- [x] versioned shared contracts exist under `web_app/shared/`;
 - [ ] database schema follows `DATABASE_SCHEMA.md`;
 - [ ] frontend adapters use the documented mappings;
 - [ ] backend validates canonical enums and field names;
