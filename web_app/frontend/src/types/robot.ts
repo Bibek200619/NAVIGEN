@@ -1,7 +1,12 @@
+export type RobotStatus = 'idle' | 'navigating' | 'manual' | 'offline' | 'error';
+export type RobotConnectionStatus = 'connected' | 'disconnected' | 'connecting';
+
 export interface RobotState {
   id?: string;
   name?: string;
-  status: 'idle' | 'navigating' | 'manual' | 'offline' | 'error';
+  status?: RobotStatus;
+  connectionStatus?: RobotConnectionStatus;
+  isStale?: boolean;
   pose?: {
     x: number;
     y: number;
@@ -9,7 +14,7 @@ export interface RobotState {
     yaw: number;
   };
   velocity?: {
-    linear: number;
-    angular: number;
+    linear?: number;
+    angular?: number;
   };
 }
