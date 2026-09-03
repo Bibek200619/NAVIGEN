@@ -1,12 +1,6 @@
 # NAVIGEN — Frontend Web Application
 
-The React frontend interface for the NAVIGEN UGV operator dashboard.
-
-This project now lives at the canonical repository path:
-
-```text
-web_app/frontend/
-```
+The web frontend interface for NAVIGEN UGV.
 
 ## Tech Stack
 
@@ -28,7 +22,7 @@ web_app/frontend/
 ### Installation
 
 ```bash
-cd web_app/frontend
+cd webapp
 npm install
 ```
 
@@ -53,7 +47,7 @@ npm run lint
 ## Directory Structure
 
 ```text
-web_app/frontend/
+webapp/
 ├── public/
 ├── src/
 │   ├── assets/
@@ -89,14 +83,3 @@ web_app/frontend/
 ├── tsconfig.json
 └── vite.config.ts
 ```
-
-## Shared contracts
-
-Frontend field names and API/database mappings must follow the canonical documents in:
-
-```text
-web_app/docs/ARCHITECTURE.md
-web_app/docs/DATABASE_SCHEMA.md
-```
-
-The frontend may use TypeScript `camelCase` domain models, but API/database payloads use the documented canonical `snake_case` names and must be converted through service/adapter boundaries rather than renamed ad hoc.

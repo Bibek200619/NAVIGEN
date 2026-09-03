@@ -1,0 +1,1 @@
+{"schema_version":1,"event_type":"robot.telemetry","robot_id":"00000000-0000-0000-0000-000000000000","recorded_at":"2026-09-03T08:10:00Z","received_at":"2026-09-03T08:10:00.050Z","payload":{"connection_status":"connected","linear_velocity":0.42,"angular_velocity":0.03,"battery_level_pct":81.5,"is_stale":false}}

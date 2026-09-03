@@ -1,0 +1,1 @@
+"""NAVIGEN backend application package."""

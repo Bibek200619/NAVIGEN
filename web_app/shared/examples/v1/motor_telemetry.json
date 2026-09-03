@@ -1,0 +1,1 @@
+{"schema_version":1,"event_type":"motor.telemetry","robot_id":"00000000-0000-0000-0000-000000000000","recorded_at":"2026-09-03T08:10:00Z","received_at":"2026-09-03T08:10:00.020Z","payload":{"left_velocity":0.4,"right_velocity":0.41,"battery_voltage":12.2,"estop_active":false,"watchdog_triggered":false,"serial_connected":true}}

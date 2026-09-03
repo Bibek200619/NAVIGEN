@@ -1,0 +1,1 @@
+"""Supabase/Postgres client factory."""

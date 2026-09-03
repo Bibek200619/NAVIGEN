@@ -1,0 +1,9 @@
+from fastapi import APIRouter
+
+from app.api.v1.routes import commands, missions, robots, system
+
+router = APIRouter()
+router.include_router(system.router, tags=["system"])
+router.include_router(robots.router, prefix="/robots", tags=["robots"])
+router.include_router(missions.router, prefix="/missions", tags=["missions"])
+router.include_router(commands.router, prefix="/commands", tags=["commands"])
