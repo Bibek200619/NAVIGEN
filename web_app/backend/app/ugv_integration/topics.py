@@ -1,0 +1,5 @@
+MOTOR_TELEMETRY_TOPIC = "/motor/telemetry"
+SAFETY_STATE_TOPIC = "/safety/state"
+ODOMETRY_TOPIC = "/odometry/filtered"
+GOAL_POSE_TOPIC = "/goal_pose"
+SOFTWARE_ESTOP_TOPIC = "/safety/e_stop"
