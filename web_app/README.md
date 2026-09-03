@@ -7,27 +7,31 @@ Operator dashboard and application integration layer for the NAVIGEN UGV. The We
 ```text
 web_app/
 ├── frontend/        # React + TypeScript + Vite operator dashboard
-├── backend/         # Backend/API service (to be implemented)
-├── shared/          # Shared contracts/examples (to be implemented)
+├── backend/         # FastAPI-ready API/integration service
+│   ├── app/
+│   │   ├── api/v1/
+│   │   ├── core/
+│   │   ├── db/
+│   │   ├── models/
+│   │   ├── repositories/
+│   │   ├── schemas/
+│   │   ├── services/
+│   │   ├── websocket/
+│   │   └── ugv_integration/
+│   └── tests/
+├── shared/          # Versioned cross-team contracts and examples
+│   ├── contracts/v1/
+│   └── examples/v1/
 └── docs/
     ├── ARCHITECTURE.md
     └── DATABASE_SCHEMA.md
 ```
 
-The previous root-level `webapp/` project has been consolidated into `web_app/frontend/`. `web_app/` is now the single canonical root for all Web work.
+The previous root-level `webapp/` project has been consolidated into `web_app/frontend/`. `web_app/` is the single canonical root for all Web work.
 
 ## Frontend
 
-The current frontend provides the application shell and UI areas for:
-
-- dashboard;
-- camera;
-- robot state;
-- sensors;
-- missions;
-- logs;
-- settings;
-- telemetry/API abstractions.
+The current frontend provides the application shell and UI areas for dashboard, camera, robot state, sensors, missions, logs, settings, and telemetry/API abstractions.
 
 Run it with:
 
@@ -37,28 +41,28 @@ npm install
 npm run dev
 ```
 
+## Backend
+
+The backend scaffold is organized around clear boundaries for API routes, validation schemas, business services, database repositories, live WebSocket delivery, and UGV/ROS integration.
+
+After installing the backend package, the intended development entry point is:
+
+```bash
+cd web_app/backend
+uvicorn app.main:app --reload
+```
+
+`/health` and `/api/v1/status` are the initial system endpoints. Business endpoints remain intentionally unimplemented until their Supabase schema and authorization behavior are wired against the approved contract.
+
+## Shared contracts
+
+`shared/contracts/v1/` is implementation-neutral and belongs to all application teams. It defines canonical enum values and the telemetry, mission, and command contracts. `shared/examples/v1/` contains representative payloads that frontend/backend/mobile tests can consume.
+
 ## Architecture and database contracts
 
-Before adding backend models, API fields, database columns, or new frontend domain names, follow:
+Before adding a database field, API name, WebSocket event, or ROS-to-app mapping, read:
 
-- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — system boundaries, naming, API/WebSocket rules, UGV integration, and safety contract.
-- [`docs/DATABASE_SCHEMA.md`](docs/DATABASE_SCHEMA.md) — canonical Supabase table names, columns, enums, relationships, and frontend mappings.
+- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
+- [`docs/DATABASE_SCHEMA.md`](docs/DATABASE_SCHEMA.md)
 
-## UGV integration contract
-
-The UGV exposes telemetry to the application integration layer, including the canonical ROS-side sources such as:
-
-```text
-/motor/telemetry
-/safety/state
-/odometry/filtered
-```
-
-Approved command direction:
-
-```text
-/goal_pose       geometry_msgs/PoseStamped
-/safety/e_stop   std_msgs/Bool
-```
-
-All Web mission and safety-sensitive requests must pass through the backend validation layer. The Web application must never bypass the UGV safety supervisor or release the physical e-stop.
+Database/API-facing names use `snake_case`; frontend models may use `camelCase` through explicit adapters.
