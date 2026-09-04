@@ -62,6 +62,7 @@ export interface RobotStatusProps {
   isLoading?: boolean;
   error?: Error | null;
   onRetry?: () => void;
+  className?: string;
 }
 
 export const RobotStatus: React.FC<RobotStatusProps> = ({
@@ -69,6 +70,7 @@ export const RobotStatus: React.FC<RobotStatusProps> = ({
   isLoading: propIsLoading,
   error: propError,
   onRetry,
+  className = '',
 }) => {
   const robotData = useRobotData();
   const robot = propRobot !== undefined ? propRobot : robotData.selectedRobot;
@@ -90,23 +92,23 @@ export const RobotStatus: React.FC<RobotStatusProps> = ({
       : { label: 'Live', variant: 'success' as const };
 
   return (
-    <Panel title="Robot Status">
+    <Panel title="Robot Status" className={className}>
       <div className="space-y-4">
         {/* Status header row */}
-        <div className="grid grid-cols-2 gap-3 pb-3 border-b border-slate-800 text-xs">
-          <div className="flex items-center gap-2">
+        <div className="grid grid-cols-2 gap-2.5 pb-3 border-b border-slate-800 text-xs">
+          <div className="flex items-center justify-between p-1.5 bg-slate-950/60 rounded border border-slate-800/80">
             <span className="text-slate-400">Gateway:</span>
             <StatusBadge status={gatewayConfig.label} variant={gatewayConfig.variant} />
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center justify-between p-1.5 bg-slate-950/60 rounded border border-slate-800/80">
             <span className="text-slate-400">Robot link:</span>
             <StatusBadge status={robotConnConfig.label} variant={robotConnConfig.variant} />
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center justify-between p-1.5 bg-slate-950/60 rounded border border-slate-800/80">
             <span className="text-slate-400">Robot status:</span>
             <StatusBadge status={robotStatusConfig.label} variant={robotStatusConfig.variant} />
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center justify-between p-1.5 bg-slate-950/60 rounded border border-slate-800/80">
             <span className="text-slate-400">Telemetry:</span>
             <StatusBadge status={telemetryConfig.label} variant={telemetryConfig.variant} />
           </div>
@@ -126,7 +128,7 @@ export const RobotStatus: React.FC<RobotStatusProps> = ({
               <button
                 type="button"
                 onClick={handleRetry}
-                className="mt-3 px-3 py-1 bg-slate-800 hover:bg-slate-700 rounded text-[11px] font-medium text-slate-200 border border-slate-700"
+                className="mt-3 px-3 py-1 bg-slate-800 hover:bg-slate-700 rounded text-[11px] font-medium text-slate-200 border border-slate-700 transition-colors focus:outline-none focus:ring-1 focus:ring-sky-500"
               >
                 Retry
               </button>
@@ -142,33 +144,35 @@ export const RobotStatus: React.FC<RobotStatusProps> = ({
         ) : (
           <div className="space-y-3">
             {/* Real Robot Identity & Metadata */}
-            <div className="p-3 bg-slate-950/60 rounded-md border border-slate-800 text-xs space-y-1.5">
+            <div className="p-3 bg-slate-950/60 rounded-md border border-slate-800 text-xs space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-slate-400 font-medium">Robot Name</span>
                 <span className="font-semibold text-slate-200">{robot.name}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-slate-400">Robot ID</span>
-                <span className="font-mono text-slate-300 text-[11px]">{robot.id}</span>
+                <span className="font-mono text-slate-300 text-[11px] bg-slate-900 px-1.5 py-0.5 rounded border border-slate-800">
+                  {robot.id}
+                </span>
               </div>
-              <div className="flex items-center justify-between pt-1 border-t border-slate-800/60 text-[11px]">
+              <div className="flex items-center justify-between pt-1.5 border-t border-slate-800/80 text-[11px]">
                 <span className="text-slate-400">Last seen</span>
                 <span className="text-slate-300 font-mono">
                   {robot.last_seen_at ? new Date(robot.last_seen_at).toLocaleString() : 'Never'}
                 </span>
               </div>
               {robot.description && (
-                <div className="text-[11px] text-slate-500 pt-1 border-t border-slate-800/40">
+                <div className="text-[11px] text-slate-400 pt-1.5 border-t border-slate-800/60 leading-relaxed">
                   {robot.description}
                 </div>
               )}
             </div>
 
             {/* Live Velocities grid (from active telemetry) */}
-            <div className="grid grid-cols-2 gap-3">
-              <div className="p-3 bg-slate-950/60 rounded-md border border-slate-800">
-                <div className="text-xs text-slate-400 mb-1">Linear Velocity</div>
-                <div className="text-base font-semibold text-slate-100">
+            <div className="grid grid-cols-2 gap-2.5">
+              <div className="p-2.5 bg-slate-950/60 rounded-md border border-slate-800">
+                <div className="text-[11px] text-slate-400 mb-0.5">Linear Velocity</div>
+                <div className="text-base font-semibold font-mono text-slate-100 flex items-baseline">
                   {robotState?.velocity?.linear !== undefined
                     ? robotState.velocity.linear.toFixed(2)
                     : '--'}
@@ -176,9 +180,9 @@ export const RobotStatus: React.FC<RobotStatusProps> = ({
                 </div>
               </div>
 
-              <div className="p-3 bg-slate-950/60 rounded-md border border-slate-800">
-                <div className="text-xs text-slate-400 mb-1">Angular Velocity</div>
-                <div className="text-base font-semibold text-slate-100">
+              <div className="p-2.5 bg-slate-950/60 rounded-md border border-slate-800">
+                <div className="text-[11px] text-slate-400 mb-0.5">Angular Velocity</div>
+                <div className="text-base font-semibold font-mono text-slate-100 flex items-baseline">
                   {robotState?.velocity?.angular !== undefined
                     ? robotState.velocity.angular.toFixed(2)
                     : '--'}
