@@ -1,0 +1,1 @@
+{"robot_id":"00000000-0000-0000-0000-000000000000","name":"Competition course","description":"Vision-led autonomous course run","goals":[{"frame_id":"map","position_x":4.2,"position_y":1.5,"position_z":0.0,"orientation_x":0.0,"orientation_y":0.0,"orientation_z":0.0,"orientation_w":1.0}]}
