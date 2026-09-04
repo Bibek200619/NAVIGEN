@@ -101,6 +101,7 @@ A phase is `GREEN` only when its acceptance checklist is complete, the ROS works
 - [x] Reconnect the reviewed D1/D2/D5/D6/common-ground signal harness with motor power absent and confirm that the controller still boots and streams zero-output telemetry.
 - [x] Identify the exact chassis listing and record its seller specifications: 3-6 V, 200 RPM,
       1:48 BO motors; 208 RPM no-load at 5 V; 170 mA load current at 4.5 V; stall current omitted.
+- [x] Record the cell label: HYLN IMR18650, 3.7 V, 2500 mAh, 9.25 Wh, BIS `R-41232807`.
 - [ ] Provide a measured, current-rated 3-6 V motor battery and a separate regulated Pi USB-C
       supply. The no-buck plan excludes the three-cell 18650 holder. Record side-pair stall
       current, L298N thermal margin, switch rating, and wheel/track geometry.
@@ -159,6 +160,7 @@ A phase is `GREEN` only when its acceptance checklist is complete, the ROS works
 | A044 | 2026-09-05 | Passed the USB-only controller/L298N signal-harness smoke test. | With motor supply absent and D1/D2/D5/D6/common ground attached, the ESP8266 enumerated and continuously emitted zero-output protocol-v2 telemetry. This does not approve battery voltage, motor current, or powered motion. |
 | A045 | 2026-09-05 | Audited the exact Blessaro chassis listing supplied by the user. | The seller specifies four 3-6 V, 200 RPM, 1:48 BO motors, 208 RPM no-load at 5 V, 0.8 kg.cm torque at 5 V, and 170 mA load current at 4.5 V, but omits stall current. This resolves the earlier 3 V-only report while confirming that direct use of the three-cell 18650 holder remains unsafe. Phase 5 is blocked at the regulated-power gate; firmware remains unarmed. |
 | A046 | 2026-09-05 | Recorded the user's decision not to use the relay module or any buck converter. | The relay is optional and remains disconnected. Without voltage conversion, the 3S holder is excluded from propulsion; Phase 5 now requires a known 3-6 V motor battery plus a separate regulated USB-C source for the Pi. No code or PWM setting can safely replace this power requirement. |
+| A047 | 2026-09-05 | Inspected the supplied 18650 cell-label photograph. | Each cell is marked `HYLN-IMR18650-2500mAh`, 3.7 V, 2500 mAh, 9.25 Wh, BIS `R-41232807`, dated `2026/5`. The label does not publish discharge-current limits or confirm protection. Three cells in the photographed series-style holder remain incompatible with 3-6 V motors without conversion. |
 
 ## Test and validation ledger
 
@@ -246,6 +248,9 @@ A phase is `GREEN` only when its acceptance checklist is complete, the ROS works
 - A separate regulated USB-C supply/power bank for the Raspberry Pi, combined side stall current,
   L298N thermal margin, switch/contact rating, wheel radius, and effective track width remain
   unknown. The seller's 170 mA load-current figure is not a stall-current rating.
+- The 18650 label is now recorded, but cell protection, pack-level BMS/balancing, charger, fuse,
+  and maximum discharge current remain unverified. A BIS registration marking is not evidence of
+  those installed protections.
 - HC-SR04 ECHO and D0 motor-power feedback need correctly calculated, measured 3.3 V-safe divider
   wiring. The photographed resistor bands are not clear enough to approve values remotely.
 - The replacement NodeMCU has been flashed and verified with the firmware intentionally unarmed.

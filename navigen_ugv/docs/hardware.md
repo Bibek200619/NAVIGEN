@@ -18,6 +18,11 @@ motors** with a 1:48 gearbox, 208 RPM no-load speed at 5 V, 0.8 kg.cm rated torq
 motors expose only two power wires. Product reference:
 <https://www.amazon.in/dp/B0GHJCXHWK>.
 
+The photographed cells are marked `HYLN-IMR18650-2500mAh`, 3.7 V, 2500 mAh, 9.25 Wh, BIS
+registration `R-41232807`, dated `2026/5`. Those markings do not state maximum continuous or
+peak discharge current and do not prove that each cell contains a protection circuit. The holder
+has alternating cell orientation consistent with a three-series-cell holder and no visible BMS.
+
 The executable hardware profile now supports exactly those encoderless propulsion parts. It does
 not fabricate encoder feedback or wheel odometry. This is enough for Phase 5 open-loop
 teleoperation; later real autonomy must localize from the fixed camera + MPU6050 visual-inertial
@@ -82,6 +87,9 @@ invalid/NaN. The physical mounting—not the legacy topic suffix—is centered.
   propulsion. Use a known **3-6 V motor battery** with sufficient continuous/transient current and
   a fuse instead—for example, a correctly assembled four-cell NiMH pack. Verify its maximum
   voltage with a multimeter before connecting the driver.
+- Do not assume that the printed BIS number supplies over-current, over-charge, over-discharge, or
+  cell-balancing protection. Those functions must exist in the cell/pack hardware and charger and
+  be verified separately.
 - Identify the exact 18650 cells and prove that the assembled pack has suitable 3S protection,
   balancing/charging, and a fuse. A plastic holder alone is not a BMS. Do not charge cells in the
   holder until this is established.
