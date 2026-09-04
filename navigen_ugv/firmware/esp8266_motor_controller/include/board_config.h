@@ -17,6 +17,8 @@
 #define PIN_MOTOR_LEFT_B         4  // D2 -> IN2
 #define PIN_MOTOR_RIGHT_A       14  // D5 -> IN3
 #define PIN_MOTOR_RIGHT_B       12  // D6 -> IN4
+#define PIN_MOTOR_LEFT_ENABLE   -1  // ENA jumper installed; no GPIO used
+#define PIN_MOTOR_RIGHT_ENABLE  13  // D7 -> ENB (remove ENB jumper)
 #define MOTOR_LEFT_INVERTED      0
 #define MOTOR_RIGHT_INVERTED     0
 
@@ -35,8 +37,9 @@
 // NodeMCU label -> ESP8266 GPIO: D8=15, D7=13. GPIO15 is a boot strap pin and
 // must remain LOW at boot; connect it only to the high-impedance HC-SR04 TRIG.
 // ECHO is 5 V and MUST pass through a verified divider before D7.
-#define PIN_US_FRONT_TRIG        15  // D8 -> TRIG
-#define PIN_US_FRONT_ECHO        13  // D7 <- divided ECHO
+#define ULTRASONIC_ENABLED        0  // D7 is reserved for L298N ENB
+#define PIN_US_FRONT_TRIG        15  // D8 -> TRIG (unused while disabled)
+#define PIN_US_FRONT_ECHO        13  // D7, reserved for ENB while disabled
 #define ULTRASONIC_SAMPLE_PERIOD_MS 80
 #define ULTRASONIC_ECHO_TIMEOUT_US 24000
 #define ULTRASONIC_STALE_MS    250

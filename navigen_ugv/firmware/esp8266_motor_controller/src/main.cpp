@@ -32,6 +32,7 @@ constexpr int16_t MOTOR_TEST_PWM = 80;
 struct MotorChannel {
   int pin_a;
   int pin_b;
+  int enable_pin;
   bool inverted;
 };
 
@@ -44,8 +45,10 @@ struct UltrasonicSensor {
 };
 
 MotorChannel motor_left{PIN_MOTOR_LEFT_A, PIN_MOTOR_LEFT_B,
+                        PIN_MOTOR_LEFT_ENABLE,
                         MOTOR_LEFT_INVERTED != 0};
 MotorChannel motor_right{PIN_MOTOR_RIGHT_A, PIN_MOTOR_RIGHT_B,
+                         PIN_MOTOR_RIGHT_ENABLE,
                          MOTOR_RIGHT_INVERTED != 0};
 UltrasonicSensor ultrasonic_front{PIN_US_FRONT_TRIG, PIN_US_FRONT_ECHO};
 
@@ -138,7 +141,10 @@ bool motorPinSafe(int pin) {
 bool pinsAreUnique() {
   const std::array<int, 6> pins{
       PIN_MOTOR_LEFT_A,  PIN_MOTOR_LEFT_B,    PIN_MOTOR_RIGHT_A,
-      PIN_MOTOR_RIGHT_B, PIN_US_FRONT_TRIG,   PIN_US_FRONT_ECHO,
+      PIN_MOTOR_RIGHT_B, PIN_MOTOR_LEFT_ENABLE, PIN_MOTOR_RIGHT_ENABLE,
+#if ULTRASONIC_ENABLED
+      PIN_US_FRONT_TRIG, PIN_US_FRONT_ECHO,
+#endif
   };
   for (std::size_t first = 0; first < pins.size(); ++first) {
     for (std::size_t second = first + 1; second < pins.size(); ++second) {
@@ -163,8 +169,10 @@ bool validateConfiguration() {
       supportedDigitalPin(PIN_MOTOR_LEFT_B) &&
       supportedDigitalPin(PIN_MOTOR_RIGHT_A) &&
       supportedDigitalPin(PIN_MOTOR_RIGHT_B) &&
+#if ULTRASONIC_ENABLED
       supportedDigitalPin(PIN_US_FRONT_TRIG) &&
       supportedDigitalPin(PIN_US_FRONT_ECHO) &&
+#endif
 #if ESTOP_INPUT_ENABLED
       supportedDigitalPin(PIN_ESTOP_INPUT) &&
 #endif
@@ -182,9 +190,13 @@ bool validateConfiguration() {
       LEFT_PWM_SCALE > 0.0F && LEFT_PWM_SCALE <= 1.0F &&
       RIGHT_PWM_SCALE > 0.0F && RIGHT_PWM_SCALE <= 1.0F;
   const bool ultrasonic_configured =
+#if ULTRASONIC_ENABLED
       PIN_US_FRONT_TRIG != PIN_US_FRONT_ECHO &&
       ULTRASONIC_SAMPLE_PERIOD_MS > 0 && ULTRASONIC_ECHO_TIMEOUT_US > 0 &&
       ULTRASONIC_STALE_MS > 0;
+#else
+      true;
+#endif
   const bool battery_configured =
       BATTERY_MONITOR_ENABLED == 0 ||
       (ADC_FULL_SCALE_MV > 0 && BATTERY_DIVIDER > 0.0F);
@@ -207,6 +219,10 @@ void IRAM_ATTR ultrasonicEchoInterrupt() {
 void configureMotor(const MotorChannel& motor) {
   pinMode(motor.pin_a, OUTPUT);
   pinMode(motor.pin_b, OUTPUT);
+  if (motor.enable_pin >= 0) {
+    pinMode(motor.enable_pin, OUTPUT);
+    digitalWrite(motor.enable_pin, LOW);
+  }
   digitalWrite(motor.pin_a, LOW);
   digitalWrite(motor.pin_b, LOW);
 }
@@ -216,11 +232,13 @@ void configureHardware() {
   analogWriteFreq(PWM_FREQUENCY_HZ);
   configureMotor(motor_left);
   configureMotor(motor_right);
+#if ULTRASONIC_ENABLED
   pinMode(PIN_US_FRONT_TRIG, OUTPUT);
   digitalWrite(PIN_US_FRONT_TRIG, LOW);
   pinMode(PIN_US_FRONT_ECHO, INPUT);
   attachInterrupt(digitalPinToInterrupt(PIN_US_FRONT_ECHO),
                   ultrasonicEchoInterrupt, CHANGE);
+#endif
 #if ESTOP_INPUT_ENABLED
   pinMode(PIN_ESTOP_INPUT,
           ESTOP_USE_PULLDOWN_16 != 0 ? INPUT_PULLDOWN_16 : INPUT);
@@ -245,6 +263,9 @@ void writeMotor(const MotorChannel& motor, int16_t requested_pwm) {
     analogWrite(motor.pin_a, value);
   } else if (value < 0) {
     analogWrite(motor.pin_b, -value);
+  }
+  if (motor.enable_pin >= 0) {
+    digitalWrite(motor.enable_pin, value == 0 ? LOW : HIGH);
   }
 }
 
@@ -348,12 +369,16 @@ void triggerUltrasonic() {
 }
 
 void serviceUltrasonic(uint32_t now_ms) {
+#if ULTRASONIC_ENABLED
   if (configuration_valid &&
       static_cast<uint32_t>(now_ms - last_ultrasonic_ms) >=
           ULTRASONIC_SAMPLE_PERIOD_MS) {
     last_ultrasonic_ms = now_ms;
     triggerUltrasonic();
   }
+#else
+  (void)now_ms;
+#endif
 }
 
 uint16_t ultrasonicDistanceMm(uint32_t now_us) {
@@ -399,7 +424,11 @@ void sendTelemetry(uint32_t now_us, uint32_t now_ms) {
   telemetry.right_ticks = 0;
   telemetry.battery_mv = batteryMillivolts();
   // Protocol slot 1 carries the single centered sensor; slot 2 stays invalid.
+#if ULTRASONIC_ENABLED
   telemetry.ultrasonic_left_mm = ultrasonicDistanceMm(now_us);
+#else
+  telemetry.ultrasonic_left_mm = navigen::protocol::ULTRASONIC_INVALID;
+#endif
   telemetry.ultrasonic_right_mm = navigen::protocol::ULTRASONIC_INVALID;
   telemetry.flags = navigen::protocol::FLAG_OPEN_LOOP;
   if (software_estop || physicalEstopActive()) {
