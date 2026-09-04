@@ -12,6 +12,7 @@ export interface SensorStatusProps {
   isLoading?: boolean;
   error?: Error | null;
   onRetry?: () => void;
+  className?: string;
 }
 
 interface CoreSensorConfig {
@@ -34,6 +35,7 @@ export const SensorStatus: React.FC<SensorStatusProps> = ({
   isLoading: propsLoading,
   error: propsError,
   onRetry,
+  className = '',
 }) => {
   // Use hook if props not explicitly provided
   const hookResult = useSensorStatus(robotId, { enabled: propsSensors === undefined });
@@ -81,11 +83,11 @@ export const SensorStatus: React.FC<SensorStatusProps> = ({
         : `${activeCount} / 5 reporting`;
 
   return (
-    <Panel className="relative">
-      <div className="flex items-center justify-between mb-3">
+    <Panel className={`relative ${className}`}>
+      <div className="flex items-center justify-between mb-3 pb-2 border-b border-slate-800">
         <h3 className="text-sm font-semibold text-slate-300">Sensor Health</h3>
         <span
-          className="text-xs font-mono text-slate-400 bg-slate-800/80 px-2 py-0.5 rounded border border-slate-700/50"
+          className="text-xs font-mono text-slate-300 bg-slate-950 px-2.5 py-0.5 rounded border border-slate-800"
           data-testid="sensor-health-aggregate"
         >
           {reportingAggregate}
@@ -102,7 +104,7 @@ export const SensorStatus: React.FC<SensorStatusProps> = ({
           {handleRetry && (
             <button
               onClick={() => handleRetry()}
-              className="px-2 py-1 bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 rounded text-xs transition-colors"
+              className="px-2 py-1 bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 rounded text-xs transition-colors focus:outline-none focus:ring-1 focus:ring-rose-400"
             >
               Retry
             </button>
@@ -113,7 +115,7 @@ export const SensorStatus: React.FC<SensorStatusProps> = ({
           {matchedList.map((sensor) => (
             <div
               key={sensor.name}
-              className="flex items-center justify-between p-2.5 bg-slate-950/60 rounded-md border border-slate-800 text-xs"
+              className="flex items-center justify-between p-2.5 bg-slate-950/60 rounded-md border border-slate-800 text-xs hover:border-slate-700/80 transition-colors"
             >
               <div className="flex flex-col min-w-0 pr-2">
                 <div className="flex items-center space-x-1.5">

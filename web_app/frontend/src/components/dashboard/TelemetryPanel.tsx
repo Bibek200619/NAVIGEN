@@ -21,9 +21,10 @@ const getStatusBadgeConfig = (status: WebSocketStatus) => {
 
 export interface TelemetryPanelProps {
   robotId?: string | null;
+  className?: string;
 }
 
-export const TelemetryPanel: React.FC<TelemetryPanelProps> = ({ robotId }) => {
+export const TelemetryPanel: React.FC<TelemetryPanelProps> = ({ robotId, className = '' }) => {
   const { telemetry, status } = useTelemetry();
   const {
     history,
@@ -46,15 +47,15 @@ export const TelemetryPanel: React.FC<TelemetryPanelProps> = ({ robotId }) => {
   const yaw = telemetry?.yaw ?? history[0]?.yaw ?? null;
 
   return (
-    <Panel title="Telemetry">
+    <Panel title="Telemetry" className={className}>
       <div className="space-y-4">
         {/* Status header row */}
-        <div className="flex items-center justify-between pb-3 border-b border-slate-800 text-xs">
-          <div className="flex items-center gap-2">
+        <div className="grid grid-cols-2 gap-2.5 pb-3 border-b border-slate-800 text-xs">
+          <div className="flex items-center justify-between p-1.5 bg-slate-950/60 rounded border border-slate-800/80">
             <span className="text-slate-400">Connection:</span>
             <StatusBadge status={statusConfig.label} variant={statusConfig.variant} />
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center justify-between p-1.5 bg-slate-950/60 rounded border border-slate-800/80">
             <span className="text-slate-400">Stream:</span>
             <StatusBadge status={streamBadge.label} variant={streamBadge.variant} />
           </div>

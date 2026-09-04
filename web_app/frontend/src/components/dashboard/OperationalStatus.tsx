@@ -14,6 +14,7 @@ export interface OperationalStatusProps {
   isLoadingLocalization?: boolean;
   safetyError?: Error | null;
   localizationError?: Error | null;
+  className?: string;
 }
 
 export const OperationalStatus: React.FC<OperationalStatusProps> = ({
@@ -24,6 +25,7 @@ export const OperationalStatus: React.FC<OperationalStatusProps> = ({
   isLoadingLocalization: propLoadingLocalization,
   safetyError: propSafetyError,
   localizationError: propLocalizationError,
+  className = '',
 }) => {
   const safetyHook = useSafetyStatus(robotId, { enabled: propSafety === undefined });
   const locHook = useLocalizationStatus(robotId, { enabled: propLocalization === undefined });
@@ -76,11 +78,17 @@ export const OperationalStatus: React.FC<OperationalStatusProps> = ({
   const locBadge = getLocalizationBadge();
 
   return (
-    <Panel title="Operational Status">
+    <Panel title="Operational Status" className={className}>
       <div className="space-y-4">
         {/* Safety Section */}
         <div
-          className="p-3 bg-slate-950/60 rounded-md border border-slate-800 space-y-2 text-xs"
+          className={`p-3 rounded-md border text-xs space-y-2 transition-colors ${
+            safetyEvent?.state === 'emergency_stop'
+              ? 'bg-rose-950/30 border-rose-500/50 shadow-[0_0_12px_rgba(244,63,94,0.15)]'
+              : safetyEvent?.state === 'warning'
+              ? 'bg-amber-950/20 border-amber-500/40'
+              : 'bg-slate-950/60 border-slate-800'
+          }`}
           data-testid="safety-status-card"
         >
           <div className="flex items-center justify-between">
@@ -97,7 +105,7 @@ export const OperationalStatus: React.FC<OperationalStatusProps> = ({
           {safetyError ? (
             <div className="text-rose-400 text-[11px]">Failed to load safety: {safetyError.message}</div>
           ) : safetyEvent ? (
-            <div className="space-y-1 pt-1 border-t border-slate-800/80 text-[11px]">
+            <div className="space-y-1.5 pt-1 border-t border-slate-800/80 text-[11px]">
               {safetyEvent.description && (
                 <div className="text-slate-300">
                   <span className="text-slate-500">Note: </span>
@@ -105,12 +113,12 @@ export const OperationalStatus: React.FC<OperationalStatusProps> = ({
                 </div>
               )}
               {safetyEvent.active_triggers && safetyEvent.active_triggers.length > 0 && (
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  <span className="text-slate-500">Triggers:</span>
+                <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
+                  <span className="text-slate-400 font-medium">Triggers:</span>
                   {safetyEvent.active_triggers.map((trigger) => (
                     <span
                       key={trigger}
-                      className="px-1.5 py-0.5 bg-rose-500/10 border border-rose-500/20 text-rose-300 rounded font-mono text-[10px]"
+                      className="px-1.5 py-0.5 bg-rose-500/15 border border-rose-500/30 text-rose-300 rounded font-mono text-[10px]"
                     >
                       {trigger}
                     </span>
@@ -131,7 +139,13 @@ export const OperationalStatus: React.FC<OperationalStatusProps> = ({
 
         {/* Localization Section */}
         <div
-          className="p-3 bg-slate-950/60 rounded-md border border-slate-800 space-y-2 text-xs"
+          className={`p-3 rounded-md border text-xs space-y-2 transition-colors ${
+            localization?.state === 'lost'
+              ? 'bg-rose-950/20 border-rose-500/30'
+              : localization?.state === 'relocalizing'
+              ? 'bg-amber-950/15 border-amber-500/30'
+              : 'bg-slate-950/60 border-slate-800'
+          }`}
           data-testid="localization-status-card"
         >
           <div className="flex items-center justify-between">
