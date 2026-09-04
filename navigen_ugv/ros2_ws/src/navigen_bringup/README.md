@@ -5,7 +5,8 @@ Owns top-level simulation and real-hardware composition:
 - `launch/sim.launch.py`: Gazebo Harmonic, robot spawn, state publisher, bridge and optional RViz.
 - `worlds/navigen_outdoor.sdf`: deterministic self-contained outdoor test world.
 - `config/gz_bridge.yaml`: directional ROS↔Gazebo topic contract.
-- `launch/real.launch.py`: shared description plus ESP32 bridge, with startup e-stop asserted.
+- `launch/real.launch.py`: shared description plus NodeMCU ESP8266 motor bridge, with startup
+  e-stop asserted and no fabricated wheel odometry.
 - Static and live launch tests under `test/`.
 
 Run from a built and sourced workspace:

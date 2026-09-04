@@ -1,183 +1,177 @@
 # Hardware
 
-## Bill of materials
+## Confirmed team profile
 
-- Raspberry Pi 5, Ubuntu 24.04, ROS 2 Jazzy (active cooling recommended)
-- ESP32 DevKit (dual-core, 3.3 V logic) — USB serial to the Pi
-- 4WD skid-steer chassis; left-front + left-rear motors driven as LEFT side, right pair as RIGHT side
-- 4 DC geared motors with quadrature encoders
-- Motor power stage with at least two H-bridge channels. The current team profile uses one L298N:
-  its channel A drives the left motor pair and channel B drives the right motor pair.
-- Stereo camera (preferred) or monocular USB/Pi camera
-- MPU6050 IMU, 2x HC-SR04 front ultrasonics (5 V — use a voltage divider on ECHO to the ESP32)
-- Physical e-stop switch: MUST cut motor power directly AND feed a digital input to the ESP32
-- Battery with voltage sensing (divider to an ESP32 ADC pin)
+The 2026-09-04 inventory/photo audit establishes this physical profile:
 
-## Current team hardware profile and gaps
+- Raspberry Pi 5 with Raspberry Pi Camera and a regulated 5 V buck converter;
+- NodeMCU 1.0 carrying an `ESP8266MOD` / ESP-12 module, connected to the Pi by USB;
+- one L298N, four encoderless yellow TT geared motors, and a 4WD skid-steer chassis;
+- one MPU6050, at least one HC-SR04, one physical switch, three-cell 18650 holder, one relay
+  module, breadboard/jumpers/resistors, SG90 servos, and a pan/tilt mount.
 
-The 2026-09-04 photo audit confirms a single L298N, four yellow TT gear motors, a three-cell 18650
-holder, an MPU6050 breakout, one HC-SR04, one SG90, a 5 V relay module, a breadboard, and resistors.
-The Raspberry Pi 5, Raspberry Pi Camera, buck converter, second ultrasonic, and pan-tilt mount were
-reported but were not identifiable in the supplied photographs.
+The executable hardware profile now supports exactly those encoderless propulsion parts. It does
+not fabricate encoder feedback or wheel odometry. This is enough for Phase 5 open-loop
+teleoperation; later real autonomy must localize from the fixed camera + MPU6050 visual-inertial
+pipeline.
 
-The photographed controller is a **NodeMCU ESP8266**, identified by `ESP8266MOD` on its radio
-module and its D0-D8 board labels. It is not an ESP32 DevKit and is not supported by this firmware.
-Do not select an ESP8266 PlatformIO target or try to fill the ESP32 pin map for this board. Obtain a
-real ESP32 development board compatible with PlatformIO's `esp32dev` target, then photograph both
-the module marking and GPIO labels before assigning pins.
+## What is and is not connected
 
-The intended profile remains supported as **monocular camera + two side motor channels**, subject
-to these unresolved physical gates:
-
-- The photographed TT motors have only their two power leads visible and no fitted encoder
-  hardware. Install a real quadrature A/B encoder on at least one output shaft per side, or replace
-  them with encoder-equipped gear motors. A single pulse/tachometer output is insufficient for
-  direction-aware odometry. Do not bypass the firmware's encoder requirement or tune closed-loop
-  PID without feedback.
-- The MPU6050 is present, but its exact wiring, mounting orientation, calibration, and ROS driver
-  are Phase 6 work. Mount it rigidly to the chassis; do not leave it on a breadboard during motion.
-- Add a physical, latching emergency-stop circuit that interrupts motor power and provides ESP32
-  feedback. The photographed 5 V relay module is not an emergency-stop switch and must not be the
-  sole stopping path, especially when controlled by the same microcontroller as propulsion.
-- Add resistor dividers/level shifters for every 5 V HC-SR04 ECHO line and the correctly calculated
-  battery ADC divider. The photographed resistor bands are not clear enough to verify their
-  values; measure them with a multimeter before use. Add a suitably rated fuse and power wiring;
-  breadboards are signal-only.
-- The photo confirms three 18650 slots but not their electrical series/parallel arrangement,
-  protection/BMS, installed cell condition, or output voltage. Record and measure those values,
-  the motor voltage rating, and the buck converter's continuous current rating before inserting
-  cells or applying motor power.
-- Check the sum of the two motors' stall currents on each side against the real L298N module's
-  channel and thermal limits. Replace the driver if it is undersized; do not solve overheating by
-  lowering a software limit alone.
-- Provide a clear top-down photograph of the L298N labels and all ENA/ENB/5V-enable jumpers before
-  final wiring review. The current angled image is sufficient to identify the board but not every
-  jumper state or terminal assignment.
-
-The two SG90 servos are not part of Phase 5 propulsion. Keep the camera centered and mechanically
-fixed during autonomous navigation. Moving a monocular SLAM camera while publishing a static
-`base_link -> camera_link` transform corrupts the pose estimate. Pan/tilt may be added later only
-with calibrated joint states and a dynamic TF chain; SG90 command angle alone is not reliable pose
-feedback.
-
-## Responsibility split
-
-| Function | Owner |
+| Part | Connection / role |
 |---|---|
-| Encoder counting, wheel PID @100 Hz, PWM/DIR, ultrasonic timing, watchdog, e-stop | ESP32 |
-| Camera, perception, SLAM, EKF, Nav2, safety supervisor, serial bridge | Raspberry Pi |
+| Raspberry Pi Camera | Pi CSI camera connector; fixed forward during localization |
+| MPU6050 | Raspberry Pi 3.3 V I2C (`SDA1` GPIO2, `SCL1` GPIO3), not ESP8266 |
+| NodeMCU ESP8266 | Pi USB serial; motor watchdog, PWM, stop feedback, ultrasonic telemetry |
+| L298N channel A | two left motors in parallel |
+| L298N channel B | two right motors in parallel |
+| One HC-SR04 | centered at the front; backup stop sensor, not primary navigation |
+| Physical switch | independent L298N motor-power cut, with active-low feedback to D0 |
+| SG90 / pan-tilt | disconnected; camera mount mechanically locked at center |
+| Relay module | not controlled by the ESP8266 as the sole emergency-stop path |
+| Encoders | absent; no real `/wheel/odom`, speed PID, or tick feedback |
 
-## Pin configuration
+If more HC-SR04 modules are available, keep them disconnected for this pin-limited profile. Adding
+them later needs a reviewed GPIO-expansion or controller change; do not steal boot, serial, motor,
+or stop pins.
 
-NO GPIO is hard-coded. Fill `firmware/esp32_motor_controller/include/board_config.h`. For the team
-L298N keep `MOTOR_OUTPUT_CHANNEL_COUNT=2`: LEFT PWM/DIR-A/DIR-B map to ENA/IN1/IN2 and RIGHT maps
-to ENB/IN3/IN4. The optional four-channel layout remains available for a future driver upgrade.
-Supply at least one complete encoder pair per side; a second per side is optional. Also fill both
-ultrasonic pairs, physical e-stop feedback, battery ADC/divider, decoded `TICKS_PER_REV`, geometry,
-max wheel speed, independent side PID gains, and PWM settings. Required values left at `-1`/`0.0`,
-duplicate pins, or incomplete encoder pairs leave the controller unarmed and set
-`configuration_valid=false` in telemetry.
+## NodeMCU to L298N and HC-SR04 map
 
-Electrical constraints:
+All executable pin definitions live in
+`firmware/esp8266_motor_controller/include/board_config.h`.
 
-- Join Pi, ESP32, sensor, and motor-driver signal grounds, but power motors from their rated supply.
-- Remove the L298N ENA/ENB jumpers when those pins are driven by ESP32 PWM. Wire both left motors
-  in parallel to channel A and both right motors in parallel to channel B. Reverse an individual
-  motor's leads if motors sharing one channel do not turn the same vehicle direction.
-- Never route motor or servo current through the breadboard, Pi, or ESP32 regulator. Size the 5 V
-  buck converter for the Pi and any separately powered servos, with appropriate grounding and
-  noise suppression.
-- Never connect 5 V HC-SR04 ECHO directly to a 3.3 V ESP32 input; use a divider/level shifter.
-- The physical e-stop must interrupt driver/motor power independently of firmware. Its GPIO is
-  feedback, not the sole stopping mechanism.
-- Verify that chosen GPIOs support output/ADC/interrupt use on your exact ESP32 board and avoid
-  unsafe boot-strapping states. The repository cannot infer your board or wiring.
-- Add motor suppression, a correctly rated fuse, and driver cooling. Test initially with wheels up.
+| NodeMCU label | ESP8266 GPIO | Connect to |
+|---|---:|---|
+| D1 | 5 | L298N IN1 |
+| D2 | 4 | L298N IN2 |
+| D5 | 14 | L298N IN3 |
+| D6 | 12 | L298N IN4 |
+| D8 | 15 | centered HC-SR04 TRIG |
+| D7 | 13 | centered HC-SR04 ECHO through verified 5 V→3.3 V divider |
+| D0 | 16 | active-low physical motor-power feedback |
 
-## Serial protocol (Pi ⇄ ESP32)
+Keep both L298N **ENA and ENB jumpers installed**. Firmware applies software PWM to one direction
+input at a time. Wire both left motors to OUT1/OUT2 and both right motors to OUT3/OUT4. If two
+motors sharing one side rotate in opposite vehicle directions, reverse one motor's two leads.
+
+D8/GPIO15 participates in ESP8266 boot selection and must remain LOW at boot. Use it only for the
+HC-SR04's high-impedance TRIG input and never add a pull-up. HC-SR04 ECHO is 5 V and must never be
+connected directly to the 3.3 V NodeMCU.
+
+The one centered range is carried in the protocol's first ultrasonic slot and currently appears as
+`/ultrasonic/front_left` for interface compatibility. `/ultrasonic/front_right` is published as
+invalid/NaN. The physical mounting—not the legacy topic suffix—is centered.
+
+## Power and physical-stop contract
+
+- Determine whether the three-cell holder is series or parallel and measure its maximum voltage
+  before inserting cells. Use protected, matched cells and a suitable protection/BMS and fuse.
+- Power the Pi from the regulated 5 V buck sized for Pi 5 peak current. Never power the Pi from
+  the L298N 5 V terminal, NodeMCU regulator, or breadboard rail.
+- Route motor current with appropriately sized wire, not the breadboard or jumper wires.
+- Join Pi/NodeMCU/L298N signal grounds. Keep motor wiring away from camera and I2C wiring.
+- Verify the L298N channel can tolerate the combined stall current of two motors and provide
+  cooling. Stop immediately if the board, wires, switch, or battery gets hot.
+
+The available physical switch must open the L298N motor-supply path independently of all code. It
+must be rated for the measured motor current. D0 must also read HIGH only while propulsion power is
+available and LOW when the switch opens. Use an auxiliary switch contact if present. Otherwise,
+the switched motor rail may be sensed only through a divider designed from the measured minimum
+and maximum rail voltages and verified with a multimeter. Never connect battery voltage directly
+to D0. If reliable 3.3 V feedback cannot be produced from the available parts, physical movement
+may be tested only under manual power-cut supervision and Phase 5 remains incomplete.
+
+A small relay module is not automatically an e-stop: its 10 A marking generally describes a
+resistive load, not this motor pair's inductive stall current or the module PCB traces. Do not use a
+relay controlled by the same ESP8266 as the only power-removal path.
+
+## Why there is no wheel odometry
+
+The photographed motors expose only two power wires. Software cannot infer direction-aware wheel
+rotation from them. Therefore real/mock hardware:
+
+- reports `open_loop_mode=true` and `wheel_feedback_valid=false`;
+- reports measured wheel velocities and cumulative ticks as zero;
+- publishes PWM/setpoint telemetry but never `/wheel/odom`.
+
+Gazebo still publishes truthful simulated `/wheel/odom` in Phases 2–3. The final real navigation
+pipeline will use `/visual_odom` from mono-inertial ORB-SLAM3 and fuse the appropriate IMU/VIO
+signals into `/odometry/filtered`. Open-loop PWM cannot maintain exact distance or heading; motor,
+battery, surface, and load variation will cause drift.
+
+## Serial protocol (Pi ⇄ ESP8266)
 
 Little-endian binary frame:
 
 `AA 55 | version:u8 | msg_id:u8 | sequence:u16 | payload_len:u8 | payload | crc8`
 
-Version is `1`; payload length is bounded to 64 bytes. CRC-8/ATM uses polynomial `0x07`, initial
-value `0x00`, and covers `version` through the end of payload (not the sync bytes or CRC). Invalid
-version, length, CRC, and payload shape are rejected. Duplicate/out-of-order commands are rejected
-during a live session; after watchdog expiry the next valid command establishes a new sequence
-baseline so either endpoint can reboot. An asserted e-stop is accepted regardless of sequence.
+Protocol version is `2`; payload is limited to 64 bytes. CRC-8/ATM uses polynomial `0x07`, initial
+value `0x00`, and covers `version` through payload. Bad version, length, CRC, payload shape, and
+stale ordered commands are rejected.
 
-- `0x01` CMD_VELOCITY (Pi→ESP32): int16 left mm/s, int16 right mm/s @ 20-50 Hz
-- `0x02` CMD_ESTOP (Pi→ESP32): uint8 active
-- `0x10` TELEMETRY (ESP32→Pi, 20-50 Hz): int16 measured velocities in mm/s, int16 PWM,
-  int32 cumulative side ticks, uint16 battery mV, uint16 ultrasonic mm (`0xFFFF` invalid), flags,
-  acknowledged command sequence, command age in ms, and firmware CRC reject count. Flag bits are
-  bit 0 e-stop, bit 1 watchdog, and bit 2 invalid/unarmed configuration.
+- `0x01` CMD_VELOCITY: int16 left/right wheel-surface target in mm/s, Pi→ESP8266 at 20–50 Hz.
+- `0x02` CMD_ESTOP: uint8 active.
+- `0x10` TELEMETRY: zero measured velocities/ticks, signed applied PWM, optional battery mV,
+  ultrasonic slot 1, flags, acknowledged sequence, command age, and CRC reject count.
+- Flags: bit 0 e-stop, bit 1 watchdog, bit 2 invalid configuration, bit 3 open-loop mode.
 
-Reference implementations are `include/navigen_protocol.hpp` in firmware and
-`ros2_ws/src/navigen_hardware/navigen_hardware/serial_protocol.py` on the Pi. Their shared golden
-vector for sequence `0x1234`, left `+0.250 m/s`, right `-0.250 m/s` is
-`aa550101341204fa0006ff3c`.
+Golden velocity frame (sequence `0x1234`, left `+0.250 m/s`, right `-0.250 m/s`):
+`aa550201341204fa0006ffb7`.
 
-Watchdog: no valid `CMD_VELOCITY` for 300 ms → zero PWM and driver disable. E-stop always overrides
-commands. The Pi bridge sends zero commands when upstream `/cmd_vel` is stale, so firmware watchdog
-means Pi/USB/protocol communication was actually lost.
+No valid velocity command for 300 ms forces zero PWM. E-stop always wins. The Pi bridge also sends
+zero when `/cmd_vel` is stale or invalid and latches transport/controller stop events.
 
 ## Raspberry Pi bridge
 
-Set geometry, encoder calibration, limits, timeouts, and serial settings in
-`ros2_ws/src/navigen_hardware/config/hardware.yaml`. Real mode refuses to start while
-`ticks_per_revolution` is zero. Hardware-free mode uses the same packet encoder/parser:
+Configuration is in `ros2_ws/src/navigen_hardware/config/hardware.yaml`. Defaults are deliberately
+conservative: 0.15 m/s linear, 0.50 rad/s angular, and 0.20 m/s wheel-surface target.
 
 ```bash
 ros2 launch navigen_bringup real.launch.py mock_hardware:=true rviz:=false
 ./scripts/estop.sh release --confirm
-ros2 topic pub -r 20 /cmd_vel geometry_msgs/msg/Twist '{linear: {x: 0.2}}'
+ros2 topic pub -r 20 /cmd_vel geometry_msgs/msg/Twist '{linear: {x: 0.1}}'
 ros2 topic echo /motor/telemetry
-ros2 topic echo /wheel/odom
 ros2 topic echo /diagnostics
 ./scripts/estop.sh engage
 ```
 
-Published outputs are `/motor/telemetry`, `/wheel/odom`, `/battery`, both front ultrasonic `Range`
-topics, and `/diagnostics`. Do not run `pio device monitor` while the bridge owns the serial port.
+Mock mode uses the exact protocol and open-loop safety behavior. It does not simulate distance,
+encoder ticks, or `/wheel/odom`.
 
-## First physical teleoperation gate
+## Phase 5 lifted-wheel gate
 
-Do not perform this gate alone. One person operates commands while another remains beside the
-physical e-stop. Keep the chassis securely on stands with every wheel clear of the floor.
+Use two people: one sends commands; one stays at the physical motor-power switch. Secure the
+chassis on rigid stands with every wheel clear.
 
 Preparation:
 
-1. Confirm the L298N current/thermal margin, encoders, hardwired e-stop, protected battery pack,
-   voltage dividers, and buck-converter rating. Then fill and peer-review `board_config.h`; the
-   checked-in `-1`/`0.0` defaults deliberately keep propulsion invalid. Keep motor power
-   disconnected and flash only after
-   `./scripts/validate_firmware.sh` passes.
-2. Enter measured `ticks_per_revolution`, wheel radius, track width, speed/acceleration limits,
-   and serial settings in `navigen_hardware/config/hardware.yaml`. Keep first-test limits at or
-   below 0.10 m/s linear and 0.30 rad/s angular.
-3. Keep the matching geometry in `navigen_description/config/vehicle.yaml`; do not copy the
-   simulation defaults as measurements.
-4. On the Pi, add the operator to `dialout`, re-login, and identify the stable ESP32 path with
-   `ls -l /dev/serial/by-id/`. Never depend on a changing `/dev/ttyUSB0` name for the demo.
+1. Measure battery topology/voltage, motor stall current, switch/driver/buck ratings, wheel
+   diameter, and effective track width. Record—not guess—the values.
+2. Wire the map above, verify both divider outputs with a multimeter, and peer-review polarity.
+3. Run `./scripts/validate_firmware.sh`. Set `HARDWARE_CONFIGURATION_CONFIRMED=1` only after that
+   review, rebuild, and flash `nodemcuv2`.
+4. Copy measured geometry into `navigen_hardware/config/hardware.yaml` and
+   `navigen_description/config/vehicle.yaml`. Keep first motion at 0.05 m/s.
+5. On the Pi, find the stable port with `ls -l /dev/serial/by-id/`.
 
-Lifted-wheel sequence:
+Test:
 
-1. Engage the physical e-stop, disconnect motor power, and connect ESP32 USB.
-2. Launch `real.launch.py` with the stable serial path. Do not release software e-stop yet.
-3. Confirm `/motor/telemetry` reports `serial_connected=true`, `configuration_valid=true`, zero
-   wheel velocities, and `estop_active=true`; confirm `/diagnostics` has no transport error.
-4. Apply motor power while the physical e-stop remains engaged. Verify no wheel moves.
-5. Release the physical e-stop; software e-stop must still prevent motion.
-6. Run `./scripts/estop.sh release --confirm`, then `./scripts/teleop.sh`. Command each side and
-   direction briefly. Verify wheel direction, encoder tick sign, measured velocity, and odometry.
-7. While moving slowly, run `./scripts/estop.sh engage`; both sides must stop immediately. Repeat
-   with the physical e-stop. Releasing the physical switch must not resume motion: the bridge
-   latches the event and requires a fresh `release --confirm`.
-8. Re-release both stops, move slowly, then unplug USB. Both sides must stop within the configured
-   300 ms watchdog interval. Reconnect must not cause motion without a fresh command.
-9. Stop teleop, engage both stops, remove motor power, and save telemetry/diagnostic evidence.
+1. Open the physical motor-power switch. Connect NodeMCU USB and launch real mode; leave software
+   e-stop asserted.
+2. Require `serial_connected=true`, `configuration_valid=true`, `open_loop_mode=true`,
+   `wheel_feedback_valid=false`, zero PWM, and healthy transport diagnostics.
+3. Close motor power. Wheels must remain stopped by software e-stop.
+4. Release software e-stop, command forward/reverse/left/right briefly, and verify all four wheel
+   directions. Correct side direction only with `MOTOR_*_INVERTED`.
+5. Tune `MIN_EFFECTIVE_PWM` and reduce the faster side with `LEFT_PWM_SCALE` or
+   `RIGHT_PWM_SCALE`; never set either scale above 1.0.
+6. Engage software e-stop while moving: both PWM values and all wheels must go to zero. Re-release,
+   move slowly, then open the physical switch: the wheels must stop independently of firmware.
+7. Re-closing physical power must leave the Pi-side stop latched until an explicit
+   `estop.sh release --confirm`.
+8. Move slowly and unplug USB. Wheels must stop within about 300 ms and must not restart on
+   reconnect without fresh commands.
+9. Stop teleop, assert both stops, disconnect battery, and save telemetry/diagnostic evidence.
 
-Any unexpected motion, wrong encoder sign, serial loss, stale telemetry, or failed stop is a red
-gate. Cut motor power, correct configuration/wiring, and repeat from step 1. Ground testing is not
-allowed until every lifted-wheel check is green.
+Any unexpected movement, reset, hot component, failed stop, or stale/invalid telemetry is RED.
+Remove motor power, correct the cause, and repeat from step 1. Ground testing is forbidden until
+every lifted-wheel item is green.

@@ -24,7 +24,7 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'esp32_bridge = navigen_hardware.esp32_bridge_node:main',
+            'motor_controller_bridge = navigen_hardware.motor_controller_bridge_node:main',
         ],
     },
 )

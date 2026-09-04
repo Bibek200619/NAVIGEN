@@ -61,24 +61,6 @@ class DiffDriveKinematics:
             raise ValueError('wheel velocity must be finite')
         return (left + right) / 2.0, (right - left) / self.config.track_width
 
-    def ticks_to_distance(self, delta_ticks: float, ticks_per_revolution: float) -> float:
-        if not math.isfinite(delta_ticks):
-            raise ValueError('encoder delta must be finite')
-        if not math.isfinite(ticks_per_revolution) or ticks_per_revolution <= 0.0:
-            raise ValueError('ticks_per_revolution must be finite and positive')
-        return (
-            delta_ticks / ticks_per_revolution
-            * 2.0 * math.pi * self.config.wheel_radius
-        )
-
-    def ticks_to_velocity(
-        self, delta_ticks: float, dt: float, ticks_per_revolution: float
-    ) -> float:
-        if not math.isfinite(dt) or dt <= 0.0:
-            raise ValueError('dt must be finite and positive')
-        return self.ticks_to_distance(delta_ticks, ticks_per_revolution) / dt
-
-
 class MotionCommandLimiter:
     """Apply body limits, acceleration limits, then curvature-preserving wheel limits."""
 
