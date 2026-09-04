@@ -1,35 +1,43 @@
 import React, { useState } from 'react';
-import { ShieldAlert, AlertTriangle } from 'lucide-react';
+import { ShieldAlert, AlertTriangle, Navigation } from 'lucide-react';
 import { Panel } from '../common/Panel';
 import { StatusBadge } from '../common/StatusBadge';
+import type { CommandType, CommandStatus, CommandResponse } from '../../types/api';
 
-export type CommandType = 'set_goal' | 'software_estop';
-export type CommandStatus = 'ready' | 'pending' | 'accepted' | 'executed' | 'rejected' | 'failed';
-
-export interface MissionControlsProps {
-  onSetGoal?: () => void;
-  onSoftwareEstop?: () => void;
-  commandStatus?: CommandStatus;
-  lastCommandType?: CommandType | null;
-  hasActiveMission?: boolean;
-  disabled?: boolean;
+export interface SetGoalCoordinates {
+  x: number;
+  y: number;
+  z: number;
+  frameId: string;
 }
 
-const getCommandStatusBadgeConfig = (status: CommandStatus) => {
+export interface MissionControlsProps {
+  onSetGoal?: (coords: SetGoalCoordinates) => void;
+  onSoftwareEstop?: () => void;
+  commandStatus?: CommandStatus | 'ready';
+  lastCommandType?: CommandType | null;
+  lastCommandResponse?: CommandResponse | null;
+  hasActiveMission?: boolean;
+  disabled?: boolean;
+  isDispatching?: boolean;
+  errorMessage?: string | null;
+}
+
+const getCommandStatusBadgeConfig = (status: CommandStatus | 'ready') => {
   switch (status) {
     case 'executed':
-      return { label: 'Executed', variant: 'success' as const };
+      return { label: 'EXECUTED', variant: 'success' as const };
     case 'accepted':
-      return { label: 'Accepted', variant: 'info' as const };
+      return { label: 'ACCEPTED', variant: 'info' as const };
     case 'pending':
-      return { label: 'Pending', variant: 'warning' as const };
+      return { label: 'PENDING', variant: 'warning' as const };
     case 'rejected':
-      return { label: 'Rejected', variant: 'danger' as const };
+      return { label: 'REJECTED', variant: 'danger' as const };
     case 'failed':
-      return { label: 'Failed', variant: 'danger' as const };
+      return { label: 'FAILED', variant: 'danger' as const };
     case 'ready':
     default:
-      return { label: 'Ready', variant: 'default' as const };
+      return { label: 'READY', variant: 'default' as const };
   }
 };
 
@@ -49,18 +57,54 @@ export const MissionControls: React.FC<MissionControlsProps> = ({
   onSoftwareEstop,
   commandStatus = 'ready',
   lastCommandType = null,
+  lastCommandResponse = null,
   hasActiveMission = false,
   disabled = false,
+  isDispatching = false,
+  errorMessage = null,
 }) => {
   const [confirmingEstop, setConfirmingEstop] = useState(false);
+  const [xInput, setXInput] = useState<string>('0.0');
+  const [yInput, setYInput] = useState<string>('0.0');
+  const [zInput, setZInput] = useState<string>('0.0');
+  const [frameId, setFrameId] = useState<string>('map');
 
   const statusConfig = getCommandStatusBadgeConfig(commandStatus);
-  const isPending = commandStatus === 'pending';
+  const isPending = isDispatching || commandStatus === 'pending';
+
+  // Coordinate validation
+  const numX = parseFloat(xInput);
+  const numY = parseFloat(yInput);
+  const numZ = parseFloat(zInput);
+  const areCoordinatesValid =
+    !isNaN(numX) &&
+    Number.isFinite(numX) &&
+    !isNaN(numY) &&
+    Number.isFinite(numY) &&
+    !isNaN(numZ) &&
+    Number.isFinite(numZ) &&
+    frameId.trim().length > 0;
+
+  const handleDispatchGoal = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!areCoordinatesValid || isPending || disabled) return;
+    onSetGoal?.({
+      x: numX,
+      y: numY,
+      z: numZ,
+      frameId: frameId.trim(),
+    });
+  };
 
   const handleConfirmEstop = () => {
     setConfirmingEstop(false);
     onSoftwareEstop?.();
   };
+
+  const reason =
+    lastCommandResponse?.rejection_reason ||
+    lastCommandResponse?.failure_reason ||
+    errorMessage;
 
   return (
     <Panel title="Mission Controls">
@@ -74,29 +118,102 @@ export const MissionControls: React.FC<MissionControlsProps> = ({
           <StatusBadge status={statusConfig.label} variant={statusConfig.variant} />
         </div>
 
-        <div className="space-y-3">
-          {/* Canonical Command 1: Set Goal (Mission-dependent) */}
-          <div className="p-3 bg-slate-950/60 rounded-md border border-slate-800 flex items-center justify-between gap-4">
-            <div className="min-w-0">
-              <div className="text-xs font-semibold text-slate-200">Set Goal</div>
-              <div className="text-[11px] text-slate-500 mt-0.5 truncate">
-                {hasActiveMission
-                  ? 'Dispatch navigation goal to robot'
-                  : 'Requires active mission to dispatch goal'}
+        {reason && (
+          <div
+            className="p-2.5 bg-rose-500/10 border border-rose-500/20 rounded text-xs text-rose-300"
+            data-testid="command-reason-banner"
+          >
+            {reason}
+          </div>
+        )}
+
+        <div className="space-y-4">
+          {/* Canonical Command 1: Set Goal (Safe Coordinate Input) */}
+          <div className="p-3 bg-slate-950/60 rounded-md border border-slate-800 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Navigation className="w-3.5 h-3.5 text-sky-400 shrink-0" />
+                <span className="text-xs font-semibold text-slate-200">Dispatch Navigation Goal</span>
               </div>
+              <span className="text-[10px] font-mono text-slate-500">
+                {hasActiveMission ? 'Active Mission' : 'Standalone / Ad-hoc'}
+              </span>
             </div>
-            <button
-              type="button"
-              onClick={onSetGoal}
-              disabled={disabled || !hasActiveMission || isPending}
-              className={`px-3 py-1.5 rounded text-xs font-medium transition-colors shrink-0 ${
-                !hasActiveMission || disabled || isPending
-                  ? 'bg-slate-800/60 text-slate-500 cursor-not-allowed border border-slate-800'
-                  : 'bg-sky-600 hover:bg-sky-500 text-white border border-sky-500/50'
-              }`}
-            >
-              Dispatch Goal
-            </button>
+
+            <form onSubmit={handleDispatchGoal} className="space-y-2.5">
+              <div className="grid grid-cols-3 gap-2 text-xs">
+                <div>
+                  <label htmlFor="goal-x" className="block text-[11px] text-slate-400 mb-1">
+                    X (m)
+                  </label>
+                  <input
+                    id="goal-x"
+                    type="number"
+                    step="any"
+                    value={xInput}
+                    onChange={(e) => setXInput(e.target.value)}
+                    disabled={disabled || isPending}
+                    className="w-full px-2 py-1 bg-slate-900 border border-slate-700 rounded text-xs text-slate-200 font-mono focus:outline-none focus:border-sky-500"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="goal-y" className="block text-[11px] text-slate-400 mb-1">
+                    Y (m)
+                  </label>
+                  <input
+                    id="goal-y"
+                    type="number"
+                    step="any"
+                    value={yInput}
+                    onChange={(e) => setYInput(e.target.value)}
+                    disabled={disabled || isPending}
+                    className="w-full px-2 py-1 bg-slate-900 border border-slate-700 rounded text-xs text-slate-200 font-mono focus:outline-none focus:border-sky-500"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="goal-z" className="block text-[11px] text-slate-400 mb-1">
+                    Z (m)
+                  </label>
+                  <input
+                    id="goal-z"
+                    type="number"
+                    step="any"
+                    value={zInput}
+                    onChange={(e) => setZInput(e.target.value)}
+                    disabled={disabled || isPending}
+                    className="w-full px-2 py-1 bg-slate-900 border border-slate-700 rounded text-xs text-slate-200 font-mono focus:outline-none focus:border-sky-500"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between gap-3 text-xs pt-1">
+                <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                  <label htmlFor="goal-frame" className="text-[11px] text-slate-400 whitespace-nowrap">
+                    Frame:
+                  </label>
+                  <input
+                    id="goal-frame"
+                    type="text"
+                    value={frameId}
+                    onChange={(e) => setFrameId(e.target.value)}
+                    disabled={disabled || isPending}
+                    className="px-2 py-0.5 bg-slate-900 border border-slate-700 rounded text-xs text-slate-200 font-mono w-24 focus:outline-none focus:border-sky-500"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={disabled || !areCoordinatesValid || isPending}
+                  className={`px-3 py-1.5 rounded text-xs font-medium transition-colors shrink-0 ${
+                    disabled || !areCoordinatesValid || isPending
+                      ? 'bg-slate-800/60 text-slate-500 cursor-not-allowed border border-slate-800'
+                      : 'bg-sky-600 hover:bg-sky-500 text-white border border-sky-500/50'
+                  }`}
+                >
+                  {isPending ? 'Sending...' : 'Dispatch Goal'}
+                </button>
+              </div>
+            </form>
           </div>
 
           {/* Canonical Command 2: Software E-Stop (Safety Critical) */}
