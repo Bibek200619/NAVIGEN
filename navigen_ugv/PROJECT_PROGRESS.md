@@ -19,8 +19,8 @@ A phase is `GREEN` only when its acceptance checklist is complete, the ROS works
 | 2 | Gazebo Harmonic simulation and teleoperation | GREEN | 100% | Self-contained outdoor world, installed launch/bridge/config, live camera/IMU/TF/odometry, bounded motion, and deterministic headless integration test are committed in `edd8468`. |
 | 3 | Nav2 point-to-point simulation | GREEN | 100% | Known-map Nav2 stack, SmacPlanner2D, Regulated Pure Pursuit, RViz, lifecycle checks, and a collision-free 7 m live acceptance run are committed in `66b500a` and `7b59fd3`. |
 | 4 | ESP32 firmware and Raspberry Pi serial bridge | GREEN | 100% | Versioned CRC serial protocol, configurable bridge/mock transport, odometry/telemetry, side PID/watchdog/e-stop behavior, firmware builds, and tests are committed in `2da087c`; two/four-channel output selection is added in `dc79e38`. |
-| 5 | Real UGV teleoperation | AWAITING PHYSICAL TEST | 75% | Safe real/mock launch and the team's one-L298N side-drive adapter are software-green. Exact pins/calibration, confirmed encoders, a hardwired e-stop, flashing, and lifted-wheel evidence are still required. |
-| 6 | Wheel odometry, IMU, EKF | NOT STARTED | 0% | Drivers, calibration, EKF configuration, and fused odometry tests are missing. |
+| 5 | Real UGV teleoperation | AWAITING PHYSICAL TEST | 75% | Safe real/mock launch and the team's one-L298N side-drive adapter are software-green. Photos show an incompatible ESP8266 controller and no fitted motor encoders; a real ESP32, measured configuration, hardwired e-stop, flashing, and lifted-wheel evidence are still required. |
+| 6 | Wheel odometry, IMU, EKF | NOT STARTED | 0% | The MPU6050 is present, but its driver, rigid mounting, calibration, EKF configuration, and fused odometry tests are missing. |
 | 7 | Camera and traversability perception | NOT STARTED | 0% | Camera driver, backend abstraction, mock/ONNX inference, messages, and performance tests are missing. |
 | 8 | Visual SLAM / visual-inertial odometry | NOT STARTED | 0% | ORB-SLAM3 adapter, tracking-state handling, calibration, and stop-on-loss integration are missing. |
 | 9 | Traversability to Nav2 costmap | NOT STARTED | 0% | Occupancy/cost conversion, unknown-cost policy, layer integration, and tests are missing. |
@@ -98,7 +98,8 @@ A phase is `GREEN` only when its acceptance checklist is complete, the ROS works
 - [x] Run a mock end-to-end real-mode test from `/cmd_vel` through serial protocol telemetry and wheel odometry.
 - [x] Document Raspberry Pi serial permissions, device discovery, first power-on, lifted-wheel, direction, and e-stop checks.
 - [x] Adapt motor output for the team's one-L298N, two-side-channel wiring while retaining the optional four-channel layout (`dc79e38`).
-- [ ] Fill measured pins, encoder counts, geometry, PID, and limits before arming firmware; do not invent hardware values.
+- [ ] Replace the photographed ESP8266 NodeMCU with a genuine ESP32 supported by the `esp32dev` target, and install quadrature A/B encoder feedback on at least one shaft per side.
+- [ ] Fill measured ESP32 pins, encoder counts, geometry, PID, and limits before arming firmware; do not invent hardware values.
 - [ ] Flash the configured ESP32 and verify both motor sides, encoder signs, watchdog, e-stop, and bounded teleoperation on the physical UGV.
 - [x] Build/test the complete workspace and commit the Phase 5 software checkpoint locally (`6256b16`); no push.
 
@@ -138,9 +139,10 @@ A phase is `GREEN` only when its acceptance checklist is complete, the ROS works
 | A030 | 2026-08-31 | Closed the Phase 5 validation micro-loop. | Docker registry metadata timed out before compilation; rerunning entirely from the cached Jazzy image removed the network dependency. Focused 29-test and final 39-test runs passed. |
 | A031 | 2026-08-31 | Documented and committed the Phase 5 software checkpoint. | Wiring/calibration placeholders and a two-person lifted-wheel procedure are documented. Commit `6256b16`; no push was performed. |
 | A032 | 2026-08-31 | Held the sequential gate at physical Phase 5 acceptance. | Software is green, but no physical UGV is attached to this workspace. Per the project rule, Phase 6 has not started and Phase 5 is not mislabeled green. |
-| A033 | 2026-09-04 | Audited the team's reported physical hardware against the Phase 5-8 contracts. | One L298N requires two side-paired outputs; wheel encoders and the mandatory hardwired e-stop are unconfirmed, the MPU6050 is missing, and SG90 pan/tilt motion is incompatible with the current static SLAM camera transform. |
+| A033 | 2026-09-04 | Audited the team's initially reported physical hardware against the Phase 5-8 contracts. | One L298N requires two side-paired outputs; wheel encoders and the mandatory hardwired e-stop were unconfirmed, the MPU6050 was absent from the initial list, and SG90 pan/tilt motion is incompatible with the current static SLAM camera transform. |
 | A034 | 2026-09-04 | Added the single-L298N motor adapter and hardware guidance. | The default firmware now drives ENA/IN1/IN2 as LEFT and ENB/IN3/IN4 as RIGHT, retains a compile-tested four-channel option, and documents power, current, camera-mount, encoder, e-stop, and level-shifting constraints. |
 | A035 | 2026-09-04 | Closed the L298N software validation loop and committed it. | Native firmware tests and both PlatformIO layouts pass; an offline cached Jazzy image built eight ROS packages and passed all 39 tests. Commit `dc79e38`; no push was performed. |
+| A036 | 2026-09-04 | Audited nine supplied hardware photographs and corrected the hardware record. | Photos confirm the L298N, MPU6050, HC-SR04, SG90, relay, three-cell holder, and encoderless-looking TT motors. The photographed controller is an incompatible NodeMCU ESP8266, no quadrature encoders are fitted, the relay is not an independent physical e-stop, and battery topology/rating remains unverified. Compatibility guidance is committed in `0bc357f`. |
 
 ## Test and validation ledger
 
@@ -163,6 +165,8 @@ A phase is `GREEN` only when its acceptance checklist is complete, the ROS works
 | Phase 4 native firmware tests | `./scripts/validate_firmware.sh` native target | GREEN | Golden protocol vector, parser recovery, telemetry layout, PID, watchdog/millis rollover, encoder velocity/tick rollover, and sequence ordering pass under `-Werror`. |
 | Phase 4 ESP32 firmware build | `./scripts/validate_firmware.sh` PlatformIO target | GREEN | Pinned ESP32 platform builds for `esp32dev`; RAM 6.7%, flash 20.9%. Hardware remains deliberately unarmed until measured values are supplied. |
 | Phase 5 motor-output hardware adapter | `./scripts/validate_firmware.sh` | GREEN | Native topology tests pass; both default `esp32dev` two-channel L298N and optional `esp32dev_four_channel` builds succeed. Default build uses 6.7% RAM and 20.9% flash. |
+| Photographed hardware compatibility audit | Original component photographs + firmware target inspection | RED PHYSICAL GATE | MPU6050 and HC-SR04 are present; NodeMCU is ESP8266 rather than ESP32, no fitted quadrature encoders are visible, relay is not a physical e-stop, and battery/motor electrical ratings are unverified. Firmware remains deliberately ESP32-only. |
+| Post-audit ESP32 firmware regression | `./scripts/validate_firmware.sh` | GREEN | Native tests pass and both `esp32dev` two/four-channel builds succeed; no executable firmware change was needed for the photographed parts. |
 | Phase 4 dependency/API checks | rosdep + bridge launch `--show-args` | GREEN | All system dependencies are satisfied; parameter file, mock mode, serial device, and baud arguments load from the installed package. |
 | Phase 4 exact team command | `./scripts/validate_in_docker.sh` | GREEN | Eight packages built; 35 tests, 0 errors, 0 failures, 0 skipped, including Phase 2/3 live Gazebo and Phase 4 bridge gates. |
 | Phase 5 real-launch API/dependencies | rosdep + installed `real.launch.py --show-args` | GREEN | All dependencies are satisfied; hardware params, mock mode, startup interlock, serial, baud, joint-state GUI, and RViz controls load. |
@@ -184,6 +188,7 @@ A phase is `GREEN` only when its acceptance checklist is complete, the ROS works
 | `2da087c` | Phase 4 ESP32 firmware, serial protocol/bridge, mock hardware, configuration, tests, and operator documentation | GREEN. |
 | `6256b16` | Phase 5 real/mock bringup, startup/shutdown interlocks, controller e-stop latch, live acceptance test, and physical procedure | Software GREEN; physical gate pending. |
 | `dc79e38` | Team hardware adaptation: one-L298N two-side output, retained four-channel mode, native/build tests, and operator safety documentation | Software GREEN; physical gate pending. |
+| `0bc357f` | Photo-backed controller, encoder, IMU, e-stop, battery, and wiring compatibility guidance | Documentation GREEN; physical gate remains blocked by hardware. |
 
 ## What is done now
 
@@ -201,6 +206,9 @@ A phase is `GREEN` only when its acceptance checklist is complete, the ROS works
   encoders and backup sensors, and disables propulsion on watchdog or e-stop.
 - The reported Raspberry Pi Camera is supported as the monocular path; the SG90 pan/tilt remains
   fixed during navigation until a measured dynamic camera TF implementation exists.
+- The photo audit confirms that the team owns an MPU6050 and at least one HC-SR04. It also records
+  that the available NodeMCU is an ESP8266 rather than the required ESP32, so the tested firmware
+  target was not weakened or silently changed.
 - Phase 5 now has one `real.launch.py` contract for protocol-backed mock or physical serial mode,
   deliberate e-stop controls, startup/shutdown inhibition, and controller-stop latching.
 - The complete no-hardware teleoperation path is tested from `/cmd_vel` through wheel setpoints,
@@ -213,20 +221,24 @@ A phase is `GREEN` only when its acceptance checklist is complete, the ROS works
 - The physical portion of Phase 5 and all of Phases 6 through 11.
 - Phase 5 needs measured hardware values entered in firmware/ROS configuration, a flashed and wired
   ESP32, and recorded lifted-wheel motor direction, encoder sign, watchdog, physical/software
-  e-stop, reconnect, and bounded teleoperation results.
-- The team must confirm quadrature encoders on at least one wheel/shaft per side and add the
+  e-stop, reconnect, and bounded teleoperation results. The photographed ESP8266 NodeMCU cannot be
+  used for this step; obtain a genuine ESP32 compatible with the `esp32dev` firmware target.
+- The team must install quadrature A/B encoders on at least one wheel/shaft per side and add the
   hardwired motor-power e-stop, echo/battery voltage dividers, fuse/protected battery wiring, and a
   current-capable motor driver. One L298N is usable only if its measured current/thermal margin is
   adequate for two motors per channel.
-- An MPU6050 is still required before Phase 6.
+- The MPU6050 is available, but mounting, wiring, calibration, ROS input, and EKF integration are
+  still Phase 6 work.
 - Mock results cannot certify electrical wiring or physical stopping behavior. Phase 6 must not
   begin until those observations are green.
 
 ## Next action
 
-Confirm the encoder hardware and add the hardwired e-stop and required power/level-shifting parts.
-Then provide the exact ESP32 pinout, encoder count, dimensions, battery arrangement, motor data,
-L298N current check, and buck-converter rating. Fill the measured values listed in
-`docs/hardware.md`, flash the validated firmware, and execute the two-person lifted-wheel sequence.
-Record each result and diagnostic output. If every item passes, mark Phase 5 green and begin Phase
-6; otherwise repair and repeat the failed check before advancing.
+Obtain a genuine ESP32 supported by `esp32dev`, add quadrature A/B feedback on at least one shaft
+per side, and add an independent latching motor-power e-stop plus the required fuse and voltage
+dividers. Before inserting batteries, verify the holder topology/BMS, installed cell voltage,
+motor rating, combined side stall current, L298N margin, and buck-converter rating. Then provide the
+exact ESP32 pinout, encoder count, wheel/track dimensions, and measured electrical values. Fill the
+configuration in `docs/hardware.md`, flash the validated firmware, and execute the two-person
+lifted-wheel sequence. Record each result and diagnostic output. If every item passes, mark Phase 5
+green and begin Phase 6; otherwise repair and repeat the failed check before advancing.
