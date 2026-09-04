@@ -18,6 +18,7 @@ export interface MissionControlsProps {
   lastCommandType?: CommandType | null;
   lastCommandResponse?: CommandResponse | null;
   hasActiveMission?: boolean;
+  isHistoricalMission?: boolean;
   disabled?: boolean;
   isDispatching?: boolean;
   errorMessage?: string | null;
@@ -62,6 +63,7 @@ export const MissionControls: React.FC<MissionControlsProps> = ({
   lastCommandType = null,
   lastCommandResponse = null,
   hasActiveMission = false,
+  isHistoricalMission = false,
   disabled = false,
   isDispatching = false,
   errorMessage = null,
@@ -145,7 +147,11 @@ export const MissionControls: React.FC<MissionControlsProps> = ({
                 <span className="text-xs font-semibold text-slate-200">Dispatch Navigation Goal</span>
               </div>
               <span className="text-[10px] font-mono text-slate-500">
-                {hasActiveMission ? 'Active Mission' : 'Standalone / Ad-hoc'}
+                {hasActiveMission
+                  ? 'Active Mission'
+                  : isHistoricalMission
+                  ? 'Historical (Read-Only)'
+                  : 'Standalone / Ad-hoc'}
               </span>
             </div>
 

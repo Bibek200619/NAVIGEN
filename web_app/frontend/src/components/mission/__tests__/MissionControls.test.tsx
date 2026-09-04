@@ -254,4 +254,60 @@ describe('MissionControls Component', () => {
       expect(onSoftwareEstop).not.toHaveBeenCalled();
     });
   });
+
+  describe('Mission Context Badges & Historical Lockout', () => {
+    it('renders "Active Mission" badge when hasActiveMission is true', () => {
+      render(<MissionControls hasActiveMission={true} />);
+      expect(screen.getByText('Active Mission')).toBeInTheDocument();
+    });
+
+    it('renders "Historical (Read-Only)" badge when isHistoricalMission is true', () => {
+      render(<MissionControls isHistoricalMission={true} />);
+      expect(screen.getByText('Historical (Read-Only)')).toBeInTheDocument();
+    });
+
+    it('renders "Standalone / Ad-hoc" badge when neither active nor historical', () => {
+      render(<MissionControls hasActiveMission={false} isHistoricalMission={false} />);
+      expect(screen.getByText('Standalone / Ad-hoc')).toBeInTheDocument();
+    });
+
+    it('read-only historical mission: goal inputs & dispatch disabled with banner, while E-Stop remains enabled', () => {
+      const onSetGoal = vi.fn();
+      const onSoftwareEstop = vi.fn();
+      const readOnlyReason =
+        'This mission is completed and is read-only. Create or select an active mission to dispatch a new goal.';
+
+      render(
+        <MissionControls
+          isHistoricalMission={true}
+          isGoalDisabled={true}
+          isEstopDisabled={false}
+          safetyReason={readOnlyReason}
+          onSetGoal={onSetGoal}
+          onSoftwareEstop={onSoftwareEstop}
+        />,
+      );
+
+      expect(screen.getByText('Historical (Read-Only)')).toBeInTheDocument();
+      const banner = screen.getByTestId('safety-lockout-banner');
+      expect(banner).toHaveTextContent(readOnlyReason);
+
+      const dispatchBtn = screen.getByRole('button', { name: 'Dispatch Goal' });
+      expect(dispatchBtn).toBeDisabled();
+      fireEvent.click(dispatchBtn);
+      expect(onSetGoal).not.toHaveBeenCalled();
+
+      expect(screen.getByLabelText(/X \(m\)/)).toBeDisabled();
+      expect(screen.getByLabelText(/Y \(m\)/)).toBeDisabled();
+      expect(screen.getByLabelText(/Z \(m\)/)).toBeDisabled();
+      expect(screen.getByLabelText(/Frame:/)).toBeDisabled();
+
+      const estopBtn = screen.getByRole('button', { name: 'Trigger E-Stop' });
+      expect(estopBtn).not.toBeDisabled();
+      fireEvent.click(estopBtn);
+      expect(screen.getByText('Confirm: Trigger emergency software stop?')).toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: 'Confirm Stop' }));
+      expect(onSoftwareEstop).toHaveBeenCalledTimes(1);
+    });
+  });
 });

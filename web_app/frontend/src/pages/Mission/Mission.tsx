@@ -15,6 +15,14 @@ import { useSafetyStatus } from '../../hooks/useSafetyStatus';
 import type { Mission } from '../../types/mission';
 import type { CommandType } from '../../types/api';
 
+const isMissionTerminal = (status?: string | null): boolean => {
+  return status === 'completed' || status === 'failed' || status === 'aborted';
+};
+
+const isMissionActive = (status?: string | null): boolean => {
+  return status === 'in_progress' || status === 'pending';
+};
+
 export const MissionPage: React.FC = () => {
   const {
     selectedRobot,
@@ -45,6 +53,13 @@ export const MissionPage: React.FC = () => {
   // Allow user to view a specific mission from history, falling back to active mission
   const [selectedMissionOverride, setSelectedMissionOverride] = useState<Mission | null>(null);
   const currentMission = selectedMissionOverride ?? activeMission;
+
+  const isCurrentMissionTerminal = Boolean(
+    currentMission && isMissionTerminal(currentMission.status),
+  );
+  const isCurrentMissionActive = Boolean(
+    currentMission && isMissionActive(currentMission.status),
+  );
 
   // Retrieve mission details and goals for the selected/active mission
   const {
@@ -86,6 +101,7 @@ export const MissionPage: React.FC = () => {
   // 3. Emergency stop
   // 4. Robot error
   // 5. Stale telemetry
+  // 6. Selected mission is terminal (read-only)
   let isGoalDisabled = false;
   let safetyReason: string | null = null;
 
@@ -104,14 +120,22 @@ export const MissionPage: React.FC = () => {
   } else if (isTelemetryStale) {
     isGoalDisabled = true;
     safetyReason = 'Motion commands disabled: Telemetry stream is stale.';
+  } else if (isCurrentMissionTerminal) {
+    isGoalDisabled = true;
+    safetyReason = `This mission is ${currentMission?.status} and is read-only. Create or select an active mission to dispatch a new goal.`;
   }
 
   // E-Stop remains triggerable when a transport connection exists, even if telemetry is stale or robot is unsafe
   const isEstopDisabled = !selectedRobotId || isRobotDisconnected;
 
   const handleSetGoal = async (coords: SetGoalCoordinates) => {
-    if (isGoalDisabled || !selectedRobotId) {
-      setFeedbackMessage(safetyReason ?? 'Cannot dispatch goal: Safety gating active.');
+    if (isGoalDisabled || !selectedRobotId || isCurrentMissionTerminal) {
+      setFeedbackMessage(
+        safetyReason ??
+          (isCurrentMissionTerminal
+            ? `Cannot dispatch goal: This mission is ${currentMission?.status} and is read-only.`
+            : 'Cannot dispatch goal: Safety gating active.'),
+      );
       return;
     }
 
@@ -119,6 +143,7 @@ export const MissionPage: React.FC = () => {
     clearCommandError();
 
     try {
+      const targetMissionId = isCurrentMissionActive ? currentMission?.id : null;
       const response = await sendSetGoal(
         selectedRobotId,
         {
@@ -126,7 +151,7 @@ export const MissionPage: React.FC = () => {
           position: { x: coords.x, y: coords.y, z: coords.z },
           orientation: { x: 0, y: 0, z: 0, w: 1 }, // Safe identity quaternion (no rotation)
         },
-        currentMission?.id ?? null,
+        targetMissionId,
       );
       setFeedbackMessage(
         `Goal dispatched: Command ${response.status.toUpperCase()} (${response.id})`,
@@ -147,10 +172,11 @@ export const MissionPage: React.FC = () => {
     clearCommandError();
 
     try {
+      const targetMissionId = isCurrentMissionActive ? currentMission?.id : null;
       const response = await sendSoftwareEstop(
         selectedRobotId,
         true,
-        currentMission?.id ?? null,
+        targetMissionId,
       );
       setFeedbackMessage(
         `Software E-Stop command dispatched: Status is ${response.status.toUpperCase()}`,
@@ -232,7 +258,8 @@ export const MissionPage: React.FC = () => {
             commandStatus={lastCommand?.status ?? 'ready'}
             lastCommandType={lastCommandType}
             lastCommandResponse={lastCommand}
-            hasActiveMission={Boolean(currentMission)}
+            hasActiveMission={isCurrentMissionActive}
+            isHistoricalMission={isCurrentMissionTerminal}
             isGoalDisabled={isGoalDisabled}
             isEstopDisabled={isEstopDisabled}
             safetyReason={safetyReason}

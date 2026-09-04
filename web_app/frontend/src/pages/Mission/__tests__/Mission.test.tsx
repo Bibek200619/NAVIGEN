@@ -565,4 +565,409 @@ describe('MissionPage', () => {
       );
     });
   });
+
+  describe('Historical vs Active Mission Disambiguation', () => {
+    const mockPendingMission: Mission = {
+      id: 'm-pending-1',
+      robotId: 'robot-alpha',
+      name: 'Pending Perimeter Scan',
+      description: 'Pending mission route',
+      status: 'pending',
+      createdBy: 'user-1',
+      startedAt: null,
+      completedAt: null,
+      failureReason: null,
+      createdAt: '2026-09-04T10:00:00Z',
+      updatedAt: '2026-09-04T10:00:00Z',
+    };
+
+    const mockInProgressMission: Mission = {
+      id: 'm-active-1',
+      robotId: 'robot-alpha',
+      name: 'Active Survey Sweep',
+      description: 'Active mission traversing',
+      status: 'in_progress',
+      createdBy: 'user-1',
+      startedAt: '2026-09-04T11:00:00Z',
+      completedAt: null,
+      failureReason: null,
+      createdAt: '2026-09-04T10:50:00Z',
+      updatedAt: '2026-09-04T11:00:00Z',
+    };
+
+    const mockCompletedMission: Mission = {
+      id: 'm-completed-1',
+      robotId: 'robot-alpha',
+      name: 'Completed Alpha Route',
+      description: 'Done route',
+      status: 'completed',
+      createdBy: 'user-1',
+      startedAt: '2026-09-04T08:00:00Z',
+      completedAt: '2026-09-04T08:45:00Z',
+      failureReason: null,
+      createdAt: '2026-09-04T07:50:00Z',
+      updatedAt: '2026-09-04T08:45:00Z',
+    };
+
+    const mockFailedMission: Mission = {
+      id: 'm-failed-1',
+      robotId: 'robot-alpha',
+      name: 'Failed Quarry Descent',
+      description: 'Encountered slip hazard',
+      status: 'failed',
+      createdBy: 'user-1',
+      startedAt: '2026-09-04T09:00:00Z',
+      completedAt: '2026-09-04T09:15:00Z',
+      failureReason: 'Traction slip detected on slope',
+      createdAt: '2026-09-04T08:55:00Z',
+      updatedAt: '2026-09-04T09:15:00Z',
+    };
+
+    const mockAbortedMission: Mission = {
+      id: 'm-aborted-1',
+      robotId: 'robot-alpha',
+      name: 'Aborted Test Corridor',
+      description: 'Manually stopped by operator',
+      status: 'aborted',
+      createdBy: 'user-1',
+      startedAt: '2026-09-04T09:30:00Z',
+      completedAt: '2026-09-04T09:35:00Z',
+      failureReason: null,
+      createdAt: '2026-09-04T09:20:00Z',
+      updatedAt: '2026-09-04T09:35:00Z',
+    };
+
+    const setupMissionContext = (allMissions: Mission[]) => {
+      const mockRobot: Robot = {
+        id: 'robot-alpha',
+        name: 'Alpha UGV',
+        slug: 'alpha-ugv',
+        status: 'idle',
+        connection_status: 'connected',
+        last_seen_at: '2026-09-04T12:00:00Z',
+        description: null,
+        metadata: {},
+        created_at: '2026-09-04T12:00:00Z',
+        updated_at: '2026-09-04T12:00:00Z',
+      };
+
+      const sendSetGoal = vi.fn().mockResolvedValue({
+        id: 'cmd-goal-1',
+        robot_id: 'robot-alpha',
+        mission_id: null,
+        requested_by: 'user-1',
+        command_type: 'set_goal',
+        status: 'executed',
+        request_payload: {},
+        response_payload: null,
+        rejection_reason: null,
+        failure_reason: null,
+        requested_at: '2026-09-04T12:00:00Z',
+        acknowledged_at: '2026-09-04T12:00:01Z',
+        executed_at: '2026-09-04T12:00:02Z',
+        created_at: '2026-09-04T12:00:00Z',
+        updated_at: '2026-09-04T12:00:02Z',
+      });
+
+      const sendSoftwareEstop = vi.fn().mockResolvedValue({
+        id: 'cmd-estop-1',
+        robot_id: 'robot-alpha',
+        mission_id: null,
+        requested_by: 'user-1',
+        command_type: 'software_estop',
+        status: 'executed',
+        request_payload: {},
+        response_payload: null,
+        rejection_reason: null,
+        failure_reason: null,
+        requested_at: '2026-09-04T12:00:00Z',
+        acknowledged_at: '2026-09-04T12:00:01Z',
+        executed_at: '2026-09-04T12:00:02Z',
+        created_at: '2026-09-04T12:00:00Z',
+        updated_at: '2026-09-04T12:00:02Z',
+      });
+
+      vi.mocked(useRobotData).mockReturnValue({
+        robots: [mockRobot],
+        selectedRobot: mockRobot,
+        selectedRobotId: mockRobot.id,
+        isLoading: false,
+        error: null,
+        refetch: vi.fn(),
+        setSelectedRobot: vi.fn(),
+      });
+
+      vi.mocked(useMissions).mockReturnValue({
+        missions: allMissions,
+        isLoading: false,
+        error: null,
+        refetch: vi.fn(),
+      });
+
+      vi.mocked(useMissionDetail).mockImplementation((missionId) => {
+        const found = allMissions.find((m) => m.id === missionId);
+        return {
+          mission: found ?? null,
+          goals: found
+            ? [
+                {
+                  id: `g-${found.id}`,
+                  missionId: found.id,
+                  sequenceNo: 1,
+                  frameId: 'map',
+                  position: { x: 5.0, y: 3.0, z: 0.0 },
+                  orientation: { x: 0, y: 0, z: 0, w: 1 },
+                  reachedAt: null,
+                  createdAt: '2026-09-04T12:00:00Z',
+                },
+              ]
+            : [],
+          isLoading: false,
+          error: null,
+          refetch: vi.fn(),
+        };
+      });
+
+      vi.mocked(useRobotCommand).mockReturnValue({
+        lastCommand: null,
+        isLoading: false,
+        error: null,
+        sendSetGoal,
+        sendSoftwareEstop,
+        clearError: vi.fn(),
+        reset: vi.fn(),
+      });
+
+      return { mockRobot, sendSetGoal, sendSoftwareEstop };
+    };
+
+    it('active PENDING mission allows Set Goal with mission_id', async () => {
+      const { sendSetGoal } = setupMissionContext([mockPendingMission]);
+
+      render(<MissionPage />);
+
+      expect(screen.getByText('Active Mission')).toBeInTheDocument();
+      expect(screen.queryByTestId('safety-lockout-banner')).not.toBeInTheDocument();
+
+      const dispatchBtn = screen.getByRole('button', { name: 'Dispatch Goal' });
+      expect(dispatchBtn).not.toBeDisabled();
+
+      fireEvent.click(dispatchBtn);
+
+      await waitFor(() => {
+        expect(sendSetGoal).toHaveBeenCalledWith(
+          'robot-alpha',
+          {
+            frame_id: 'map',
+            position: { x: 0, y: 0, z: 0 },
+            orientation: { x: 0, y: 0, z: 0, w: 1 },
+          },
+          'm-pending-1',
+        );
+      });
+    });
+
+    it('active IN_PROGRESS mission allows Set Goal with mission_id', async () => {
+      const { sendSetGoal } = setupMissionContext([mockInProgressMission]);
+
+      render(<MissionPage />);
+
+      expect(screen.getByText('Active Mission')).toBeInTheDocument();
+      expect(screen.queryByTestId('safety-lockout-banner')).not.toBeInTheDocument();
+
+      const dispatchBtn = screen.getByRole('button', { name: 'Dispatch Goal' });
+      expect(dispatchBtn).not.toBeDisabled();
+
+      fireEvent.click(dispatchBtn);
+
+      await waitFor(() => {
+        expect(sendSetGoal).toHaveBeenCalledWith(
+          'robot-alpha',
+          {
+            frame_id: 'map',
+            position: { x: 0, y: 0, z: 0 },
+            orientation: { x: 0, y: 0, z: 0, w: 1 },
+          },
+          'm-active-1',
+        );
+      });
+    });
+
+    it('COMPLETED mission is identified as historical/read-only with status-specific banner and locked goal dispatch', () => {
+      setupMissionContext([mockCompletedMission]);
+
+      render(<MissionPage />);
+
+      // Select completed mission from history
+      fireEvent.click(screen.getByText('Completed Alpha Route'));
+
+      expect(screen.getByText('Historical (Read-Only)')).toBeInTheDocument();
+      const banner = screen.getByTestId('safety-lockout-banner');
+      expect(banner).toHaveTextContent(
+        'This mission is completed and is read-only. Create or select an active mission to dispatch a new goal.',
+      );
+
+      const dispatchBtn = screen.getByRole('button', { name: 'Dispatch Goal' });
+      expect(dispatchBtn).toBeDisabled();
+      expect(screen.getByLabelText(/X \(m\)/)).toBeDisabled();
+    });
+
+    it('FAILED mission is identified as historical/read-only with status-specific banner and locked goal dispatch', () => {
+      setupMissionContext([mockFailedMission]);
+
+      render(<MissionPage />);
+
+      // Select failed mission from history
+      fireEvent.click(screen.getByText('Failed Quarry Descent'));
+
+      expect(screen.getByText('Historical (Read-Only)')).toBeInTheDocument();
+      const banner = screen.getByTestId('safety-lockout-banner');
+      expect(banner).toHaveTextContent(
+        'This mission is failed and is read-only. Create or select an active mission to dispatch a new goal.',
+      );
+
+      const dispatchBtn = screen.getByRole('button', { name: 'Dispatch Goal' });
+      expect(dispatchBtn).toBeDisabled();
+      expect(screen.getByLabelText(/X \(m\)/)).toBeDisabled();
+    });
+
+    it('ABORTED mission is identified as historical/read-only with status-specific banner and locked goal dispatch', () => {
+      setupMissionContext([mockAbortedMission]);
+
+      render(<MissionPage />);
+
+      // Select aborted mission from history
+      fireEvent.click(screen.getByText('Aborted Test Corridor'));
+
+      expect(screen.getByText('Historical (Read-Only)')).toBeInTheDocument();
+      const banner = screen.getByTestId('safety-lockout-banner');
+      expect(banner).toHaveTextContent(
+        'This mission is aborted and is read-only. Create or select an active mission to dispatch a new goal.',
+      );
+
+      const dispatchBtn = screen.getByRole('button', { name: 'Dispatch Goal' });
+      expect(dispatchBtn).toBeDisabled();
+      expect(screen.getByLabelText(/X \(m\)/)).toBeDisabled();
+    });
+
+    it('selecting a terminal mission from MissionHistory disables Set Goal and locks inputs', () => {
+      setupMissionContext([mockInProgressMission, mockCompletedMission]);
+
+      render(<MissionPage />);
+
+      // Initially active mission is active
+      expect(screen.getByText('Active Mission')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Dispatch Goal' })).not.toBeDisabled();
+
+      // Click the completed mission in history
+      fireEvent.click(screen.getByText('Completed Alpha Route'));
+
+      // Context changes to Historical (Read-Only)
+      expect(screen.getByText('Historical (Read-Only)')).toBeInTheDocument();
+      expect(screen.getByTestId('safety-lockout-banner')).toHaveTextContent(
+        'This mission is completed and is read-only. Create or select an active mission to dispatch a new goal.',
+      );
+      expect(screen.getByRole('button', { name: 'Dispatch Goal' })).toBeDisabled();
+      expect(screen.getByLabelText(/X \(m\)/)).toBeDisabled();
+    });
+
+    it('attempting to dispatch programmatically with a terminal mission does NOT call sendSetGoal', () => {
+      const { sendSetGoal } = setupMissionContext([mockCompletedMission]);
+
+      render(<MissionPage />);
+
+      // Select completed mission from history
+      fireEvent.click(screen.getByText('Completed Alpha Route'));
+
+      const dispatchBtn = screen.getByRole('button', { name: 'Dispatch Goal' });
+      expect(dispatchBtn).toBeDisabled();
+
+      // Form submission attempt
+      fireEvent.submit(dispatchBtn.closest('form')!);
+
+      expect(sendSetGoal).not.toHaveBeenCalled();
+    });
+
+    it('historical mission details remain fully viewable when selected', () => {
+      setupMissionContext([mockFailedMission]);
+
+      render(<MissionPage />);
+
+      // Select failed mission from history
+      fireEvent.click(screen.getByText('Failed Quarry Descent'));
+
+      // Status panel displays historical mission info and error reason
+      expect(screen.getAllByText('Failed Quarry Descent').length).toBeGreaterThanOrEqual(2);
+      expect(screen.getByText('Encountered slip hazard')).toBeInTheDocument();
+      expect(screen.getAllByText(/Traction slip detected on slope/).length).toBeGreaterThanOrEqual(2);
+
+      // Goals panel displays its goals
+      expect(screen.getByText('Mission Goals')).toBeInTheDocument();
+      expect(screen.getByText(/X: 5.00 \| Y: 3.00 \| Z: 0.00/)).toBeInTheDocument();
+    });
+
+    it('Software E-Stop remains available when a historical mission is selected and passes null mission_id', async () => {
+      const { sendSoftwareEstop } = setupMissionContext([mockCompletedMission]);
+
+      render(<MissionPage />);
+
+      // Select completed mission from history
+      fireEvent.click(screen.getByText('Completed Alpha Route'));
+
+      const estopBtn = screen.getByRole('button', { name: 'Trigger E-Stop' });
+      expect(estopBtn).not.toBeDisabled();
+
+      fireEvent.click(estopBtn);
+      fireEvent.click(screen.getByRole('button', { name: 'Confirm Stop' }));
+
+      await waitFor(() => {
+        expect(sendSoftwareEstop).toHaveBeenCalledWith('robot-alpha', true, null);
+      });
+    });
+
+    it('switching between active and historical missions dynamically enables/disables goal dispatch and never sends terminal mission_id', async () => {
+      const { sendSetGoal } = setupMissionContext([
+        mockInProgressMission,
+        mockCompletedMission,
+      ]);
+
+      render(<MissionPage />);
+
+      // 1. Initial state: in_progress active
+      expect(screen.getByText('Active Mission')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Dispatch Goal' })).not.toBeDisabled();
+
+      // 2. Select completed mission
+      fireEvent.click(screen.getByText('Completed Alpha Route'));
+      expect(screen.getByText('Historical (Read-Only)')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Dispatch Goal' })).toBeDisabled();
+
+      // 3. Switch back to active mission in history
+      fireEvent.click(screen.getByText('Active Survey Sweep'));
+      expect(screen.getByText('Active Mission')).toBeInTheDocument();
+      const dispatchBtn = screen.getByRole('button', { name: 'Dispatch Goal' });
+      expect(dispatchBtn).not.toBeDisabled();
+
+      // 4. Dispatch goal on active mission
+      fireEvent.click(dispatchBtn);
+      await waitFor(() => {
+        expect(sendSetGoal).toHaveBeenCalledWith(
+          'robot-alpha',
+          {
+            frame_id: 'map',
+            position: { x: 0, y: 0, z: 0 },
+            orientation: { x: 0, y: 0, z: 0, w: 1 },
+          },
+          'm-active-1',
+        );
+      });
+
+      // Verify m-completed-1 was NEVER passed as mission_id
+      expect(sendSetGoal).not.toHaveBeenCalledWith(
+        expect.anything(),
+        expect.anything(),
+        'm-completed-1',
+      );
+    });
+  });
 });
