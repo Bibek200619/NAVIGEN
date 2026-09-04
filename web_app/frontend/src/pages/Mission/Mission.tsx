@@ -10,6 +10,8 @@ import { useRobotData } from '../../hooks/useRobotData';
 import { useMissions } from '../../hooks/useMissions';
 import { useMissionDetail } from '../../hooks/useMissionDetail';
 import { useRobotCommand } from '../../hooks/useRobotCommand';
+import { useTelemetry } from '../../hooks/useTelemetry';
+import { useSafetyStatus } from '../../hooks/useSafetyStatus';
 import type { Mission } from '../../types/mission';
 import type { CommandType } from '../../types/api';
 
@@ -20,6 +22,9 @@ export const MissionPage: React.FC = () => {
     isLoading: isRobotLoading,
     error: robotError,
   } = useRobotData();
+
+  const { telemetry } = useTelemetry();
+  const { latestEvent: latestSafetyEvent } = useSafetyStatus(selectedRobotId);
 
   const {
     missions,
@@ -61,9 +66,52 @@ export const MissionPage: React.FC = () => {
   const [lastCommandType, setLastCommandType] = useState<CommandType | null>(null);
   const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
 
+  // Derive safety gating conditions
+  const isRobotDisconnected =
+    !selectedRobot ||
+    selectedRobot.connection_status !== 'connected' ||
+    (telemetry?.connectionStatus !== undefined && telemetry.connectionStatus !== 'connected');
+
+  const isEmergencyStop =
+    telemetry?.safetyState === 'emergency_stop' ||
+    telemetry?.safety_state === 'emergency_stop' ||
+    latestSafetyEvent?.state === 'emergency_stop';
+
+  const isRobotError = selectedRobot?.status === 'error';
+  const isTelemetryStale = Boolean(telemetry?.isStale || telemetry?.is_stale);
+
+  // Deterministic priority ordering for safety gating reason:
+  // 1. No robot selected
+  // 2. Disconnected robot
+  // 3. Emergency stop
+  // 4. Robot error
+  // 5. Stale telemetry
+  let isGoalDisabled = false;
+  let safetyReason: string | null = null;
+
+  if (!selectedRobotId || !selectedRobot) {
+    isGoalDisabled = true;
+    safetyReason = 'Motion commands disabled: No active robot selected.';
+  } else if (isRobotDisconnected) {
+    isGoalDisabled = true;
+    safetyReason = 'Motion commands disabled: Robot is disconnected.';
+  } else if (isEmergencyStop) {
+    isGoalDisabled = true;
+    safetyReason = 'Motion commands disabled: Robot is in emergency stop.';
+  } else if (isRobotError) {
+    isGoalDisabled = true;
+    safetyReason = 'Motion commands disabled: Robot is reporting an error.';
+  } else if (isTelemetryStale) {
+    isGoalDisabled = true;
+    safetyReason = 'Motion commands disabled: Telemetry stream is stale.';
+  }
+
+  // E-Stop remains triggerable when a transport connection exists, even if telemetry is stale or robot is unsafe
+  const isEstopDisabled = !selectedRobotId || isRobotDisconnected;
+
   const handleSetGoal = async (coords: SetGoalCoordinates) => {
-    if (!selectedRobotId) {
-      setFeedbackMessage('Cannot dispatch goal: No active robot selected.');
+    if (isGoalDisabled || !selectedRobotId) {
+      setFeedbackMessage(safetyReason ?? 'Cannot dispatch goal: Safety gating active.');
       return;
     }
 
@@ -90,8 +138,8 @@ export const MissionPage: React.FC = () => {
   };
 
   const handleSoftwareEstop = async () => {
-    if (!selectedRobotId) {
-      setFeedbackMessage('Cannot trigger E-Stop: No active robot selected.');
+    if (isEstopDisabled || !selectedRobotId) {
+      setFeedbackMessage('Cannot trigger E-Stop: Robot transport is not connected.');
       return;
     }
 
@@ -185,7 +233,9 @@ export const MissionPage: React.FC = () => {
             lastCommandType={lastCommandType}
             lastCommandResponse={lastCommand}
             hasActiveMission={Boolean(currentMission)}
-            disabled={!selectedRobotId}
+            isGoalDisabled={isGoalDisabled}
+            isEstopDisabled={isEstopDisabled}
+            safetyReason={safetyReason}
             isDispatching={isCommandLoading}
             errorMessage={commandError?.message}
           />

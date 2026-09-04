@@ -102,4 +102,156 @@ describe('MissionControls Component', () => {
       'Target coordinate is out of allowable workspace boundary',
     );
   });
+
+  describe('Safety Gating', () => {
+    it('healthy connected robot → goal enabled, E-stop enabled, no safety banner', () => {
+      render(
+        <MissionControls
+          isGoalDisabled={false}
+          isEstopDisabled={false}
+          safetyReason={null}
+        />,
+      );
+
+      const dispatchBtn = screen.getByRole('button', { name: 'Dispatch Goal' });
+      expect(dispatchBtn).not.toBeDisabled();
+
+      const xInput = screen.getByLabelText(/X \(m\)/);
+      const yInput = screen.getByLabelText(/Y \(m\)/);
+      const zInput = screen.getByLabelText(/Z \(m\)/);
+      const frameInput = screen.getByLabelText(/Frame:/);
+      expect(xInput).not.toBeDisabled();
+      expect(yInput).not.toBeDisabled();
+      expect(zInput).not.toBeDisabled();
+      expect(frameInput).not.toBeDisabled();
+
+      const estopBtn = screen.getByRole('button', { name: 'Trigger E-Stop' });
+      expect(estopBtn).not.toBeDisabled();
+
+      expect(screen.queryByTestId('safety-lockout-banner')).not.toBeInTheDocument();
+    });
+
+    it('stale telemetry → goal disabled + correct safety reason', () => {
+      render(
+        <MissionControls
+          isGoalDisabled={true}
+          isEstopDisabled={false}
+          safetyReason="Motion commands disabled: Telemetry stream is stale."
+        />,
+      );
+
+      const dispatchBtn = screen.getByRole('button', { name: 'Dispatch Goal' });
+      expect(dispatchBtn).toBeDisabled();
+
+      expect(screen.getByLabelText(/X \(m\)/)).toBeDisabled();
+      expect(screen.getByLabelText(/Y \(m\)/)).toBeDisabled();
+      expect(screen.getByLabelText(/Z \(m\)/)).toBeDisabled();
+      expect(screen.getByLabelText(/Frame:/)).toBeDisabled();
+
+      const banner = screen.getByTestId('safety-lockout-banner');
+      expect(banner).toHaveTextContent('Motion commands disabled: Telemetry stream is stale.');
+    });
+
+    it('disconnected robot → goal disabled + correct reason and E-Stop disabled', () => {
+      render(
+        <MissionControls
+          isGoalDisabled={true}
+          isEstopDisabled={true}
+          safetyReason="Motion commands disabled: Robot is disconnected."
+        />,
+      );
+
+      expect(screen.getByRole('button', { name: 'Dispatch Goal' })).toBeDisabled();
+      expect(screen.getByLabelText(/X \(m\)/)).toBeDisabled();
+
+      const banner = screen.getByTestId('safety-lockout-banner');
+      expect(banner).toHaveTextContent('Motion commands disabled: Robot is disconnected.');
+
+      const estopBtn = screen.getByRole('button', { name: 'Trigger E-Stop' });
+      expect(estopBtn).toBeDisabled();
+    });
+
+    it('emergency-stop state → goal disabled + correct reason, E-Stop remains enabled', () => {
+      render(
+        <MissionControls
+          isGoalDisabled={true}
+          isEstopDisabled={false}
+          safetyReason="Motion commands disabled: Robot is in emergency stop."
+        />,
+      );
+
+      expect(screen.getByRole('button', { name: 'Dispatch Goal' })).toBeDisabled();
+      const banner = screen.getByTestId('safety-lockout-banner');
+      expect(banner).toHaveTextContent('Motion commands disabled: Robot is in emergency stop.');
+
+      expect(screen.getByRole('button', { name: 'Trigger E-Stop' })).not.toBeDisabled();
+    });
+
+    it('robot error state → goal disabled + correct reason, E-Stop remains enabled', () => {
+      render(
+        <MissionControls
+          isGoalDisabled={true}
+          isEstopDisabled={false}
+          safetyReason="Motion commands disabled: Robot is reporting an error."
+        />,
+      );
+
+      expect(screen.getByRole('button', { name: 'Dispatch Goal' })).toBeDisabled();
+      const banner = screen.getByTestId('safety-lockout-banner');
+      expect(banner).toHaveTextContent('Motion commands disabled: Robot is reporting an error.');
+
+      expect(screen.getByRole('button', { name: 'Trigger E-Stop' })).not.toBeDisabled();
+    });
+
+    it('stale telemetry while connected → Software E-Stop remains enabled/triggerable', () => {
+      const onSoftwareEstop = vi.fn();
+      const onSetGoal = vi.fn();
+
+      render(
+        <MissionControls
+          isGoalDisabled={true}
+          isEstopDisabled={false}
+          safetyReason="Motion commands disabled: Telemetry stream is stale."
+          onSoftwareEstop={onSoftwareEstop}
+          onSetGoal={onSetGoal}
+        />,
+      );
+
+      // Goal submission is guarded
+      const dispatchBtn = screen.getByRole('button', { name: 'Dispatch Goal' });
+      expect(dispatchBtn).toBeDisabled();
+      fireEvent.click(dispatchBtn);
+      expect(onSetGoal).not.toHaveBeenCalled();
+
+      // E-Stop is enabled and triggerable
+      const estopBtn = screen.getByRole('button', { name: 'Trigger E-Stop' });
+      expect(estopBtn).not.toBeDisabled();
+      fireEvent.click(estopBtn);
+
+      expect(screen.getByText('Confirm: Trigger emergency software stop?')).toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: 'Confirm Stop' }));
+
+      expect(onSoftwareEstop).toHaveBeenCalledTimes(1);
+    });
+
+    it('disconnected transport → E-Stop is unavailable/disabled according to existing behavior', () => {
+      const onSoftwareEstop = vi.fn();
+
+      render(
+        <MissionControls
+          isGoalDisabled={true}
+          isEstopDisabled={true}
+          safetyReason="Motion commands disabled: Robot is disconnected."
+          onSoftwareEstop={onSoftwareEstop}
+        />,
+      );
+
+      const estopBtn = screen.getByRole('button', { name: 'Trigger E-Stop' });
+      expect(estopBtn).toBeDisabled();
+
+      fireEvent.click(estopBtn);
+      expect(screen.queryByText('Confirm: Trigger emergency software stop?')).not.toBeInTheDocument();
+      expect(onSoftwareEstop).not.toHaveBeenCalled();
+    });
+  });
 });

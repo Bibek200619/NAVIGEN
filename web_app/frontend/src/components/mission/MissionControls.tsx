@@ -21,6 +21,9 @@ export interface MissionControlsProps {
   disabled?: boolean;
   isDispatching?: boolean;
   errorMessage?: string | null;
+  isGoalDisabled?: boolean;
+  isEstopDisabled?: boolean;
+  safetyReason?: string | null;
 }
 
 const getCommandStatusBadgeConfig = (status: CommandStatus | 'ready') => {
@@ -62,6 +65,9 @@ export const MissionControls: React.FC<MissionControlsProps> = ({
   disabled = false,
   isDispatching = false,
   errorMessage = null,
+  isGoalDisabled = false,
+  isEstopDisabled = false,
+  safetyReason = null,
 }) => {
   const [confirmingEstop, setConfirmingEstop] = useState(false);
   const [xInput, setXInput] = useState<string>('0.0');
@@ -71,6 +77,8 @@ export const MissionControls: React.FC<MissionControlsProps> = ({
 
   const statusConfig = getCommandStatusBadgeConfig(commandStatus);
   const isPending = isDispatching || commandStatus === 'pending';
+  const goalDisabled = disabled || isGoalDisabled || isPending;
+  const estopDisabled = disabled || isEstopDisabled || isPending;
 
   // Coordinate validation
   const numX = parseFloat(xInput);
@@ -87,7 +95,7 @@ export const MissionControls: React.FC<MissionControlsProps> = ({
 
   const handleDispatchGoal = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!areCoordinatesValid || isPending || disabled) return;
+    if (!areCoordinatesValid || goalDisabled) return;
     onSetGoal?.({
       x: numX,
       y: numY,
@@ -97,6 +105,7 @@ export const MissionControls: React.FC<MissionControlsProps> = ({
   };
 
   const handleConfirmEstop = () => {
+    if (estopDisabled) return;
     setConfirmingEstop(false);
     onSoftwareEstop?.();
   };
@@ -140,6 +149,17 @@ export const MissionControls: React.FC<MissionControlsProps> = ({
               </span>
             </div>
 
+            {/* Safety Warning Banner when goal dispatch is locked */}
+            {safetyReason && (
+              <div
+                className="p-2.5 bg-amber-500/10 border border-amber-500/20 rounded text-xs text-amber-300 flex items-center gap-2"
+                data-testid="safety-lockout-banner"
+              >
+                <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
+                <span>{safetyReason}</span>
+              </div>
+            )}
+
             <form onSubmit={handleDispatchGoal} className="space-y-2.5">
               <div className="grid grid-cols-3 gap-2 text-xs">
                 <div>
@@ -152,8 +172,8 @@ export const MissionControls: React.FC<MissionControlsProps> = ({
                     step="any"
                     value={xInput}
                     onChange={(e) => setXInput(e.target.value)}
-                    disabled={disabled || isPending}
-                    className="w-full px-2 py-1 bg-slate-900 border border-slate-700 rounded text-xs text-slate-200 font-mono focus:outline-none focus:border-sky-500"
+                    disabled={goalDisabled}
+                    className="w-full px-2 py-1 bg-slate-900 border border-slate-700 rounded text-xs text-slate-200 font-mono focus:outline-none focus:border-sky-500 disabled:opacity-50 disabled:cursor-not-allowed"
                   />
                 </div>
                 <div>
@@ -166,8 +186,8 @@ export const MissionControls: React.FC<MissionControlsProps> = ({
                     step="any"
                     value={yInput}
                     onChange={(e) => setYInput(e.target.value)}
-                    disabled={disabled || isPending}
-                    className="w-full px-2 py-1 bg-slate-900 border border-slate-700 rounded text-xs text-slate-200 font-mono focus:outline-none focus:border-sky-500"
+                    disabled={goalDisabled}
+                    className="w-full px-2 py-1 bg-slate-900 border border-slate-700 rounded text-xs text-slate-200 font-mono focus:outline-none focus:border-sky-500 disabled:opacity-50 disabled:cursor-not-allowed"
                   />
                 </div>
                 <div>
@@ -180,8 +200,8 @@ export const MissionControls: React.FC<MissionControlsProps> = ({
                     step="any"
                     value={zInput}
                     onChange={(e) => setZInput(e.target.value)}
-                    disabled={disabled || isPending}
-                    className="w-full px-2 py-1 bg-slate-900 border border-slate-700 rounded text-xs text-slate-200 font-mono focus:outline-none focus:border-sky-500"
+                    disabled={goalDisabled}
+                    className="w-full px-2 py-1 bg-slate-900 border border-slate-700 rounded text-xs text-slate-200 font-mono focus:outline-none focus:border-sky-500 disabled:opacity-50 disabled:cursor-not-allowed"
                   />
                 </div>
               </div>
@@ -196,16 +216,16 @@ export const MissionControls: React.FC<MissionControlsProps> = ({
                     type="text"
                     value={frameId}
                     onChange={(e) => setFrameId(e.target.value)}
-                    disabled={disabled || isPending}
-                    className="px-2 py-0.5 bg-slate-900 border border-slate-700 rounded text-xs text-slate-200 font-mono w-24 focus:outline-none focus:border-sky-500"
+                    disabled={goalDisabled}
+                    className="px-2 py-0.5 bg-slate-900 border border-slate-700 rounded text-xs text-slate-200 font-mono w-24 focus:outline-none focus:border-sky-500 disabled:opacity-50 disabled:cursor-not-allowed"
                   />
                 </div>
 
                 <button
                   type="submit"
-                  disabled={disabled || !areCoordinatesValid || isPending}
+                  disabled={goalDisabled || !areCoordinatesValid}
                   className={`px-3 py-1.5 rounded text-xs font-medium transition-colors shrink-0 ${
-                    disabled || !areCoordinatesValid || isPending
+                    goalDisabled || !areCoordinatesValid
                       ? 'bg-slate-800/60 text-slate-500 cursor-not-allowed border border-slate-800'
                       : 'bg-sky-600 hover:bg-sky-500 text-white border border-sky-500/50'
                   }`}
@@ -238,9 +258,9 @@ export const MissionControls: React.FC<MissionControlsProps> = ({
                 <button
                   type="button"
                   onClick={() => setConfirmingEstop(true)}
-                  disabled={disabled || isPending}
+                  disabled={estopDisabled}
                   className={`px-3 py-1.5 rounded text-xs font-medium transition-colors shrink-0 ${
-                    disabled || isPending
+                    estopDisabled
                       ? 'bg-slate-800/60 text-slate-500 cursor-not-allowed border border-slate-800'
                       : 'bg-rose-600 hover:bg-rose-500 text-white border border-rose-500/50'
                   }`}
@@ -261,8 +281,12 @@ export const MissionControls: React.FC<MissionControlsProps> = ({
                   <button
                     type="button"
                     onClick={handleConfirmEstop}
-                    disabled={disabled || isPending}
-                    className="px-3 py-1 rounded text-xs font-semibold bg-rose-600 hover:bg-rose-500 text-white border border-rose-500/60 transition-colors"
+                    disabled={estopDisabled}
+                    className={`px-3 py-1 rounded text-xs font-semibold transition-colors ${
+                      estopDisabled
+                        ? 'bg-slate-800/60 text-slate-500 cursor-not-allowed border border-slate-800'
+                        : 'bg-rose-600 hover:bg-rose-500 text-white border border-rose-500/60'
+                    }`}
                   >
                     Confirm Stop
                   </button>
