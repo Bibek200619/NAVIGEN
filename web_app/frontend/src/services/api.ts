@@ -82,9 +82,59 @@ export function generateIdempotencyKey(): string {
 }
 
 /**
+ * Interface representing the typed REST API client.
+ */
+export interface ApiClient {
+  baseUrl: string;
+  tokenProvider: TokenProvider | null;
+  setTokenProvider(provider: TokenProvider | null): void;
+  getAuthHeader(options?: RequestOptions): Promise<Record<string, string>>;
+  handleResponse<T>(response: Response): Promise<T>;
+  get<T>(endpoint: string, options?: RequestOptions): Promise<T>;
+  post<T>(endpoint: string, data: unknown, options?: RequestOptions): Promise<T>;
+  patch<T>(endpoint: string, data: unknown, options?: RequestOptions): Promise<T>;
+  getStatus(options?: RequestOptions): Promise<SystemStatusResponse>;
+  getRobots(params?: ListRobotsParams, options?: RequestOptions): Promise<Page<Robot>>;
+  getRobot(robotId: string, options?: RequestOptions): Promise<Robot>;
+  getRobotTelemetry(
+    robotId: string,
+    params?: GetTelemetryParams,
+    options?: RequestOptions,
+  ): Promise<RobotTelemetryResponse[]>;
+  getRobotSafety(
+    robotId: string,
+    params?: GetSafetyParams,
+    options?: RequestOptions,
+  ): Promise<SafetyEventResponse[]>;
+  getRobotSensors(robotId: string, options?: RequestOptions): Promise<SensorStatusResponse[]>;
+  getRobotLocalization(
+    robotId: string,
+    options?: RequestOptions,
+  ): Promise<LocalizationStatusResponse | null>;
+  getMissions(
+    params?: ListMissionsParams,
+    options?: RequestOptions,
+  ): Promise<Page<MissionResponse>>;
+  getMission(missionId: string, options?: RequestOptions): Promise<MissionDetailResponse>;
+  getMissionGoals(missionId: string, options?: RequestOptions): Promise<MissionGoalResponse[]>;
+  createMission(data: MissionCreate, options?: RequestOptions): Promise<MissionDetailResponse>;
+  updateMission(
+    missionId: string,
+    data: MissionUpdate,
+    options?: RequestOptions,
+  ): Promise<MissionResponse>;
+  createRobotCommand(
+    robotId: string,
+    command: CommandCreate,
+    options?: RequestOptions & { idempotencyKey?: string },
+  ): Promise<CommandResponse>;
+  getCommand(commandId: string, options?: RequestOptions): Promise<CommandResponse>;
+}
+
+/**
  * Typed REST API client for backend communication.
  */
-export const apiClient = {
+export const apiClient: ApiClient = {
   baseUrl: APP_CONFIG.API_BASE_URL,
   tokenProvider: null as TokenProvider | null,
 
