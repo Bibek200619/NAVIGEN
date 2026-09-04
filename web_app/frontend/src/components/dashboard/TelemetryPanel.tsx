@@ -50,12 +50,12 @@ export const TelemetryPanel: React.FC<TelemetryPanelProps> = ({ robotId, classNa
     <Panel title="Telemetry" className={className}>
       <div className="space-y-4">
         {/* Status header row */}
-        <div className="grid grid-cols-2 gap-2.5 pb-3 border-b border-slate-800 text-xs">
-          <div className="flex items-center justify-between p-1.5 bg-slate-950/60 rounded border border-slate-800/80">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pb-3 border-b border-slate-800 text-xs">
+          <div className="flex items-center justify-between py-1 px-2.5 bg-slate-950/60 rounded border border-slate-800/80">
             <span className="text-slate-400">Connection:</span>
             <StatusBadge status={statusConfig.label} variant={statusConfig.variant} />
           </div>
-          <div className="flex items-center justify-between p-1.5 bg-slate-950/60 rounded border border-slate-800/80">
+          <div className="flex items-center justify-between py-1 px-2.5 bg-slate-950/60 rounded border border-slate-800/80">
             <span className="text-slate-400">Stream:</span>
             <StatusBadge status={streamBadge.label} variant={streamBadge.variant} />
           </div>

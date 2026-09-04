@@ -310,4 +310,33 @@ describe('MissionControls Component', () => {
       expect(onSoftwareEstop).toHaveBeenCalledTimes(1);
     });
   });
+
+  describe('Validation and Lifecycle Pipeline', () => {
+    it('displays inline validation error hints when coordinates are not valid numbers', () => {
+      render(<MissionControls />);
+
+      const xInput = screen.getByLabelText(/X \(m\)/);
+      const frameInput = screen.getByLabelText(/Frame:/);
+
+      fireEvent.change(xInput, { target: { value: 'not-a-number' } });
+      fireEvent.change(frameInput, { target: { value: '   ' } });
+
+      expect(screen.getByText('Invalid number')).toBeInTheDocument();
+      expect(screen.getByText('Required')).toBeInTheDocument();
+
+      const dispatchBtn = screen.getByRole('button', { name: 'Dispatch Goal' });
+      expect(dispatchBtn).toBeDisabled();
+    });
+
+    it('renders visual progression pipeline for commands', () => {
+      const { rerender } = render(<MissionControls commandStatus="ready" />);
+      expect(screen.getByText('1. Ready')).toBeInTheDocument();
+      expect(screen.getByText('2. Pending')).toBeInTheDocument();
+      expect(screen.getByText('3. Accepted')).toBeInTheDocument();
+      expect(screen.getByText('4. Executed')).toBeInTheDocument();
+
+      rerender(<MissionControls commandStatus="failed" />);
+      expect(screen.getByText('4. Failed')).toBeInTheDocument();
+    });
+  });
 });
