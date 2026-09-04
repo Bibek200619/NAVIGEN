@@ -98,6 +98,7 @@ A phase is `GREEN` only when its acceptance checklist is complete, the ROS works
 - [x] Adapt firmware and all hardware-facing docs from ESP32/encoder PID to the available NodeMCU ESP8266/open-loop profile (`73fd4d9`).
 - [x] Document Pi serial permissions/device discovery and the two-person physical gate.
 - [x] Flash a replacement ESP8266 with `HARDWARE_CONFIGURATION_CONFIRMED=0`, verify the complete image digest, and observe live protocol-v2 telemetry at 115200 baud.
+- [x] Reconnect the reviewed D1/D2/D5/D6/common-ground signal harness with motor power absent and confirm that the controller still boots and streams zero-output telemetry.
 - [ ] Measure and record holder topology/max voltage, cell/protection state, motor voltage and side stall current, L298N thermal margin, switch rating, buck capacity, and wheel/track geometry.
 - [ ] Wire and meter-check IN1–IN4, common grounds, HC-SR04 ECHO divider, and active-low D0 motor-power feedback. Keep camera fixed and SG90s disconnected.
 - [ ] Set `HARDWARE_CONFIGURATION_CONFIRMED=1`, rebuild, flash `nodemcuv2`, and verify valid open-loop telemetry while motor power is off.
@@ -151,6 +152,7 @@ A phase is `GREEN` only when its acceptance checklist is complete, the ROS works
 | A041 | 2026-09-04 | Passed and committed the ESP8266 migration gate. | Native tests pass; `nodemcuv2` builds at 34.6% RAM / 25.7% flash; eight ROS packages and all live Gazebo/Nav2/real-mock tests pass. Commit `73fd4d9`; no push performed. |
 | A042 | 2026-09-05 | Diagnosed the first physical NodeMCU upload failure without writing its flash. | Its CH340 USB interface enumerated, but both uploader versions, manual boot mode, slow-baud sync, and a 74880-baud reset-log probe received no ESP8266 data. The board was removed from the gate as a likely hardware/reset-path fault. |
 | A043 | 2026-09-05 | Flashed and verified the safety-locked firmware on a replacement ESP8266. | The replacement identified as ESP8266EX, PlatformIO upload succeeded, all 272,400 flashed bytes passed digest verification, and repeated protocol-v2 telemetry frames were observed at 115200 baud. Propulsion remains disabled because the confirmation flag is `0`. |
+| A044 | 2026-09-05 | Passed the USB-only controller/L298N signal-harness smoke test. | With motor supply absent and D1/D2/D5/D6/common ground attached, the ESP8266 enumerated and continuously emitted zero-output protocol-v2 telemetry. This does not approve battery voltage, motor current, or powered motion. |
 
 ## Test and validation ledger
 
@@ -173,6 +175,7 @@ A phase is `GREEN` only when its acceptance checklist is complete, the ROS works
 | Phase 4 native firmware tests | `./scripts/validate_firmware.sh` native target | GREEN | Protocol golden vector, parser recovery, zero-feedback telemetry layout, open-loop PWM mapping, watchdog/millis rollover, and sequence ordering pass under `-Werror`. |
 | Phase 4 NodeMCU firmware build | `./scripts/validate_firmware.sh` PlatformIO target | GREEN | Pinned `platformio/espressif8266@4.2.1` / `nodemcuv2` build succeeds; RAM 34.6%, flash 25.7%. Firmware stays unarmed until physical review. |
 | Phase 4 physical NodeMCU flash/liveness | PlatformIO upload + `esptool verify_flash` + 115200-baud telemetry capture | GREEN | Replacement ESP8266EX accepted the safety-locked image; all 272,400 bytes matched and live protocol-v2 frames streamed. No motor command can arm while confirmation remains `0`. |
+| Phase 5 USB-only signal harness | Visual pin review + telemetry capture with L298N motor supply absent | GREEN | Controller continues to boot and transmit framed zero-output telemetry with D1/D2/D5/D6/common ground attached; powered wiring remains unapproved. |
 | Current hardware compatibility | Photo audit + revised executable profile | SOFTWARE GREEN / PHYSICAL GATE | NodeMCU, L298N, MPU6050, HC-SR04, and encoderless motors are now represented honestly. Battery topology/current ratings and safe switch/divider wiring still require measurement. |
 | Phase 4 dependency/API checks | rosdep + bridge launch `--show-args` | GREEN | All system dependencies are satisfied; parameter file, mock mode, serial device, and baud arguments load from the installed package. |
 | Current exact team command | `./scripts/validate_in_docker.sh` | GREEN | Eight packages built; 37 tests, 0 errors, 0 failures, 0 skipped, including live Gazebo, Nav2, and encoderless real/mock bringup. |
