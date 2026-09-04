@@ -21,7 +21,8 @@ See [docs/architecture.md](docs/architecture.md) for the full node/topic/TF desi
 ## 2. Hardware Requirements
 
 - Raspberry Pi 5 (8 GB recommended), Ubuntu 24.04 64-bit, ROS 2 Jazzy
-- ESP32 dev board (USB serial to the Pi)
+- ESP32 dev board compatible with PlatformIO's `esp32dev` target (USB serial to the Pi). A NodeMCU
+  board marked `ESP8266MOD` is an ESP8266 and is not a compatible substitute.
 - 4WD skid-steer chassis, 4 DC geared motors with quadrature encoders
 - At least two correctly rated H-bridge channels, pins fully configurable. The team profile uses
   one L298N with one channel per motor side, subject to combined stall-current/thermal checks.
@@ -114,6 +115,10 @@ with software e-stop asserted; release it only after the lifted-wheel checks in
 Phase 4 provides tested firmware and the ROS bridge. The checked-in board configuration is
 deliberately unarmed: fill and verify every required pin, calibration, limit, and PID value before
 expecting propulsion.
+
+Before flashing, read the controller module marking. The team's photographed NodeMCU is marked
+`ESP8266MOD`; it is not an ESP32 and this firmware must not be uploaded to it. Use a genuine ESP32
+development board supported by the checked-in `esp32dev` target.
 
 The default firmware layout now matches the team's single L298N: channel A drives both left motors
 and channel B drives both right motors. The same validation command also compiles the optional

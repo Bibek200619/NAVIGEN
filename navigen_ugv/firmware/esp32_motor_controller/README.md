@@ -8,6 +8,11 @@ velocity, runs independent side PID controllers at 100 Hz, captures both HC-SR04
 Raspberry Pi. A 300 ms motion-command watchdog, physical e-stop feedback, or software e-stop
 immediately disables propulsion.
 
+> **Controller check:** this project targets a genuine ESP32 development board through
+> PlatformIO's `esp32dev` environment. The team's photographed NodeMCU is marked `ESP8266MOD` and
+> is not compatible. Do not change the target to ESP8266 or attempt to flash this firmware to that
+> board; obtain the required ESP32 before physical testing.
+
 ## Configure BEFORE flashing
 
 All hardware constants live in `include/board_config.h`. The checked-in values intentionally

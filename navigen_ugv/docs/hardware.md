@@ -15,25 +15,44 @@
 
 ## Current team hardware profile and gaps
 
-Reported hardware: Raspberry Pi 5, one Raspberry Pi Camera, ESP32 DevKit, one L298N, 4WD chassis
-with four DC gear motors, 2-3 HC-SR04 sensors, two SG90 servos with pan-tilt mount, 18650 battery
-pack, 5 V buck converter, breadboard, and jumper wires.
+The 2026-09-04 photo audit confirms a single L298N, four yellow TT gear motors, a three-cell 18650
+holder, an MPU6050 breakout, one HC-SR04, one SG90, a 5 V relay module, a breadboard, and resistors.
+The Raspberry Pi 5, Raspberry Pi Camera, buck converter, second ultrasonic, and pan-tilt mount were
+reported but were not identifiable in the supplied photographs.
 
-This profile is supported as **monocular camera + two side motor channels**, subject to the
-following unresolved hardware gates:
+The photographed controller is a **NodeMCU ESP8266**, identified by `ESP8266MOD` on its radio
+module and its D0-D8 board labels. It is not an ESP32 DevKit and is not supported by this firmware.
+Do not select an ESP8266 PlatformIO target or try to fill the ESP32 pin map for this board. Obtain a
+real ESP32 development board compatible with PlatformIO's `esp32dev` target, then photograph both
+the module marking and GPIO labels before assigning pins.
 
-- Confirm that at least one motor/shaft on each side has a quadrature encoder. Plain two-wire DC
-  motors cannot provide the feedback required by the 100 Hz PID controller or wheel odometry.
-- Add an MPU6050 before Phase 6; it is not present in the reported list.
-- Add a physical emergency-stop circuit that interrupts motor power and provides ESP32 feedback.
-  This is mandatory for Phase 5 and cannot be replaced by a software button.
+The intended profile remains supported as **monocular camera + two side motor channels**, subject
+to these unresolved physical gates:
+
+- The photographed TT motors have only their two power leads visible and no fitted encoder
+  hardware. Install a real quadrature A/B encoder on at least one output shaft per side, or replace
+  them with encoder-equipped gear motors. A single pulse/tachometer output is insufficient for
+  direction-aware odometry. Do not bypass the firmware's encoder requirement or tune closed-loop
+  PID without feedback.
+- The MPU6050 is present, but its exact wiring, mounting orientation, calibration, and ROS driver
+  are Phase 6 work. Mount it rigidly to the chassis; do not leave it on a breadboard during motion.
+- Add a physical, latching emergency-stop circuit that interrupts motor power and provides ESP32
+  feedback. The photographed 5 V relay module is not an emergency-stop switch and must not be the
+  sole stopping path, especially when controlled by the same microcontroller as propulsion.
 - Add resistor dividers/level shifters for every 5 V HC-SR04 ECHO line and the correctly calculated
-  battery ADC divider. Add a suitably rated fuse and power wiring; breadboards are signal-only.
-- Record the 18650 cell count, series/parallel arrangement, protection/BMS, motor voltage, and the
-  buck converter's continuous current rating before power-up.
+  battery ADC divider. The photographed resistor bands are not clear enough to verify their
+  values; measure them with a multimeter before use. Add a suitably rated fuse and power wiring;
+  breadboards are signal-only.
+- The photo confirms three 18650 slots but not their electrical series/parallel arrangement,
+  protection/BMS, installed cell condition, or output voltage. Record and measure those values,
+  the motor voltage rating, and the buck converter's continuous current rating before inserting
+  cells or applying motor power.
 - Check the sum of the two motors' stall currents on each side against the real L298N module's
   channel and thermal limits. Replace the driver if it is undersized; do not solve overheating by
   lowering a software limit alone.
+- Provide a clear top-down photograph of the L298N labels and all ENA/ENB/5V-enable jumpers before
+  final wiring review. The current angled image is sufficient to identify the board but not every
+  jumper state or terminal assignment.
 
 The two SG90 servos are not part of Phase 5 propulsion. Keep the camera centered and mechanically
 fixed during autonomous navigation. Moving a monocular SLAM camera while publishing a static
