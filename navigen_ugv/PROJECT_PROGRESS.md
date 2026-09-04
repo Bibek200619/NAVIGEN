@@ -19,7 +19,7 @@ A phase is `GREEN` only when its acceptance checklist is complete, the ROS works
 | 2 | Gazebo Harmonic simulation and teleoperation | GREEN | 100% | Self-contained outdoor world, installed launch/bridge/config, live camera/IMU/TF/odometry, bounded motion, and deterministic headless integration test are committed in `edd8468`. |
 | 3 | Nav2 point-to-point simulation | GREEN | 100% | Known-map Nav2 stack, SmacPlanner2D, Regulated Pure Pursuit, RViz, lifecycle checks, and a collision-free 7 m live acceptance run are committed in `66b500a` and `7b59fd3`. |
 | 4 | NodeMCU ESP8266 firmware and Raspberry Pi serial bridge | GREEN | 100% | The available controller is now the pinned `nodemcuv2` target. Protocol v2, bounded open-loop side PWM, watchdog/e-stop, one ultrasonic, honest no-feedback telemetry, generic bridge/mock transport, tests, and documentation are committed in `73fd4d9`. |
-| 5 | Real UGV teleoperation | BLOCKED — POWER GATE | 80% | Encoderless real/mock software and the replacement ESP8266 are green. The exact chassis listing confirms 3-6 V motors. The user has excluded relay and buck conversion, so the three-cell 18650 holder is unusable for propulsion; a known 3-6 V motor battery and separate regulated Pi supply are still required. Firmware stays safety-locked. |
+| 5 | Real UGV teleoperation | BLOCKED — WIRING/POWER GATE | 80% | Encoderless real/mock software and the replacement ESP8266 are green. A safety-locked power-on observation produced no wheel motion, as expected. The photographed two-terminal switch has exposed conductors/unfinished joints, its DC motor-load rating is unverified, and the exact 3-6 V motor source and D0 divider remain unrecorded. Firmware stays safety-locked. |
 | 6 | MPU6050 and visual-odom-ready EKF (no wheel odometry) | NOT STARTED | 0% | The MPU6050 is present, but its Pi I2C driver, rigid mounting, calibration, VIO-oriented EKF configuration, and fused-input tests are missing. |
 | 7 | Camera and traversability perception | NOT STARTED | 0% | Camera driver, backend abstraction, mock/ONNX inference, messages, and performance tests are missing. |
 | 8 | Visual SLAM / visual-inertial odometry | NOT STARTED | 0% | ORB-SLAM3 adapter, tracking-state handling, calibration, and stop-on-loss integration are missing. |
@@ -102,9 +102,13 @@ A phase is `GREEN` only when its acceptance checklist is complete, the ROS works
 - [x] Identify the exact chassis listing and record its seller specifications: 3-6 V, 200 RPM,
       1:48 BO motors; 208 RPM no-load at 5 V; 170 mA load current at 4.5 V; stall current omitted.
 - [x] Record the cell label: HYLN IMR18650, 3.7 V, 2500 mAh, 9.25 Wh, BIS `R-41232807`.
+- [x] Confirm from the switch photograph that it is a two-terminal SPST device with no independent
+      auxiliary feedback contact; record the safety-locked no-motion observation.
 - [ ] Provide a measured, current-rated 3-6 V motor battery and a separate regulated Pi USB-C
       supply. The no-buck plan excludes the three-cell 18650 holder. Record side-pair stall
       current, L298N thermal margin, switch rating, and wheel/track geometry.
+- [ ] With all power disconnected, rework both switch terminals: remove loose/exposed strands,
+      make mechanically sound joints, insulate each terminal separately, and add strain relief.
 - [ ] Wire and meter-check IN1–IN4, common grounds, HC-SR04 ECHO divider, and active-low D0 motor-power feedback. Keep camera fixed and SG90s disconnected.
 - [ ] Set `HARDWARE_CONFIGURATION_CONFIRMED=1`, rebuild, flash `nodemcuv2`, and verify valid open-loop telemetry while motor power is off.
 - [ ] Complete and record forward/reverse/turn direction, PWM trim, software stop, independent physical power cut/latch, 300 ms USB-loss stop, reconnect, and conservative lifted-wheel teleoperation.
@@ -161,6 +165,7 @@ A phase is `GREEN` only when its acceptance checklist is complete, the ROS works
 | A045 | 2026-09-05 | Audited the exact Blessaro chassis listing supplied by the user. | The seller specifies four 3-6 V, 200 RPM, 1:48 BO motors, 208 RPM no-load at 5 V, 0.8 kg.cm torque at 5 V, and 170 mA load current at 4.5 V, but omits stall current. This resolves the earlier 3 V-only report while confirming that direct use of the three-cell 18650 holder remains unsafe. Phase 5 is blocked at the regulated-power gate; firmware remains unarmed. |
 | A046 | 2026-09-05 | Recorded the user's decision not to use the relay module or any buck converter. | The relay is optional and remains disconnected. Without voltage conversion, the 3S holder is excluded from propulsion; Phase 5 now requires a known 3-6 V motor battery plus a separate regulated USB-C source for the Pi. No code or PWM setting can safely replace this power requirement. |
 | A047 | 2026-09-05 | Inspected the supplied 18650 cell-label photograph. | Each cell is marked `HYLN-IMR18650-2500mAh`, 3.7 V, 2500 mAh, 9.25 Wh, BIS `R-41232807`, dated `2026/5`. The label does not publish discharge-current limits or confirm protection. Three cells in the photographed series-style holder remain incompatible with 3-6 V motors without conversion. |
+| A048 | 2026-09-05 | Inspected the physical power-switch photograph after a safety-locked power-on observation. | The two-terminal KCD1-style SPST switch can interrupt one motor-supply conductor but has no auxiliary feedback contact. The user reported no motor motion, which is expected while firmware confirmation remains `0`; this is not a drive test. Exposed copper strands, incomplete-looking joints, absent terminal insulation/strain relief, and no verified DC inductive-load rating make the physical gate RED until reworked and peer-reviewed. |
 
 ## Test and validation ledger
 
@@ -185,6 +190,7 @@ A phase is `GREEN` only when its acceptance checklist is complete, the ROS works
 | Phase 4 physical NodeMCU flash/liveness | PlatformIO upload + `esptool verify_flash` + 115200-baud telemetry capture | GREEN | Replacement ESP8266EX accepted the safety-locked image; all 272,400 bytes matched and live protocol-v2 frames streamed. No motor command can arm while confirmation remains `0`. |
 | Phase 5 USB-only signal harness | Visual pin review + telemetry capture with L298N motor supply absent | GREEN | Controller continues to boot and transmit framed zero-output telemetry with D1/D2/D5/D6/common ground attached; powered wiring remains unapproved. |
 | Phase 5 motor/product compatibility | Exact Amazon ASIN `B0GHJCXHWK` listing + L298 data-sheet comparison | RED / BLOCKED | Motors are 3-6 V, not 3 V-only. The listing omits stall current; direct 3S input can reach 12.6 V and is not approved. With no buck, a different known 3-6 V motor battery is required. |
+| Phase 5 safety-locked power observation | User observation + switch-terminal photo review | PARTIAL / RED WIRING | Motors remained stopped with firmware confirmation `0`, which is the expected fail-safe state. The result does not prove drive operation. Exposed conductors/unfinished switch joints and an unknown DC motor-load rating prohibit another powered test. |
 | Current hardware compatibility | Photo audit + revised executable profile | SOFTWARE GREEN / PHYSICAL GATE | NodeMCU, L298N, MPU6050, HC-SR04, and encoderless motors are now represented honestly. Battery topology/current ratings and safe switch/divider wiring still require measurement. |
 | Phase 4 dependency/API checks | rosdep + bridge launch `--show-args` | GREEN | All system dependencies are satisfied; parameter file, mock mode, serial device, and baud arguments load from the installed package. |
 | Current exact team command | `./scripts/validate_in_docker.sh` | GREEN | Eight packages built; 37 tests, 0 errors, 0 failures, 0 skipped, including live Gazebo, Nav2, and encoderless real/mock bringup. |
@@ -238,6 +244,10 @@ A phase is `GREEN` only when its acceptance checklist is complete, the ROS works
   enumerates but the ESP8266 produces no serial/bootloader data.
 - The exact Blessaro listing identifies the four chassis motors as 3-6 V, 200 RPM, 1:48 BO units.
   This supersedes the unverified 3 V-only report but does not provide their stall current.
+- With the deliberately safety-locked firmware still installed, closing the motor-power switch did
+  not move the wheels. That is the expected inhibited state, not evidence that propulsion works.
+- The photographed switch is a two-terminal SPST device; it can provide a manual series power cut
+  but cannot also provide an independent auxiliary contact for D0 feedback.
 
 ## What is missing now
 
@@ -257,8 +267,10 @@ A phase is `GREEN` only when its acceptance checklist is complete, the ROS works
   The team must finish peer review, set `HARDWARE_CONFIGURATION_CONFIRMED=1`, rebuild/reflash, and
   record every lifted-wheel result.
 - The physical switch must independently remove L298N motor power and provide reliable active-low
-  feedback. If its rating/contact arrangement cannot satisfy both, Phase 5 remains blocked; do not
-  substitute a software-controlled relay as the only stop.
+  feedback. Its photographed terminals currently have exposed conductor strands, unfinished-looking
+  joints, no individual insulation or strain relief, and no verified DC inductive-load rating.
+  Because it has only two contacts, D0 feedback must come from the switched motor rail through a
+  calculated and meter-verified divider; battery voltage must never connect directly to D0.
 - Encoders are **not** required for Phase 5, but open-loop drive cannot estimate distance or hold
   exact heading. Full autonomous ground testing must wait for camera/IMU visual-inertial feedback.
 - The MPU6050 is available, but mounting, wiring, calibration, ROS input, and EKF integration are
@@ -268,13 +280,14 @@ A phase is `GREEN` only when its acceptance checklist is complete, the ROS works
 
 ## Next action
 
-Follow `docs/hardware.md` in order. Keep the 18650 cells removed and the arming flag at `0`. Because
-the user will not use a buck converter, obtain a known 3-6 V battery source for the motors and a
-separate regulated USB-C supply/power bank for the Pi. Borrow a multimeter and measure the motor
-source; measure or obtain stall current so two motors per L298N channel remain within the driver
-and switch limits. Record the L298N 5 V regulator-jumper arrangement, resistor values, wheel
-diameter, and track width. Only after a second team member approves that record may the
-HC-SR04/D0 dividers be meter-checked and the firmware be armed/reflashed. Then execute the
+Follow `docs/hardware.md` in order. Disconnect USB and the motor battery and keep the arming flag at
+`0`. First rework the switch leads with no loose strands, minimal exposed conductor, individually
+insulated terminals, and strain relief; have a second team member inspect them before power is
+restored. Record the exact motor-source type and measured minimum/maximum voltage plus the resistor
+values available for D0. Because this two-terminal switch has no auxiliary contact, calculate D0
+feedback from the switched rail and verify it never exceeds 3.6 V before attaching D0. Also record
+motor stall/current evidence, L298N 5 V regulator-jumper arrangement, wheel diameter, and track
+width. Only after those checks are green may the firmware be armed/reflashed. Then execute the
 two-person lifted-wheel gate at 0.05 m/s and save `/motor/telemetry` and `/diagnostics` evidence.
 Mark Phase 5 green only when every power, direction, stop, watchdog, reconnect, and temperature
 check passes; otherwise cut motor power and loop on the failed item. No encoder, ESP32, relay, or

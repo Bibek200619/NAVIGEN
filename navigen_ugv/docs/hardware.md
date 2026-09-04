@@ -112,6 +112,23 @@ and maximum rail voltages and verified with a multimeter. Never connect battery 
 to D0. If reliable 3.3 V feedback cannot be produced from the available parts, physical movement
 may be tested only under manual power-cut supervision and Phase 5 remains incomplete.
 
+The 2026-09-05 photograph confirms that the available KCD1-style rocker has exactly two terminals,
+so it is an SPST series switch and has no independent auxiliary feedback contact. Its visible case
+markings are AC ratings; no DC inductive motor-load rating has been established. The photographed
+joints also show exposed copper strands, incomplete-looking solder coverage, no individual
+terminal insulation, and no strain relief. Do not apply power in that condition. With USB and the
+motor battery disconnected, trim loose strands, remake mechanically secure joints, cover each
+terminal separately with heat-shrink or an equivalent insulating boot, add strain relief, and have
+a second person inspect the result. Motor current must not pass through a breadboard or Dupont
+jumper.
+
+For this two-contact switch, connect D0 only to the **switched motor-positive rail** through a
+divider calculated from the measured minimum and maximum motor-source voltage; connect the lower
+divider leg to the common signal ground. [Espressif specifies a 3.6 V GPIO tolerance](https://docs.espressif.com/projects/esp-faq/en/latest/hardware-related/hardware-design.html),
+so direct battery, motor-rail, or 5 V connection can damage it. Record both resistor values and
+meter-check the divider output in switch-OFF and switch-ON states before connecting D0. Do not
+select divider values from nominal battery voltage alone.
+
 A small relay module is not automatically an e-stop: its 10 A marking generally describes a
 resistive load, not this motor pair's inductive stall current or the module PCB traces. Do not use a
 relay controlled by the same ESP8266 as the only power-removal path.
