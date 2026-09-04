@@ -3,7 +3,31 @@
 // With the defaults below, firmware builds and reports diagnostics but propulsion stays disabled.
 #pragma once
 
-// ---- Four motor outputs (two driver channels per side) ----
+// ---- Motor outputs ----
+// 2 = one H-bridge channel per side. This is the NAVIGEN team hardware profile:
+//     one L298N, ENA/IN1/IN2 -> both left motors and ENB/IN3/IN4 -> both right
+//     motors. Motors sharing a channel must be wired so the same polarity drives
+//     both wheels in the same vehicle direction.
+// 4 = one independently wired H-bridge channel per motor.
+// The build validates both layouts, but the default upload target uses 2 channels.
+#ifndef MOTOR_OUTPUT_CHANNEL_COUNT
+#define MOTOR_OUTPUT_CHANNEL_COUNT 2
+#endif
+
+// ---- Two-channel side-paired output (one L298N) ----
+#define PIN_MOTOR_LEFT_PWM       -1  // SET ME: L298N ENA; remove the ENA jumper
+#define PIN_MOTOR_LEFT_DIR_A     -1  // SET ME: L298N IN1
+#define PIN_MOTOR_LEFT_DIR_B     -1  // SET ME: L298N IN2
+#define MOTOR_LEFT_INVERTED       0
+#define MOTOR_LEFT_PWM_CHANNEL    0
+
+#define PIN_MOTOR_RIGHT_PWM      -1  // SET ME: L298N ENB; remove the ENB jumper
+#define PIN_MOTOR_RIGHT_DIR_A    -1  // SET ME: L298N IN3
+#define PIN_MOTOR_RIGHT_DIR_B    -1  // SET ME: L298N IN4
+#define MOTOR_RIGHT_INVERTED      0
+#define MOTOR_RIGHT_PWM_CHANNEL   1
+
+// ---- Optional four-channel output ----
 #define PIN_MOTOR_LF_PWM       -1  // SET ME
 #define PIN_MOTOR_LF_DIR_A     -1  // SET ME
 #define PIN_MOTOR_LF_DIR_B     -1  // SET ME
@@ -28,7 +52,8 @@
 #define MOTOR_RR_INVERTED       0
 #define MOTOR_RR_PWM_CHANNEL    3
 
-// Optional shared driver-enable pin. Leave -1 if the drivers have no enable input.
+// Optional shared driver-enable pin. Leave -1 for an L298N because ENA and ENB
+// are already the per-side PWM pins above.
 #define PIN_MOTOR_ENABLE       -1
 #define MOTOR_ENABLE_LEVEL      1
 #define MOTOR_ZERO_BRAKE        0  // 0 = coast (DIR low/low), 1 = brake (DIR high/high)

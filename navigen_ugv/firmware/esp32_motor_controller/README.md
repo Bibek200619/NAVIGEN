@@ -1,17 +1,20 @@
 # ESP32 Motor Controller Firmware
 
-PlatformIO/Arduino firmware for four motor channels. It decodes quadrature encoders, estimates
-left/right velocity, runs independent side PID controllers at 100 Hz, drives PWM/DIR outputs,
-captures both HC-SR04 echoes without `pulseIn`, reads e-stop and battery status, and exchanges
-CRC-protected telemetry with the Raspberry Pi. A 300 ms motion-command watchdog, physical
-e-stop feedback, or software e-stop immediately disables propulsion.
+PlatformIO/Arduino firmware for selectable two-channel or four-channel motor output. The NAVIGEN
+team profile defaults to two side channels for one L298N: both left motors share channel A and both
+right motors share channel B. The firmware decodes quadrature encoders, estimates left/right
+velocity, runs independent side PID controllers at 100 Hz, captures both HC-SR04 echoes without
+`pulseIn`, reads e-stop and battery status, and exchanges CRC-protected telemetry with the
+Raspberry Pi. A 300 ms motion-command watchdog, physical e-stop feedback, or software e-stop
+immediately disables propulsion.
 
 ## Configure BEFORE flashing
 
 All hardware constants live in `include/board_config.h`. The checked-in values intentionally
-compile but cannot arm propulsion. Set and verify:
+compile but cannot arm propulsion. Keep `MOTOR_OUTPUT_CHANNEL_COUNT=2` for the team's single
+L298N and set and verify:
 
-- PWM, DIR-A, DIR-B, channel, and inversion for LF/LR/RF/RR motors;
+- left ENA/IN1/IN2 and right ENB/IN3/IN4 GPIOs, PWM channels, and side inversion;
 - one complete quadrature encoder per side minimum (the second encoder on each side is optional);
 - decoded output-shaft ticks/revolution, wheel radius, effective track width, and max wheel speed;
 - independently tuned left/right PID gains and safe PWM ceiling;
@@ -22,17 +25,31 @@ The firmware rejects incomplete encoder pairs, duplicate GPIOs/PWM channels, uns
 unset required pins, invalid limits, and zero proportional gains. It continues sending telemetry
 with `configuration_valid=false`, but never configures or enables motor outputs.
 
+## One-L298N wiring contract
+
+- Remove the ENA and ENB jumpers before connecting ESP32 PWM outputs.
+- Connect ENA/IN1/IN2 to the configured LEFT PWM/DIR-A/DIR-B GPIOs.
+- Connect ENB/IN3/IN4 to the configured RIGHT PWM/DIR-A/DIR-B GPIOs.
+- Wire the two left motors in parallel to OUT1/OUT2 and the two right motors in parallel to
+  OUT3/OUT4. If two motors on one side rotate in opposite vehicle directions, reverse one motor's
+  leads; one shared channel cannot invert those motors independently in software.
+- Join ESP32 and L298N signal grounds. Never carry motor current through a breadboard.
+- Verify that one L298N channel can tolerate the sum of both motors' stall currents at the chosen
+  battery voltage. If it cannot, use a correctly rated modern driver; firmware cannot fix an
+  undersized or overheating power stage.
+
 ## Build & flash
 
 ```bash
 pip install platformio
-../../scripts/validate_firmware.sh  # native protocol/control tests + ESP32 compile
-pio run -t upload                 # flash over USB after configuration
+../../scripts/validate_firmware.sh  # native tests + two/four-channel ESP32 compile
+pio run -t upload                  # flashes the default two-channel L298N build
 pio device monitor                # never while the ROS bridge owns the port
 ```
 
-The pinned build target is `platformio/espressif32@6.13.0`, ESP32 DevKit, C++17. Flashing is a
-physical action and is deliberately not part of automated validation.
+The pinned build target is `platformio/espressif32@6.13.0`, ESP32 DevKit, C++17. The validator
+compiles both `esp32dev` (two channel) and `esp32dev_four_channel`; upload defaults to
+`esp32dev`. Flashing is a physical action and is deliberately not part of automated validation.
 
 ## First powered bench test
 

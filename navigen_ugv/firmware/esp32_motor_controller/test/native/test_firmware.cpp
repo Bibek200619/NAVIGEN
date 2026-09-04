@@ -6,6 +6,7 @@
 #include <limits>
 
 #include "navigen_control.hpp"
+#include "navigen_motor_layout.hpp"
 #include "navigen_protocol.hpp"
 
 namespace {
@@ -135,6 +136,28 @@ void testEncoderVelocityAndTickRollover() {
              std::numeric_limits<int32_t>::max()) == 1);
 }
 
+void testSupportedMotorLayouts() {
+  using navigen::control::motorChannelsPerSide;
+  using navigen::control::motorOutputChannelCountSupported;
+  using navigen::control::sideMotorChannelIndex;
+
+  assert(motorOutputChannelCountSupported(2));
+  assert(motorChannelsPerSide(2) == 1);
+  assert(sideMotorChannelIndex(2, false, 0) == 0);
+  assert(sideMotorChannelIndex(2, true, 0) == 1);
+
+  assert(motorOutputChannelCountSupported(4));
+  assert(motorChannelsPerSide(4) == 2);
+  assert(sideMotorChannelIndex(4, false, 0) == 0);
+  assert(sideMotorChannelIndex(4, false, 1) == 1);
+  assert(sideMotorChannelIndex(4, true, 0) == 2);
+  assert(sideMotorChannelIndex(4, true, 1) == 3);
+
+  assert(!motorOutputChannelCountSupported(0));
+  assert(!motorOutputChannelCountSupported(3));
+  assert(motorChannelsPerSide(3) == 0);
+}
+
 }  // namespace
 
 int main() {
@@ -145,6 +168,7 @@ int main() {
   testPidLimitsAndAntiWindup();
   testWatchdogAndUnsignedRollover();
   testEncoderVelocityAndTickRollover();
+  testSupportedMotorLayouts();
   std::cout << "Firmware native tests passed\n";
   return 0;
 }

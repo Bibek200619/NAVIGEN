@@ -6,6 +6,7 @@
 
 #include "board_config.h"
 #include "navigen_control.hpp"
+#include "navigen_motor_layout.hpp"
 #include "navigen_protocol.hpp"
 
 namespace {
@@ -20,6 +21,11 @@ constexpr uint32_t CONTROL_PERIOD_US = 1000000UL / MOTOR_PID_RATE_HZ;
 constexpr uint32_t TELEMETRY_PERIOD_US = 1000000UL / TELEMETRY_RATE_HZ;
 constexpr float SAFE_WHEEL_RADIUS_M = WHEEL_RADIUS_M > 0.0F ? WHEEL_RADIUS_M : 1.0F;
 constexpr float SAFE_TICKS_PER_REV = TICKS_PER_REV > 0.0F ? TICKS_PER_REV : 1.0F;
+static_assert(navigen::control::motorOutputChannelCountSupported(
+                  MOTOR_OUTPUT_CHANNEL_COUNT),
+              "MOTOR_OUTPUT_CHANNEL_COUNT must be 2 or 4");
+constexpr std::size_t MOTOR_CHANNELS_PER_SIDE =
+    navigen::control::motorChannelsPerSide(MOTOR_OUTPUT_CHANNEL_COUNT);
 
 struct MotorChannel {
   int pwm_pin;
@@ -45,6 +51,15 @@ struct UltrasonicCapture {
   volatile uint32_t update_us{0};
 };
 
+#if MOTOR_OUTPUT_CHANNEL_COUNT == 2
+MotorChannel motor_left{PIN_MOTOR_LEFT_PWM, PIN_MOTOR_LEFT_DIR_A,
+                        PIN_MOTOR_LEFT_DIR_B, MOTOR_LEFT_PWM_CHANNEL,
+                        MOTOR_LEFT_INVERTED != 0};
+MotorChannel motor_right{PIN_MOTOR_RIGHT_PWM, PIN_MOTOR_RIGHT_DIR_A,
+                         PIN_MOTOR_RIGHT_DIR_B, MOTOR_RIGHT_PWM_CHANNEL,
+                         MOTOR_RIGHT_INVERTED != 0};
+std::array<MotorChannel*, 2> motor_channels{{&motor_left, &motor_right}};
+#elif MOTOR_OUTPUT_CHANNEL_COUNT == 4
 MotorChannel motor_lf{PIN_MOTOR_LF_PWM, PIN_MOTOR_LF_DIR_A,
                       PIN_MOTOR_LF_DIR_B, MOTOR_LF_PWM_CHANNEL,
                       MOTOR_LF_INVERTED != 0};
@@ -57,6 +72,9 @@ MotorChannel motor_rf{PIN_MOTOR_RF_PWM, PIN_MOTOR_RF_DIR_A,
 MotorChannel motor_rr{PIN_MOTOR_RR_PWM, PIN_MOTOR_RR_DIR_A,
                       PIN_MOTOR_RR_DIR_B, MOTOR_RR_PWM_CHANNEL,
                       MOTOR_RR_INVERTED != 0};
+std::array<MotorChannel*, 4> motor_channels{
+    {&motor_lf, &motor_lr, &motor_rf, &motor_rr}};
+#endif
 
 EncoderChannel encoder_lf{PIN_ENCODER_LF_A, PIN_ENCODER_LF_B,
                           ENCODER_LF_INVERTED != 0};
@@ -118,7 +136,7 @@ bool pinsAreUnique() {
       pins[count++] = pin;
     }
   };
-  for (const MotorChannel* motor : {&motor_lf, &motor_lr, &motor_rf, &motor_rr}) {
+  for (const MotorChannel* motor : motor_channels) {
     add(motor->pwm_pin);
     add(motor->dir_a_pin);
     add(motor->dir_b_pin);
@@ -146,13 +164,19 @@ bool pinsAreUnique() {
 }
 
 bool validateConfiguration() {
-  const bool motors_configured =
-      PIN_MOTOR_LF_PWM >= 0 && PIN_MOTOR_LF_DIR_A >= 0 &&
-      PIN_MOTOR_LF_DIR_B >= 0 && PIN_MOTOR_LR_PWM >= 0 &&
-      PIN_MOTOR_LR_DIR_A >= 0 && PIN_MOTOR_LR_DIR_B >= 0 &&
-      PIN_MOTOR_RF_PWM >= 0 && PIN_MOTOR_RF_DIR_A >= 0 &&
-      PIN_MOTOR_RF_DIR_B >= 0 && PIN_MOTOR_RR_PWM >= 0 &&
-      PIN_MOTOR_RR_DIR_A >= 0 && PIN_MOTOR_RR_DIR_B >= 0;
+  bool motors_configured = true;
+  bool pwm_channels_unique = true;
+  for (std::size_t first = 0; first < motor_channels.size(); ++first) {
+    const MotorChannel& motor = *motor_channels[first];
+    motors_configured = motors_configured && motor.pwm_pin >= 0 &&
+                        motor.dir_a_pin >= 0 && motor.dir_b_pin >= 0;
+    for (std::size_t second = first + 1; second < motor_channels.size();
+         ++second) {
+      if (motor.pwm_channel == motor_channels[second]->pwm_channel) {
+        pwm_channels_unique = false;
+      }
+    }
+  }
   const bool encoder_pairs_sane =
       encoderPairSane(encoder_lf) && encoderPairSane(encoder_lr) &&
       encoderPairSane(encoder_rf) && encoderPairSane(encoder_rr);
@@ -170,13 +194,6 @@ bool validateConfiguration() {
       RIGHT_PID_KI >= 0.0F && RIGHT_PID_KD >= 0.0F && MAX_PWM > 0 &&
       MAX_PWM < (1 << PWM_RESOLUTION_BITS) && MOTOR_PID_RATE_HZ >= 100 &&
       TELEMETRY_RATE_HZ >= 20 && WATCHDOG_TIMEOUT_MS > 0;
-  const bool pwm_channels_unique =
-      MOTOR_LF_PWM_CHANNEL != MOTOR_LR_PWM_CHANNEL &&
-      MOTOR_LF_PWM_CHANNEL != MOTOR_RF_PWM_CHANNEL &&
-      MOTOR_LF_PWM_CHANNEL != MOTOR_RR_PWM_CHANNEL &&
-      MOTOR_LR_PWM_CHANNEL != MOTOR_RF_PWM_CHANNEL &&
-      MOTOR_LR_PWM_CHANNEL != MOTOR_RR_PWM_CHANNEL &&
-      MOTOR_RF_PWM_CHANNEL != MOTOR_RR_PWM_CHANNEL;
   return motors_configured && encoder_pairs_sane && encoders_configured &&
          sensors_configured && control_configured && pwm_channels_unique &&
          pinsAreUnique();
@@ -247,7 +264,7 @@ void configureUltrasonic(UltrasonicCapture& capture) {
 }
 
 void configureHardware() {
-  for (MotorChannel* motor : {&motor_lf, &motor_lr, &motor_rf, &motor_rr}) {
+  for (MotorChannel* motor : motor_channels) {
     configureMotor(*motor);
   }
   if (PIN_MOTOR_ENABLE >= 0) {
@@ -296,12 +313,19 @@ void disablePropulsion() {
     return;
   }
   setDriverEnabled(false);
-  writeMotor(motor_lf, 0);
-  writeMotor(motor_lr, 0);
-  writeMotor(motor_rf, 0);
-  writeMotor(motor_rr, 0);
+  for (MotorChannel* motor : motor_channels) {
+    writeMotor(*motor, 0);
+  }
   left_pwm = 0;
   right_pwm = 0;
+}
+
+void writeSideMotors(bool right_side, int16_t requested_pwm) {
+  for (std::size_t index = 0; index < MOTOR_CHANNELS_PER_SIDE; ++index) {
+    const std::size_t channel_index = navigen::control::sideMotorChannelIndex(
+        MOTOR_OUTPUT_CHANNEL_COUNT, right_side, index);
+    writeMotor(*motor_channels[channel_index], requested_pwm);
+  }
 }
 
 bool physicalEstopActive() {
@@ -364,10 +388,8 @@ void runControl(uint32_t now_us, uint32_t now_ms) {
     right_pwm = static_cast<int16_t>(
         std::lround(right_pid.update(right_target_mps, right_measured_mps, dt)));
   }
-  writeMotor(motor_lf, left_pwm);
-  writeMotor(motor_lr, left_pwm);
-  writeMotor(motor_rf, right_pwm);
-  writeMotor(motor_rr, right_pwm);
+  writeSideMotors(false, left_pwm);
+  writeSideMotors(true, right_pwm);
   setDriverEnabled(left_pwm != 0 || right_pwm != 0);
 }
 

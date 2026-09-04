@@ -28,6 +28,8 @@ The Phase 3 test activates the complete Nav2 lifecycle, sends a 7 m `NavigateToP
 requires Smac's path to deviate around the mapped central obstacle, verifies command limits,
 checks arrival tolerance, and requires a final zero command. Phase 4 adds protocol/CRC/sequence,
 kinematics, encoder conversion, PID, watchdog, reconnect, mock-controller, and ROS bridge tests.
+Firmware validation compiles both the default two-channel L298N side layout and the optional
+four-channel per-motor layout so a hardware-profile change cannot silently break either adapter.
 Phase 5 adds a no-Gazebo real-launch gate that proves startup inhibition, explicit release,
 bounded mock motion, encoder odometry, TF, and e-stop override. Later phases add perception in
 Phase 7 and full safety arbitration in Phase 10.

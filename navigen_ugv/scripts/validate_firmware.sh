@@ -18,4 +18,6 @@ if ! command -v pio >/dev/null 2>&1; then
   exit 1
 fi
 
-pio run --project-dir "${FIRMWARE_ROOT}"
+pio run --project-dir "${FIRMWARE_ROOT}" \
+  --environment esp32dev \
+  --environment esp32dev_four_channel

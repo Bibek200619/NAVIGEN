@@ -23,7 +23,8 @@ See [docs/architecture.md](docs/architecture.md) for the full node/topic/TF desi
 - Raspberry Pi 5 (8 GB recommended), Ubuntu 24.04 64-bit, ROS 2 Jazzy
 - ESP32 dev board (USB serial to the Pi)
 - 4WD skid-steer chassis, 4 DC geared motors with quadrature encoders
-- Dual motor drivers (e.g. 2x dual H-bridge), pins fully configurable
+- At least two correctly rated H-bridge channels, pins fully configurable. The team profile uses
+  one L298N with one channel per motor side, subject to combined stall-current/thermal checks.
 - Stereo camera (preferred) or monocular USB / Pi camera
 - MPU6050 IMU, 2x front HC-SR04 ultrasonic sensors
 - Physical emergency-stop switch cutting motor power
@@ -113,6 +114,10 @@ with software e-stop asserted; release it only after the lifted-wheel checks in
 Phase 4 provides tested firmware and the ROS bridge. The checked-in board configuration is
 deliberately unarmed: fill and verify every required pin, calibration, limit, and PID value before
 expecting propulsion.
+
+The default firmware layout now matches the team's single L298N: channel A drives both left motors
+and channel B drives both right motors. The same validation command also compiles the optional
+four-channel layout. See `docs/hardware.md` for the wiring contract and unresolved hardware gates.
 
 ```bash
 cd firmware/esp32_motor_controller

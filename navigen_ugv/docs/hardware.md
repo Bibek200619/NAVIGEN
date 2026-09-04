@@ -6,11 +6,40 @@
 - ESP32 DevKit (dual-core, 3.3 V logic) — USB serial to the Pi
 - 4WD skid-steer chassis; left-front + left-rear motors driven as LEFT side, right pair as RIGHT side
 - 4 DC geared motors with quadrature encoders
-- 2 dual H-bridge motor drivers (four independently wired motor channels commanded in side pairs)
+- Motor power stage with at least two H-bridge channels. The current team profile uses one L298N:
+  its channel A drives the left motor pair and channel B drives the right motor pair.
 - Stereo camera (preferred) or monocular USB/Pi camera
 - MPU6050 IMU, 2x HC-SR04 front ultrasonics (5 V — use a voltage divider on ECHO to the ESP32)
 - Physical e-stop switch: MUST cut motor power directly AND feed a digital input to the ESP32
 - Battery with voltage sensing (divider to an ESP32 ADC pin)
+
+## Current team hardware profile and gaps
+
+Reported hardware: Raspberry Pi 5, one Raspberry Pi Camera, ESP32 DevKit, one L298N, 4WD chassis
+with four DC gear motors, 2-3 HC-SR04 sensors, two SG90 servos with pan-tilt mount, 18650 battery
+pack, 5 V buck converter, breadboard, and jumper wires.
+
+This profile is supported as **monocular camera + two side motor channels**, subject to the
+following unresolved hardware gates:
+
+- Confirm that at least one motor/shaft on each side has a quadrature encoder. Plain two-wire DC
+  motors cannot provide the feedback required by the 100 Hz PID controller or wheel odometry.
+- Add an MPU6050 before Phase 6; it is not present in the reported list.
+- Add a physical emergency-stop circuit that interrupts motor power and provides ESP32 feedback.
+  This is mandatory for Phase 5 and cannot be replaced by a software button.
+- Add resistor dividers/level shifters for every 5 V HC-SR04 ECHO line and the correctly calculated
+  battery ADC divider. Add a suitably rated fuse and power wiring; breadboards are signal-only.
+- Record the 18650 cell count, series/parallel arrangement, protection/BMS, motor voltage, and the
+  buck converter's continuous current rating before power-up.
+- Check the sum of the two motors' stall currents on each side against the real L298N module's
+  channel and thermal limits. Replace the driver if it is undersized; do not solve overheating by
+  lowering a software limit alone.
+
+The two SG90 servos are not part of Phase 5 propulsion. Keep the camera centered and mechanically
+fixed during autonomous navigation. Moving a monocular SLAM camera while publishing a static
+`base_link -> camera_link` transform corrupts the pose estimate. Pan/tilt may be added later only
+with calibrated joint states and a dynamic TF chain; SG90 command angle alone is not reliable pose
+feedback.
 
 ## Responsibility split
 
@@ -21,16 +50,24 @@
 
 ## Pin configuration
 
-NO GPIO is hard-coded. Fill `firmware/esp32_motor_controller/include/board_config.h`. Each of LF,
-LR, RF, and RR needs PWM/DIR-A/DIR-B plus motor inversion. Supply at least one complete encoder
-pair per side; a second per side is optional. Also fill both ultrasonic pairs, physical e-stop
-feedback, battery ADC/divider, decoded `TICKS_PER_REV`, geometry, max wheel speed, independent
-side PID gains, and PWM settings. Required values left at `-1`/`0.0`, duplicate pins, or incomplete
-encoder pairs leave the controller unarmed and set `configuration_valid=false` in telemetry.
+NO GPIO is hard-coded. Fill `firmware/esp32_motor_controller/include/board_config.h`. For the team
+L298N keep `MOTOR_OUTPUT_CHANNEL_COUNT=2`: LEFT PWM/DIR-A/DIR-B map to ENA/IN1/IN2 and RIGHT maps
+to ENB/IN3/IN4. The optional four-channel layout remains available for a future driver upgrade.
+Supply at least one complete encoder pair per side; a second per side is optional. Also fill both
+ultrasonic pairs, physical e-stop feedback, battery ADC/divider, decoded `TICKS_PER_REV`, geometry,
+max wheel speed, independent side PID gains, and PWM settings. Required values left at `-1`/`0.0`,
+duplicate pins, or incomplete encoder pairs leave the controller unarmed and set
+`configuration_valid=false` in telemetry.
 
 Electrical constraints:
 
 - Join Pi, ESP32, sensor, and motor-driver signal grounds, but power motors from their rated supply.
+- Remove the L298N ENA/ENB jumpers when those pins are driven by ESP32 PWM. Wire both left motors
+  in parallel to channel A and both right motors in parallel to channel B. Reverse an individual
+  motor's leads if motors sharing one channel do not turn the same vehicle direction.
+- Never route motor or servo current through the breadboard, Pi, or ESP32 regulator. Size the 5 V
+  buck converter for the Pi and any separately powered servos, with appropriate grounding and
+  noise suppression.
 - Never connect 5 V HC-SR04 ECHO directly to a 3.3 V ESP32 input; use a divider/level shifter.
 - The physical e-stop must interrupt driver/motor power independently of firmware. Its GPIO is
   feedback, not the sole stopping mechanism.
@@ -92,8 +129,10 @@ physical e-stop. Keep the chassis securely on stands with every wheel clear of t
 
 Preparation:
 
-1. Fill and peer-review `board_config.h`; the checked-in `-1`/`0.0` defaults deliberately keep
-   propulsion invalid. Keep motor power disconnected and flash only after
+1. Confirm the L298N current/thermal margin, encoders, hardwired e-stop, protected battery pack,
+   voltage dividers, and buck-converter rating. Then fill and peer-review `board_config.h`; the
+   checked-in `-1`/`0.0` defaults deliberately keep propulsion invalid. Keep motor power
+   disconnected and flash only after
    `./scripts/validate_firmware.sh` passes.
 2. Enter measured `ticks_per_revolution`, wheel radius, track width, speed/acceleration limits,
    and serial settings in `navigen_hardware/config/hardware.yaml`. Keep first-test limits at or
