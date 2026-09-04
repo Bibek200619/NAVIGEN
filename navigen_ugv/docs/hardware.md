@@ -2,13 +2,20 @@
 
 ## Confirmed team profile
 
-The 2026-09-04 inventory/photo audit establishes this physical profile:
+The 2026-09-05 inventory, photo, and product-listing audit establishes this physical profile:
 
 - Raspberry Pi 5 with Raspberry Pi Camera and a regulated 5 V buck converter;
 - NodeMCU 1.0 carrying an `ESP8266MOD` / ESP-12 module, connected to the Pi by USB;
 - one L298N, four encoderless yellow TT geared motors, and a 4WD skid-steer chassis;
 - one MPU6050, at least one HC-SR04, one physical switch, three-cell 18650 holder, one relay
   module, breadboard/jumpers/resistors, SG90 servos, and a pan/tilt mount.
+
+The supplied Blessaro listing identifies the chassis motors as **3-6 V DC, 200 RPM dual-shaft BO
+motors** with a 1:48 gearbox, 208 RPM no-load speed at 5 V, 0.8 kg.cm rated torque at 5 V, and
+170 mA load current per motor at 4.5 V. It does not publish stall current. The title says
+"compatible with ... speed encoder"; it does not say encoders are included, and the photographed
+motors expose only two power wires. Product reference:
+<https://www.amazon.in/dp/B0GHJCXHWK>.
 
 The executable hardware profile now supports exactly those encoderless propulsion parts. It does
 not fabricate encoder feedback or wheel odometry. This is enough for Phase 5 open-loop
@@ -63,8 +70,22 @@ invalid/NaN. The physical mounting—not the legacy topic suffix—is centered.
 
 ## Power and physical-stop contract
 
-- Determine whether the three-cell holder is series or parallel and measure its maximum voltage
-  before inserting cells. Use protected, matched cells and a suitable protection/BMS and fuse.
+- **Active Phase 5 power gate:** the motors are rated for 3-6 V. Never connect the photographed
+  three-cell 18650 holder directly to the L298N motor input. A standard 3S lithium-ion stack is
+  11.1 V nominal and 12.6 V fully charged, which is outside the motor specification.
+- The L298N is a switching bridge, not a voltage regulator. Firmware PWM cannot make an unsafe
+  12.6 V rail into an approved 3-6 V motor supply; at full command the current configuration uses
+  full duty cycle.
+- Use a separately regulated **5-6 V motor rail** whose continuous and transient current ratings
+  cover all four motors. Verify its output with a multimeter before connecting the driver. The
+  existing buck converter is not approved until its model/current rating and measured output are
+  recorded.
+- Identify the exact 18650 cells and prove that the assembled pack has suitable 3S protection,
+  balancing/charging, and a fuse. A plastic holder alone is not a BMS. Do not charge cells in the
+  holder until this is established.
+- The L298N data sheet permits at most 2 A DC per channel. Because each channel supplies two
+  motors in parallel and the listing omits stall current, the side-pair stall/current margin is
+  still unverified.
 - Power the Pi from the regulated 5 V buck sized for Pi 5 peak current. Never power the Pi from
   the L298N 5 V terminal, NodeMCU regulator, or breadboard rail.
 - Route motor current with appropriately sized wire, not the breadboard or jumper wires.
@@ -144,8 +165,9 @@ chassis on rigid stands with every wheel clear.
 
 Preparation:
 
-1. Measure battery topology/voltage, motor stall current, switch/driver/buck ratings, wheel
-   diameter, and effective track width. Record—not guess—the values.
+1. Keep all cells removed until a multimeter and a current-rated 5-6 V motor supply are available.
+   Record battery protection, motor stall current, switch/driver/buck ratings, wheel diameter, and
+   effective track width; do not infer missing values from the seller's page.
 2. Wire the map above, verify both divider outputs with a multimeter, and peer-review polarity.
 3. Run `./scripts/validate_firmware.sh`. Set `HARDWARE_CONFIGURATION_CONFIRMED=1` only after that
    review, rebuild, and flash `nodemcuv2`.

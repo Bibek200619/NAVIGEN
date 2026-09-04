@@ -23,11 +23,12 @@ See [docs/architecture.md](docs/architecture.md) for the full node/topic/TF desi
 - Raspberry Pi 5 (8 GB recommended), Ubuntu 24.04 64-bit, ROS 2 Jazzy
 - Raspberry Pi Camera (monocular, rigidly mounted)
 - NodeMCU 1.0 ESP8266 (`ESP8266MOD` / ESP-12E), USB serial to the Pi
-- 4WD skid-steer chassis with four encoderless TT geared motors
+- 4WD skid-steer chassis with four encoderless 3-6 V, 200 RPM BO geared motors
 - one L298N: channel A drives the left pair, channel B drives the right pair
 - MPU6050 on Raspberry Pi I2C and one centered HC-SR04 on the ESP8266
 - one suitably rated physical motor-power cutoff switch
-- protected 18650 supply and a correctly rated regulated 5 V buck converter for the Pi
+- protected 18650 supply, a correctly rated regulated 5 V supply for the Pi, and a separately
+  verified 5-6 V motor rail; never connect the three-cell holder directly to the motors/L298N
 
 Details and wiring assumptions: [docs/hardware.md](docs/hardware.md).
 
@@ -117,7 +118,9 @@ with software e-stop asserted; release it only after the lifted-wheel checks in
 
 Phase 4 now targets the photographed NodeMCU 1.0 and one L298N. The checked-in configuration is
 deliberately unarmed (`HARDWARE_CONFIGURATION_CONFIRMED=0`). Review wiring, divider voltages,
-power ratings, stop behavior, and measured limits before setting it to `1`.
+power ratings, stop behavior, and measured limits before setting it to `1`. The product listing
+confirms 3-6 V motors, so the photographed three-cell 18650 holder must not feed the L298N motor
+rail directly.
 
 ```bash
 cd firmware/esp8266_motor_controller

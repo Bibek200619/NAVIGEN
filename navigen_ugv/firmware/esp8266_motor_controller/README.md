@@ -34,6 +34,18 @@ The MPU6050 belongs on the Raspberry Pi I2C bus, not this pin-limited ESP8266. K
 servos disconnected and the camera mount mechanically fixed during SLAM. The relay module is not
 used as the sole e-stop.
 
+## Confirmed motor specification and active power gate
+
+The team's Blessaro product listing specifies 3-6 V DC, 200 RPM dual-shaft BO motors (1:48), with
+208 RPM no-load speed at 5 V and 170 mA load current per motor at 4.5 V. Stall current is not
+specified. The photographed three-cell 18650 holder must therefore **not** feed the L298N motor
+supply directly: a 3S lithium-ion stack can reach 12.6 V.
+
+Use a measured, current-rated 5-6 V motor rail and verify the combined stall-current margin for
+the two motors on each L298N channel. Firmware PWM is not a substitute for voltage regulation.
+Keep `HARDWARE_CONFIGURATION_CONFIRMED=0` until the supply, battery protection, switch, and L298N
+logic-power arrangement have been measured and peer-reviewed.
+
 ## Physical stop with the available switch
 
 Put the suitably current-rated physical switch in series with the L298N **motor supply**, so it
@@ -51,8 +63,8 @@ The repository builds safely with `HARDWARE_CONFIGURATION_CONFIRMED=0`, which le
 disabled. Before changing it to `1`:
 
 1. Verify every connection against the NodeMCU board labels and L298N terminal labels.
-2. Measure battery topology/maximum voltage and verify motor, switch, L298N, wiring, and buck
-   converter ratings.
+2. Verify a regulated 5-6 V motor rail, 3S battery protection/charger, motor side-pair stall
+   current, and switch/L298N/wiring/buck ratings. Never connect the three-cell holder directly.
 3. Verify the HC-SR04 ECHO divider and D0 feedback divider with a multimeter.
 4. Measure wheel diameter and effective track width; copy them to the ROS YAML.
 5. Keep initial ROS limits at or below 0.15 m/s linear and 0.50 rad/s angular.
