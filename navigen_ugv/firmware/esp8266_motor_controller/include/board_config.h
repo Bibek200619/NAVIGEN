@@ -5,7 +5,9 @@
 
 // Set to 1 only after the pin map, motor directions, voltage dividers, physical
 // stop circuit, and lifted-wheel test setup have been peer-reviewed.
+#ifndef HARDWARE_CONFIGURATION_CONFIRMED
 #define HARDWARE_CONFIGURATION_CONFIRMED 0
+#endif
 
 // ---- One L298N, both motors on each side wired in parallel ----
 // Keep the L298N ENA and ENB jumpers INSTALLED. PWM is applied to one direction
@@ -40,6 +42,11 @@
 #define ULTRASONIC_STALE_MS    250
 
 // ---- Safety and battery status ----
+// Set to 1 only when the D0 motor-power feedback circuit is installed and
+// meter-verified. When disabled, D0 is not configured or used by firmware;
+// software e-stop, watchdog, and configuration lockout remain active.
+#define ESTOP_INPUT_ENABLED      0
+
 // D0 is GPIO16 and supports INPUT_PULLDOWN_16. Normal operation must present a
 // safe 3.3 V HIGH; opening the motor-power switch must make this input LOW. A
 // single suitably rated switch can cut L298N motor supply while D0 senses the

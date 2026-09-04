@@ -18,6 +18,17 @@ constexpr uint32_t CONTROL_PERIOD_US =
     1000000UL / MOTOR_CONTROL_RATE_HZ;
 constexpr uint32_t TELEMETRY_PERIOD_US = 1000000UL / TELEMETRY_RATE_HZ;
 
+#ifndef MOTOR_TEST_ENABLED
+#define MOTOR_TEST_ENABLED 0
+#endif
+
+// Bench diagnostic only.  With one L298N, each step exercises one H-bridge
+// channel, not one individual motor.  Motors wired in parallel must be
+// disconnected from the pair if they need to be tested individually.
+constexpr uint32_t MOTOR_TEST_STEP_MS = 900;
+constexpr uint32_t MOTOR_TEST_PAUSE_MS = 500;
+constexpr int16_t MOTOR_TEST_PWM = 80;
+
 struct MotorChannel {
   int pin_a;
   int pin_b;
@@ -55,6 +66,51 @@ int16_t right_pwm = 0;
 uint32_t last_control_us = 0;
 uint32_t last_telemetry_us = 0;
 uint32_t last_ultrasonic_ms = 0;
+uint32_t motor_test_started_ms = 0;
+bool motor_test_complete = false;
+uint8_t motor_test_step = 0;
+
+void writeMotor(const MotorChannel& motor, int16_t requested_pwm);
+void disablePropulsion();
+
+void runMotorTest(uint32_t now_ms) {
+  static const char* const labels[] = {
+      "MOTOR_TEST_LEFT_FORWARD",
+      "MOTOR_TEST_LEFT_REVERSE",
+      "MOTOR_TEST_RIGHT_FORWARD",
+      "MOTOR_TEST_RIGHT_REVERSE",
+  };
+  const uint32_t elapsed = static_cast<uint32_t>(now_ms - motor_test_started_ms);
+  const uint8_t total_steps = 4;
+  const uint32_t step_period = MOTOR_TEST_STEP_MS + MOTOR_TEST_PAUSE_MS;
+  const uint8_t step = static_cast<uint8_t>(elapsed / step_period);
+  if (step >= total_steps) {
+    disablePropulsion();
+    if (!motor_test_complete) {
+      Serial.println("MOTOR_TEST_COMPLETE");
+      motor_test_complete = true;
+    }
+    return;
+  }
+  if (step != motor_test_step) {
+    motor_test_step = step;
+    Serial.println(labels[step]);
+  }
+  const uint32_t within_step = elapsed % step_period;
+  disablePropulsion();
+  if (within_step >= MOTOR_TEST_STEP_MS) {
+    return;
+  }
+  if (step == 0) {
+    writeMotor(motor_left, MOTOR_TEST_PWM);
+  } else if (step == 1) {
+    writeMotor(motor_left, -MOTOR_TEST_PWM);
+  } else if (step == 2) {
+    writeMotor(motor_right, MOTOR_TEST_PWM);
+  } else {
+    writeMotor(motor_right, -MOTOR_TEST_PWM);
+  }
+}
 
 bool supportedDigitalPin(int pin) {
   switch (pin) {
@@ -80,10 +136,9 @@ bool motorPinSafe(int pin) {
 }
 
 bool pinsAreUnique() {
-  const std::array<int, 7> pins{
+  const std::array<int, 6> pins{
       PIN_MOTOR_LEFT_A,  PIN_MOTOR_LEFT_B,    PIN_MOTOR_RIGHT_A,
       PIN_MOTOR_RIGHT_B, PIN_US_FRONT_TRIG,   PIN_US_FRONT_ECHO,
-      PIN_ESTOP_INPUT,
   };
   for (std::size_t first = 0; first < pins.size(); ++first) {
     for (std::size_t second = first + 1; second < pins.size(); ++second) {
@@ -92,6 +147,13 @@ bool pinsAreUnique() {
       }
     }
   }
+#if ESTOP_INPUT_ENABLED
+  for (const int pin : pins) {
+    if (pin == PIN_ESTOP_INPUT) {
+      return false;
+    }
+  }
+#endif
   return true;
 }
 
@@ -103,7 +165,10 @@ bool validateConfiguration() {
       supportedDigitalPin(PIN_MOTOR_RIGHT_B) &&
       supportedDigitalPin(PIN_US_FRONT_TRIG) &&
       supportedDigitalPin(PIN_US_FRONT_ECHO) &&
-      supportedDigitalPin(PIN_ESTOP_INPUT);
+#if ESTOP_INPUT_ENABLED
+      supportedDigitalPin(PIN_ESTOP_INPUT) &&
+#endif
+      true;
   const bool motor_pins_safe =
       motorPinSafe(PIN_MOTOR_LEFT_A) && motorPinSafe(PIN_MOTOR_LEFT_B) &&
       motorPinSafe(PIN_MOTOR_RIGHT_A) && motorPinSafe(PIN_MOTOR_RIGHT_B);
@@ -156,8 +221,10 @@ void configureHardware() {
   pinMode(PIN_US_FRONT_ECHO, INPUT);
   attachInterrupt(digitalPinToInterrupt(PIN_US_FRONT_ECHO),
                   ultrasonicEchoInterrupt, CHANGE);
+#if ESTOP_INPUT_ENABLED
   pinMode(PIN_ESTOP_INPUT,
           ESTOP_USE_PULLDOWN_16 != 0 ? INPUT_PULLDOWN_16 : INPUT);
+#endif
 #if BATTERY_MONITOR_ENABLED
   pinMode(PIN_BATTERY_ADC, INPUT);
 #endif
@@ -191,8 +258,12 @@ void disablePropulsion() {
 }
 
 bool physicalEstopActive() {
+#if ESTOP_INPUT_ENABLED
   return configuration_valid &&
          digitalRead(PIN_ESTOP_INPUT) == ESTOP_ACTIVE_LEVEL;
+#else
+  return false;
+#endif
 }
 
 bool stopRequired(uint32_t now_ms) {
@@ -362,11 +433,21 @@ void setup() {
   const uint32_t now_us = micros();
   last_control_us = now_us;
   last_telemetry_us = now_us;
+#if MOTOR_TEST_ENABLED
+  motor_test_started_ms = millis();
+#endif
 }
 
 void loop() {
   const uint32_t now_us = micros();
   const uint32_t now_ms = millis();
+#if MOTOR_TEST_ENABLED
+  if (!motor_test_complete) {
+    runMotorTest(now_ms);
+    delay(5);
+    return;
+  }
+#endif
   processSerial(now_ms);
   if (stopRequired(now_ms)) {
     disablePropulsion();

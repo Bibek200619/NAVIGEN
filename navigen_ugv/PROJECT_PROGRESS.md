@@ -299,3 +299,15 @@ two-person lifted-wheel gate at 0.05 m/s and save `/motor/telemetry` and `/diagn
 Mark Phase 5 green only when every power, direction, stop, watchdog, reconnect, and temperature
 check passes; otherwise cut motor power and loop on the failed item. No encoder, ESP32, relay, or
 buck converter is part of this next action.
+
+## Latest activity — L298N channel diagnostic
+
+- Added a temporary NodeMCU/ESP8266 `motor_test` diagnostic that exercises the two L298N
+  H-bridge channels separately: left forward, left reverse, right forward, and right reverse,
+  with a stop interval between each step.
+- Built successfully with PlatformIO and uploaded successfully to `/dev/cu.usbserial-110`.
+- The test uses the existing D1/D2 (IN1/IN2) and D5/D6 (IN3/IN4) mapping. It cannot distinguish
+  the two motors on one parallel pair; individual motor testing requires disconnecting the pair.
+- Physical result still needs to be observed after resetting the board with motor power connected:
+  record whether the left and right channel steps move. If the right step is dead, inspect ENB,
+  IN3/IN4, OUT3/OUT4 wiring, right-motor connections, and then the L298N channel B.

@@ -38,7 +38,7 @@ pipeline.
 | L298N channel A | two left motors in parallel |
 | L298N channel B | two right motors in parallel |
 | One HC-SR04 | centered at the front; backup stop sensor, not primary navigation |
-| Physical switch | independent L298N motor-power cut, with active-low feedback to D0 |
+| Physical switch | independent L298N motor-power cut; D0 feedback is disabled in the current firmware build |
 | Relay and buck converter | not connected or used in the current hardware plan |
 | SG90 / pan-tilt | disconnected; camera mount mechanically locked at center |
 | Relay module | not controlled by the ESP8266 as the sole emergency-stop path |
@@ -61,7 +61,7 @@ All executable pin definitions live in
 | D6 | 12 | L298N IN4 |
 | D8 | 15 | centered HC-SR04 TRIG |
 | D7 | 13 | centered HC-SR04 ECHO through verified 5 V→3.3 V divider |
-| D0 | 16 | active-low physical motor-power feedback |
+| D0 | 16 | active-low physical motor-power feedback (disabled in current build) |
 
 Keep both L298N **ENA and ENB jumpers installed**. Firmware applies software PWM to one direction
 input at a time. Wire both left motors to OUT1/OUT2 and both right motors to OUT3/OUT4. If two
@@ -109,7 +109,7 @@ must be rated for the measured motor current. D0 must also read HIGH only while 
 available and LOW when the switch opens. Use an auxiliary switch contact if present. Otherwise,
 the switched motor rail may be sensed only through a divider designed from the measured minimum
 and maximum rail voltages and verified with a multimeter. Never connect battery voltage directly
-to D0. If reliable 3.3 V feedback cannot be produced from the available parts, physical movement
+to D0 when `ESTOP_INPUT_ENABLED=1`. If reliable 3.3 V feedback cannot be produced from the available parts, physical movement
 may be tested only under manual power-cut supervision and Phase 5 remains incomplete.
 
 The 2026-09-05 photograph confirms that the available KCD1-style rocker has exactly two terminals,

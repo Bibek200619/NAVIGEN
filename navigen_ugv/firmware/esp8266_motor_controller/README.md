@@ -24,7 +24,7 @@ ultrasonic measurement, and invalid-configuration lockout.
 | D6 | 12 | L298N IN4 (right reverse PWM) |
 | D8 | 15 | HC-SR04 TRIG |
 | D7 | 13 | HC-SR04 ECHO through a verified 5 V→3.3 V divider |
-| D0 | 16 | Motor-power/e-stop feedback, active LOW |
+| D0 | 16 | Motor-power/e-stop feedback, active LOW (disabled in current build) |
 
 Keep the L298N **ENA and ENB jumpers installed**. PWM is applied to one direction input at a time,
 which saves two GPIOs. D8/GPIO15 is a boot-strap pin; connect it only to the HC-SR04's
@@ -62,12 +62,15 @@ emergency stop.
 ## Configure before arming
 
 The repository builds safely with `HARDWARE_CONFIGURATION_CONFIRMED=0`, which leaves propulsion
-disabled. Before changing it to `1`:
+disabled. The current build also has `ESTOP_INPUT_ENABLED=0`, so D0 is not read by firmware.
+Software e-stop, the command watchdog, and configuration lockout remain active. Before changing
+the confirmation flag to `1`:
 
 1. Verify every connection against the NodeMCU board labels and L298N terminal labels.
 2. With no buck converter, use a measured 3-6 V motor battery and exclude the three-cell 18650
    holder. Verify motor side-pair stall current and switch/L298N/wiring ratings.
-3. Verify the HC-SR04 ECHO divider and D0 feedback divider with a multimeter.
+3. Verify the HC-SR04 ECHO divider with a multimeter; verify the D0 feedback divider
+   before setting `ESTOP_INPUT_ENABLED=1`.
 4. Measure wheel diameter and effective track width; copy them to the ROS YAML.
 5. Keep initial ROS limits at or below 0.15 m/s linear and 0.50 rad/s angular.
 6. Put the chassis on rigid stands and keep the physical switch open while connecting power.
