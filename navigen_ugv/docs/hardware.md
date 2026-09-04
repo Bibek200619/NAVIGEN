@@ -4,11 +4,12 @@
 
 The 2026-09-05 inventory, photo, and product-listing audit establishes this physical profile:
 
-- Raspberry Pi 5 with Raspberry Pi Camera and a regulated 5 V buck converter;
+- Raspberry Pi 5 with Raspberry Pi Camera; no mobile Pi power source has been approved yet;
 - NodeMCU 1.0 carrying an `ESP8266MOD` / ESP-12 module, connected to the Pi by USB;
 - one L298N, four encoderless yellow TT geared motors, and a 4WD skid-steer chassis;
-- one MPU6050, at least one HC-SR04, one physical switch, three-cell 18650 holder, one relay
-  module, breadboard/jumpers/resistors, SG90 servos, and a pan/tilt mount.
+- one MPU6050, at least one HC-SR04, one physical switch, three-cell 18650 holder,
+  breadboard/jumpers/resistors, SG90 servos, and a pan/tilt mount. The user has excluded the relay
+  module and buck converter from the build.
 
 The supplied Blessaro listing identifies the chassis motors as **3-6 V DC, 200 RPM dual-shaft BO
 motors** with a 1:48 gearbox, 208 RPM no-load speed at 5 V, 0.8 kg.cm rated torque at 5 V, and
@@ -33,6 +34,7 @@ pipeline.
 | L298N channel B | two right motors in parallel |
 | One HC-SR04 | centered at the front; backup stop sensor, not primary navigation |
 | Physical switch | independent L298N motor-power cut, with active-low feedback to D0 |
+| Relay and buck converter | not connected or used in the current hardware plan |
 | SG90 / pan-tilt | disconnected; camera mount mechanically locked at center |
 | Relay module | not controlled by the ESP8266 as the sole emergency-stop path |
 | Encoders | absent; no real `/wheel/odom`, speed PID, or tick feedback |
@@ -76,18 +78,19 @@ invalid/NaN. The physical mounting—not the legacy topic suffix—is centered.
 - The L298N is a switching bridge, not a voltage regulator. Firmware PWM cannot make an unsafe
   12.6 V rail into an approved 3-6 V motor supply; at full command the current configuration uses
   full duty cycle.
-- Use a separately regulated **5-6 V motor rail** whose continuous and transient current ratings
-  cover all four motors. Verify its output with a multimeter before connecting the driver. The
-  existing buck converter is not approved until its model/current rating and measured output are
-  recorded.
+- Because the user is not using a buck converter, the three-cell 18650 holder is excluded from
+  propulsion. Use a known **3-6 V motor battery** with sufficient continuous/transient current and
+  a fuse instead—for example, a correctly assembled four-cell NiMH pack. Verify its maximum
+  voltage with a multimeter before connecting the driver.
 - Identify the exact 18650 cells and prove that the assembled pack has suitable 3S protection,
   balancing/charging, and a fuse. A plastic holder alone is not a BMS. Do not charge cells in the
   holder until this is established.
 - The L298N data sheet permits at most 2 A DC per channel. Because each channel supplies two
   motors in parallel and the listing omits stall current, the side-pair stall/current margin is
   still unverified.
-- Power the Pi from the regulated 5 V buck sized for Pi 5 peak current. Never power the Pi from
-  the L298N 5 V terminal, NodeMCU regulator, or breadboard rail.
+- Power the Pi separately through USB-C from a regulated supply or power bank. Raspberry Pi 5
+  recommends 5 V / 5 A; a 5 V / 3 A supply restricts the peripheral power budget. Never power the
+  Pi from the L298N 5 V terminal, NodeMCU regulator, motor battery, or breadboard rail.
 - Route motor current with appropriately sized wire, not the breadboard or jumper wires.
 - Join Pi/NodeMCU/L298N signal grounds. Keep motor wiring away from camera and I2C wiring.
 - Verify the L298N channel can tolerate the combined stall current of two motors and provide
@@ -165,9 +168,10 @@ chassis on rigid stands with every wheel clear.
 
 Preparation:
 
-1. Keep all cells removed until a multimeter and a current-rated 5-6 V motor supply are available.
-   Record battery protection, motor stall current, switch/driver/buck ratings, wheel diameter, and
-   effective track width; do not infer missing values from the seller's page.
+1. Keep all 18650 cells removed. Obtain a multimeter and a known 3-6 V motor battery; the 3S holder
+   is not part of this no-buck plan. Record the motor-source maximum voltage/current, motor stall
+   current, switch/driver ratings, wheel diameter, and effective track width; do not infer missing
+   values from the seller's page.
 2. Wire the map above, verify both divider outputs with a multimeter, and peer-review polarity.
 3. Run `./scripts/validate_firmware.sh`. Set `HARDWARE_CONFIGURATION_CONFIRMED=1` only after that
    review, rebuild, and flash `nodemcuv2`.

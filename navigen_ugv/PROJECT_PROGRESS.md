@@ -19,7 +19,7 @@ A phase is `GREEN` only when its acceptance checklist is complete, the ROS works
 | 2 | Gazebo Harmonic simulation and teleoperation | GREEN | 100% | Self-contained outdoor world, installed launch/bridge/config, live camera/IMU/TF/odometry, bounded motion, and deterministic headless integration test are committed in `edd8468`. |
 | 3 | Nav2 point-to-point simulation | GREEN | 100% | Known-map Nav2 stack, SmacPlanner2D, Regulated Pure Pursuit, RViz, lifecycle checks, and a collision-free 7 m live acceptance run are committed in `66b500a` and `7b59fd3`. |
 | 4 | NodeMCU ESP8266 firmware and Raspberry Pi serial bridge | GREEN | 100% | The available controller is now the pinned `nodemcuv2` target. Protocol v2, bounded open-loop side PWM, watchdog/e-stop, one ultrasonic, honest no-feedback telemetry, generic bridge/mock transport, tests, and documentation are committed in `73fd4d9`. |
-| 5 | Real UGV teleoperation | BLOCKED — POWER GATE | 80% | Encoderless real/mock software and the replacement ESP8266 are green. The exact chassis listing confirms 3-6 V motors, but the photographed three-cell 18650 holder cannot feed them directly and stall current, buck capacity, cell protection/BMS, and measured output remain unknown. Firmware stays safety-locked; no powered test is approved. |
+| 5 | Real UGV teleoperation | BLOCKED — POWER GATE | 80% | Encoderless real/mock software and the replacement ESP8266 are green. The exact chassis listing confirms 3-6 V motors. The user has excluded relay and buck conversion, so the three-cell 18650 holder is unusable for propulsion; a known 3-6 V motor battery and separate regulated Pi supply are still required. Firmware stays safety-locked. |
 | 6 | MPU6050 and visual-odom-ready EKF (no wheel odometry) | NOT STARTED | 0% | The MPU6050 is present, but its Pi I2C driver, rigid mounting, calibration, VIO-oriented EKF configuration, and fused-input tests are missing. |
 | 7 | Camera and traversability perception | NOT STARTED | 0% | Camera driver, backend abstraction, mock/ONNX inference, messages, and performance tests are missing. |
 | 8 | Visual SLAM / visual-inertial odometry | NOT STARTED | 0% | ORB-SLAM3 adapter, tracking-state handling, calibration, and stop-on-loss integration are missing. |
@@ -101,9 +101,9 @@ A phase is `GREEN` only when its acceptance checklist is complete, the ROS works
 - [x] Reconnect the reviewed D1/D2/D5/D6/common-ground signal harness with motor power absent and confirm that the controller still boots and streams zero-output telemetry.
 - [x] Identify the exact chassis listing and record its seller specifications: 3-6 V, 200 RPM,
       1:48 BO motors; 208 RPM no-load at 5 V; 170 mA load current at 4.5 V; stall current omitted.
-- [ ] Provide a measured, current-rated 5-6 V motor rail; identify cell/3S protection and charger;
-      record side-pair stall current, L298N thermal margin, switch rating, buck capacity, and
-      wheel/track geometry. Direct three-cell-holder input is forbidden.
+- [ ] Provide a measured, current-rated 3-6 V motor battery and a separate regulated Pi USB-C
+      supply. The no-buck plan excludes the three-cell 18650 holder. Record side-pair stall
+      current, L298N thermal margin, switch rating, and wheel/track geometry.
 - [ ] Wire and meter-check IN1–IN4, common grounds, HC-SR04 ECHO divider, and active-low D0 motor-power feedback. Keep camera fixed and SG90s disconnected.
 - [ ] Set `HARDWARE_CONFIGURATION_CONFIRMED=1`, rebuild, flash `nodemcuv2`, and verify valid open-loop telemetry while motor power is off.
 - [ ] Complete and record forward/reverse/turn direction, PWM trim, software stop, independent physical power cut/latch, 300 ms USB-loss stop, reconnect, and conservative lifted-wheel teleoperation.
@@ -158,6 +158,7 @@ A phase is `GREEN` only when its acceptance checklist is complete, the ROS works
 | A043 | 2026-09-05 | Flashed and verified the safety-locked firmware on a replacement ESP8266. | The replacement identified as ESP8266EX, PlatformIO upload succeeded, all 272,400 flashed bytes passed digest verification, and repeated protocol-v2 telemetry frames were observed at 115200 baud. Propulsion remains disabled because the confirmation flag is `0`. |
 | A044 | 2026-09-05 | Passed the USB-only controller/L298N signal-harness smoke test. | With motor supply absent and D1/D2/D5/D6/common ground attached, the ESP8266 enumerated and continuously emitted zero-output protocol-v2 telemetry. This does not approve battery voltage, motor current, or powered motion. |
 | A045 | 2026-09-05 | Audited the exact Blessaro chassis listing supplied by the user. | The seller specifies four 3-6 V, 200 RPM, 1:48 BO motors, 208 RPM no-load at 5 V, 0.8 kg.cm torque at 5 V, and 170 mA load current at 4.5 V, but omits stall current. This resolves the earlier 3 V-only report while confirming that direct use of the three-cell 18650 holder remains unsafe. Phase 5 is blocked at the regulated-power gate; firmware remains unarmed. |
+| A046 | 2026-09-05 | Recorded the user's decision not to use the relay module or any buck converter. | The relay is optional and remains disconnected. Without voltage conversion, the 3S holder is excluded from propulsion; Phase 5 now requires a known 3-6 V motor battery plus a separate regulated USB-C source for the Pi. No code or PWM setting can safely replace this power requirement. |
 
 ## Test and validation ledger
 
@@ -181,7 +182,7 @@ A phase is `GREEN` only when its acceptance checklist is complete, the ROS works
 | Phase 4 NodeMCU firmware build | `./scripts/validate_firmware.sh` PlatformIO target | GREEN | Pinned `platformio/espressif8266@4.2.1` / `nodemcuv2` build succeeds; RAM 34.6%, flash 25.7%. Firmware stays unarmed until physical review. |
 | Phase 4 physical NodeMCU flash/liveness | PlatformIO upload + `esptool verify_flash` + 115200-baud telemetry capture | GREEN | Replacement ESP8266EX accepted the safety-locked image; all 272,400 bytes matched and live protocol-v2 frames streamed. No motor command can arm while confirmation remains `0`. |
 | Phase 5 USB-only signal harness | Visual pin review + telemetry capture with L298N motor supply absent | GREEN | Controller continues to boot and transmit framed zero-output telemetry with D1/D2/D5/D6/common ground attached; powered wiring remains unapproved. |
-| Phase 5 motor/product compatibility | Exact Amazon ASIN `B0GHJCXHWK` listing + L298 data-sheet comparison | RED / BLOCKED | Motors are 3-6 V, not 3 V-only. The listing omits stall current; direct 3S input can reach 12.6 V and is not approved. A measured, current-rated 5-6 V rail and protected battery path are required. |
+| Phase 5 motor/product compatibility | Exact Amazon ASIN `B0GHJCXHWK` listing + L298 data-sheet comparison | RED / BLOCKED | Motors are 3-6 V, not 3 V-only. The listing omits stall current; direct 3S input can reach 12.6 V and is not approved. With no buck, a different known 3-6 V motor battery is required. |
 | Current hardware compatibility | Photo audit + revised executable profile | SOFTWARE GREEN / PHYSICAL GATE | NodeMCU, L298N, MPU6050, HC-SR04, and encoderless motors are now represented honestly. Battery topology/current ratings and safe switch/divider wiring still require measurement. |
 | Phase 4 dependency/API checks | rosdep + bridge launch `--show-args` | GREEN | All system dependencies are satisfied; parameter file, mock mode, serial device, and baud arguments load from the installed package. |
 | Current exact team command | `./scripts/validate_in_docker.sh` | GREEN | Eight packages built; 37 tests, 0 errors, 0 failures, 0 skipped, including live Gazebo, Nav2, and encoderless real/mock bringup. |
@@ -239,11 +240,11 @@ A phase is `GREEN` only when its acceptance checklist is complete, the ROS works
 ## What is missing now
 
 - The physical portion of Phase 5 and all of Phases 6 through 11.
-- Phase 5 needs a measured, current-rated 5-6 V motor supply. The photographed three-cell 18650
-  holder must not be connected directly because a 3S lithium-ion stack can reach 12.6 V while the
-  verified motors are rated 3-6 V.
-- Cell/protection/BMS/charger condition, combined side stall current, L298N thermal margin,
-  switch/contact rating, buck output capacity, wheel radius, and effective track width remain
+- Phase 5 needs a measured, current-rated 3-6 V motor battery. The user is not using a buck, so the
+  photographed three-cell 18650 holder is excluded: a 3S stack can reach 12.6 V while the verified
+  motors are rated 3-6 V.
+- A separate regulated USB-C supply/power bank for the Raspberry Pi, combined side stall current,
+  L298N thermal margin, switch/contact rating, wheel radius, and effective track width remain
   unknown. The seller's 170 mA load-current figure is not a stall-current rating.
 - HC-SR04 ECHO and D0 motor-power feedback need correctly calculated, measured 3.3 V-safe divider
   wiring. The photographed resistor bands are not clear enough to approve values remotely.
@@ -262,13 +263,14 @@ A phase is `GREEN` only when its acceptance checklist is complete, the ROS works
 
 ## Next action
 
-Follow `docs/hardware.md` in order. Keep the cells removed and the arming flag at `0`. First obtain
-or borrow a multimeter, identify the buck converter and its continuous/transient current rating,
-and establish a protected battery path feeding a measured 5-6 V motor rail. Measure or obtain the
-stall current so two motors per L298N channel remain within the driver and switch limits. Record
-the L298N 5 V regulator-jumper arrangement, resistor values, wheel diameter, and track width. Only
-after a second team member approves that record may the HC-SR04/D0 dividers be meter-checked and
-the firmware be armed/reflashed. Then execute the two-person lifted-wheel gate at 0.05 m/s and save
-`/motor/telemetry` and `/diagnostics` evidence. Mark Phase 5 green only when every power, direction,
-stop, watchdog, reconnect, and temperature check passes; otherwise cut motor power and loop on the
-failed item. No encoder or ESP32 purchase is part of this next action.
+Follow `docs/hardware.md` in order. Keep the 18650 cells removed and the arming flag at `0`. Because
+the user will not use a buck converter, obtain a known 3-6 V battery source for the motors and a
+separate regulated USB-C supply/power bank for the Pi. Borrow a multimeter and measure the motor
+source; measure or obtain stall current so two motors per L298N channel remain within the driver
+and switch limits. Record the L298N 5 V regulator-jumper arrangement, resistor values, wheel
+diameter, and track width. Only after a second team member approves that record may the
+HC-SR04/D0 dividers be meter-checked and the firmware be armed/reflashed. Then execute the
+two-person lifted-wheel gate at 0.05 m/s and save `/motor/telemetry` and `/diagnostics` evidence.
+Mark Phase 5 green only when every power, direction, stop, watchdog, reconnect, and temperature
+check passes; otherwise cut motor power and loop on the failed item. No encoder, ESP32, relay, or
+buck converter is part of this next action.

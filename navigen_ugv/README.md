@@ -27,8 +27,8 @@ See [docs/architecture.md](docs/architecture.md) for the full node/topic/TF desi
 - one L298N: channel A drives the left pair, channel B drives the right pair
 - MPU6050 on Raspberry Pi I2C and one centered HC-SR04 on the ESP8266
 - one suitably rated physical motor-power cutoff switch
-- protected 18650 supply, a correctly rated regulated 5 V supply for the Pi, and a separately
-  verified 5-6 V motor rail; never connect the three-cell holder directly to the motors/L298N
+- a known 3-6 V motor battery and a separate regulated USB-C supply/power bank for the Pi; the
+  current no-buck plan excludes the photographed three-cell 18650 holder from propulsion
 
 Details and wiring assumptions: [docs/hardware.md](docs/hardware.md).
 
@@ -120,7 +120,7 @@ Phase 4 now targets the photographed NodeMCU 1.0 and one L298N. The checked-in c
 deliberately unarmed (`HARDWARE_CONFIGURATION_CONFIRMED=0`). Review wiring, divider voltages,
 power ratings, stop behavior, and measured limits before setting it to `1`. The product listing
 confirms 3-6 V motors, so the photographed three-cell 18650 holder must not feed the L298N motor
-rail directly.
+rail directly. Because the current plan uses no buck converter, that holder is not used at all.
 
 ```bash
 cd firmware/esp8266_motor_controller

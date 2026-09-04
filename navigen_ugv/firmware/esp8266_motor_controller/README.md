@@ -41,10 +41,12 @@ The team's Blessaro product listing specifies 3-6 V DC, 200 RPM dual-shaft BO mo
 specified. The photographed three-cell 18650 holder must therefore **not** feed the L298N motor
 supply directly: a 3S lithium-ion stack can reach 12.6 V.
 
-Use a measured, current-rated 5-6 V motor rail and verify the combined stall-current margin for
-the two motors on each L298N channel. Firmware PWM is not a substitute for voltage regulation.
-Keep `HARDWARE_CONFIGURATION_CONFIRMED=0` until the supply, battery protection, switch, and L298N
-logic-power arrangement have been measured and peer-reviewed.
+The user has excluded both the relay and buck converter. The relay is not required, but this means
+the 3S holder is also excluded: use a measured 3-6 V motor battery instead. Power the Raspberry Pi
+separately through a regulated USB-C source. Verify the combined stall-current margin for the two
+motors on each L298N channel; firmware PWM is not a substitute for voltage regulation. Keep
+`HARDWARE_CONFIGURATION_CONFIRMED=0` until the motor source, switch, and L298N logic-power
+arrangement have been measured and peer-reviewed.
 
 ## Physical stop with the available switch
 
@@ -63,8 +65,8 @@ The repository builds safely with `HARDWARE_CONFIGURATION_CONFIRMED=0`, which le
 disabled. Before changing it to `1`:
 
 1. Verify every connection against the NodeMCU board labels and L298N terminal labels.
-2. Verify a regulated 5-6 V motor rail, 3S battery protection/charger, motor side-pair stall
-   current, and switch/L298N/wiring/buck ratings. Never connect the three-cell holder directly.
+2. With no buck converter, use a measured 3-6 V motor battery and exclude the three-cell 18650
+   holder. Verify motor side-pair stall current and switch/L298N/wiring ratings.
 3. Verify the HC-SR04 ECHO divider and D0 feedback divider with a multimeter.
 4. Measure wheel diameter and effective track width; copy them to the ROS YAML.
 5. Keep initial ROS limits at or below 0.15 m/s linear and 0.50 rad/s angular.
