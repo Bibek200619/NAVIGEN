@@ -1,4 +1,4 @@
-"""ROS 2 bridge between body velocity commands and the ESP32 motor controller."""
+"""ROS 2 bridge between body velocity commands and the serial motor controller."""
 
 from __future__ import annotations
 
@@ -7,7 +7,6 @@ import time
 
 from diagnostic_msgs.msg import DiagnosticArray, DiagnosticStatus, KeyValue
 from geometry_msgs.msg import Twist
-from nav_msgs.msg import Odometry
 from navigen_interfaces.msg import MotorTelemetry
 import rclpy
 from rclpy.node import Node
@@ -20,7 +19,7 @@ from navigen_hardware.kinematics import (
     KinematicsConfig,
     MotionCommandLimiter,
 )
-from navigen_hardware.mock_esp32 import MockEsp32
+from navigen_hardware.mock_motor_controller import MockMotorController
 from navigen_hardware import serial_protocol as protocol
 from navigen_hardware.serial_transport import ReconnectingSerial
 
@@ -36,42 +35,32 @@ DEFAULT_PARAMETERS = {
     'command_timeout_s': 0.20,
     'telemetry_timeout_s': 0.25,
     'firmware_watchdog_timeout_s': 0.30,
+    'require_open_loop_mode': True,
     'mock_battery_voltage': 12.0,
     'mock_ultrasonic_left': 2.5,
-    'mock_ultrasonic_right': 2.5,
+    'mock_ultrasonic_right': -1.0,
+    'mock_max_pwm': 255,
     'wheel_radius': 0.0625,
     'track_width': 0.34,
-    'ticks_per_revolution': 0.0,
-    'mock_ticks_per_revolution': 1320.0,
     'max_linear_velocity': 0.40,
     'max_angular_velocity': 1.00,
     'max_wheel_velocity': 0.60,
     'max_linear_acceleration': 0.80,
     'max_angular_acceleration': 2.00,
-    'odom_frame': 'odom',
     'base_frame': 'base_link',
     'ultrasonic_left_frame': 'ultrasonic_left_link',
     'ultrasonic_right_frame': 'ultrasonic_right_link',
     'ultrasonic_min_range': 0.02,
     'ultrasonic_max_range': 4.0,
     'ultrasonic_field_of_view': 0.26,
-    'odom_pose_xy_variance': 0.05,
-    'odom_pose_yaw_variance': 0.10,
-    'odom_twist_linear_variance': 0.02,
-    'odom_twist_angular_variance': 0.05,
 }
 
 
-def _int32_delta(current: int, previous: int) -> int:
-    """Return a cumulative encoder delta while tolerating signed 32-bit rollover."""
-    return (int(current) - int(previous) + 2**31) % 2**32 - 2**31
-
-
-class Esp32Bridge(Node):
-    """Own serial communication, safety gating, telemetry, and wheel odometry."""
+class MotorControllerBridge(Node):
+    """Own serial communication, safety gating, and honest open-loop telemetry."""
 
     def __init__(self, **kwargs):
-        super().__init__('esp32_bridge', **kwargs)
+        super().__init__('motor_controller_bridge', **kwargs)
         for name, default in DEFAULT_PARAMETERS.items():
             self.declare_parameter(name, default)
 
@@ -83,6 +72,7 @@ class Esp32Bridge(Node):
         self._firmware_watchdog = float(
             self._parameter('firmware_watchdog_timeout_s')
         )
+        self._require_open_loop = bool(self._parameter('require_open_loop_mode'))
         self._validate_timing()
 
         config = KinematicsConfig(
@@ -98,14 +88,6 @@ class Esp32Bridge(Node):
             float(self._parameter('max_linear_acceleration')),
             float(self._parameter('max_angular_acceleration')),
         )
-        configured_ticks = float(self._parameter('ticks_per_revolution'))
-        mock_ticks = float(self._parameter('mock_ticks_per_revolution'))
-        self._ticks_per_revolution = mock_ticks if self._mock_hardware else configured_ticks
-        if not math.isfinite(self._ticks_per_revolution) or self._ticks_per_revolution <= 0.0:
-            setting = 'mock_ticks_per_revolution' if self._mock_hardware else 'ticks_per_revolution'
-            raise ValueError(f'{setting} must be calibrated and greater than zero')
-
-        self._odom_frame = str(self._parameter('odom_frame'))
         self._base_frame = str(self._parameter('base_frame'))
         self._left_range_frame = str(self._parameter('ultrasonic_left_frame'))
         self._right_range_frame = str(self._parameter('ultrasonic_right_frame'))
@@ -132,16 +114,13 @@ class Esp32Bridge(Node):
         self._left_setpoint = 0.0
         self._right_setpoint = 0.0
         self._latest_telemetry = None
-        self._previous_ticks = None
-        self._x = 0.0
-        self._y = 0.0
-        self._yaw = 0.0
         self._closed = False
+        self._last_disconnect_count = 0
 
         if self._mock_hardware:
-            self._mock = MockEsp32(
-                wheel_radius=config.wheel_radius,
-                ticks_per_revolution=self._ticks_per_revolution,
+            self._mock = MockMotorController(
+                max_wheel_velocity=config.max_wheel_velocity,
+                max_pwm=int(self._parameter('mock_max_pwm')),
                 watchdog_timeout=self._firmware_watchdog,
                 battery_voltage=float(self._parameter('mock_battery_voltage')),
                 ultrasonic_left=float(self._parameter('mock_ultrasonic_left')),
@@ -156,10 +135,23 @@ class Esp32Bridge(Node):
                 reconnect_interval=float(self._parameter('reconnect_interval_s')),
             )
 
+        # Establish the safe state before the faster telemetry timer can expose
+        # controller defaults. Failure is still safe because the firmware
+        # watchdog starts expired and the Pi-side latch remains asserted.
+        startup_now = time.monotonic()
+        self._send(
+            protocol.encode_velocity_command(0.0, 0.0, self._next_sequence()),
+            startup_now,
+        )
+        self._send(
+            protocol.encode_estop(self._software_estop, self._next_sequence()),
+            startup_now,
+        )
+        self._last_estop_refresh = startup_now
+
         self._telemetry_publisher = self.create_publisher(
             MotorTelemetry, '/motor/telemetry', 10
         )
-        self._odom_publisher = self.create_publisher(Odometry, '/wheel/odom', 10)
         self._battery_publisher = self.create_publisher(BatteryState, '/battery', 10)
         self._left_range_publisher = self.create_publisher(
             Range, '/ultrasonic/front_left', qos_profile_sensor_data
@@ -179,7 +171,8 @@ class Esp32Bridge(Node):
         mode = 'mock' if self._mock_hardware else 'serial'
         interlock = 'asserted' if self._software_estop else 'released'
         self.get_logger().info(
-            f'ESP32 bridge started in {mode} mode; software e-stop {interlock}'
+            f'Motor-controller bridge started in {mode} mode; '
+            f'software e-stop {interlock}; wheel odometry disabled'
         )
 
     def _parameter(self, name):
@@ -219,7 +212,22 @@ class Esp32Bridge(Node):
 
     def _on_estop(self, message: Bool):
         now = time.monotonic()
-        self._software_estop = bool(message.data)
+        requested = bool(message.data)
+        if not requested:
+            if not self._mock_hardware and not self._transport.ensure_connected(now):
+                self._software_estop = True
+                self.get_logger().error(
+                    'Cannot release software e-stop while controller is disconnected'
+                )
+                return
+            if not self._controller_contract_ready(now):
+                self._software_estop = True
+                self.get_logger().error(
+                    'Cannot release software e-stop before fresh, valid controller '
+                    'telemetry confirms the expected open-loop profile'
+                )
+                return
+        self._software_estop = requested
         if self._software_estop:
             self._stop_immediately(now)
         self._send(protocol.encode_estop(self._software_estop, self._next_sequence()), now)
@@ -236,11 +244,28 @@ class Esp32Bridge(Node):
             or now - self._last_command_time > self._command_timeout
         )
 
+    def _controller_contract_ready(self, now: float) -> bool:
+        if (
+            self._latest_telemetry is None
+            or self._last_telemetry_time is None
+            or now - self._last_telemetry_time > self._telemetry_timeout
+            or not self._latest_telemetry.configuration_valid
+        ):
+            return False
+        return not (
+            self._require_open_loop and not self._latest_telemetry.open_loop_mode
+        )
+
     def _command_cycle(self):
         now = time.monotonic()
         dt = max(1.0e-4, min(0.25, now - self._last_command_cycle))
         self._last_command_cycle = now
-        if self._software_estop or self._invalid_command or self._command_is_stale(now):
+        if (
+            self._software_estop
+            or self._invalid_command
+            or self._command_is_stale(now)
+            or not self._controller_contract_ready(now)
+        ):
             self._left_setpoint, self._right_setpoint = self._limiter.reset()
         else:
             self._left_setpoint, self._right_setpoint = self._limiter.step(
@@ -249,7 +274,9 @@ class Esp32Bridge(Node):
         frame = protocol.encode_velocity_command(
             self._left_setpoint, self._right_setpoint, self._next_sequence()
         )
-        self._send(frame, now)
+        if not self._send(frame, now):
+            self._latch_transport_fault()
+            return
         if now - self._last_estop_refresh >= 1.0:
             self._send(
                 protocol.encode_estop(self._software_estop, self._next_sequence()), now
@@ -268,6 +295,14 @@ class Esp32Bridge(Node):
             return True
         return self._transport.write(data, now)
 
+    def _latch_transport_fault(self):
+        if not self._software_estop:
+            self.get_logger().error(
+                'Controller transport lost; software e-stop latched'
+            )
+        self._software_estop = True
+        self._left_setpoint, self._right_setpoint = self._limiter.reset()
+
     def _poll_cycle(self):
         now = time.monotonic()
         if self._mock_hardware:
@@ -275,6 +310,9 @@ class Esp32Bridge(Node):
             data = self._mock.exchange(b'', dt, now)
         else:
             data = self._transport.read(now)
+            if self._transport.disconnect_count > self._last_disconnect_count:
+                self._last_disconnect_count = self._transport.disconnect_count
+                self._latch_transport_fault()
         self._last_poll_cycle = now
         for frame in self._parser.feed(data):
             if frame.message_id != protocol.MSG_TELEMETRY:
@@ -333,12 +371,13 @@ class Esp32Bridge(Node):
         message.estop_active = telemetry.estop_active
         message.watchdog_triggered = telemetry.watchdog_triggered
         message.configuration_valid = telemetry.configuration_valid
+        message.open_loop_mode = telemetry.open_loop_mode
+        message.wheel_feedback_valid = not telemetry.open_loop_mode
         message.serial_connected = self._transport_connected()
         message.acknowledged_command_sequence = telemetry.acknowledged_command_sequence
         message.command_age = telemetry.command_age_ms / 1000.0
         message.rx_crc_errors = telemetry.rx_crc_errors
         self._telemetry_publisher.publish(message)
-        self._publish_odom(telemetry, stamp)
         self._publish_battery(telemetry, stamp)
         self._publish_range(
             self._left_range_publisher,
@@ -352,60 +391,6 @@ class Esp32Bridge(Node):
             self._right_range_frame,
             stamp,
         )
-
-    def _publish_odom(self, telemetry: protocol.Telemetry, stamp):
-        ticks = (telemetry.left_ticks, telemetry.right_ticks)
-        if self._previous_ticks is not None:
-            left_delta = _int32_delta(ticks[0], self._previous_ticks[0])
-            right_delta = _int32_delta(ticks[1], self._previous_ticks[1])
-            left_distance = self._kinematics.ticks_to_distance(
-                left_delta, self._ticks_per_revolution
-            )
-            right_distance = self._kinematics.ticks_to_distance(
-                right_delta, self._ticks_per_revolution
-            )
-            distance = (left_distance + right_distance) / 2.0
-            yaw_delta = (
-                right_distance - left_distance
-            ) / self._kinematics.config.track_width
-            midpoint_yaw = self._yaw + yaw_delta / 2.0
-            self._x += distance * math.cos(midpoint_yaw)
-            self._y += distance * math.sin(midpoint_yaw)
-            self._yaw = math.atan2(
-                math.sin(self._yaw + yaw_delta), math.cos(self._yaw + yaw_delta)
-            )
-        self._previous_ticks = ticks
-
-        linear, angular = self._kinematics.wheels_to_twist(
-            telemetry.left_velocity, telemetry.right_velocity
-        )
-        odom = Odometry()
-        odom.header.stamp = stamp
-        odom.header.frame_id = self._odom_frame
-        odom.child_frame_id = self._base_frame
-        odom.pose.pose.position.x = self._x
-        odom.pose.pose.position.y = self._y
-        odom.pose.pose.orientation.z = math.sin(self._yaw / 2.0)
-        odom.pose.pose.orientation.w = math.cos(self._yaw / 2.0)
-        odom.twist.twist.linear.x = linear
-        odom.twist.twist.angular.z = angular
-        xy_variance = float(self._parameter('odom_pose_xy_variance'))
-        yaw_variance = float(self._parameter('odom_pose_yaw_variance'))
-        linear_variance = float(self._parameter('odom_twist_linear_variance'))
-        angular_variance = float(self._parameter('odom_twist_angular_variance'))
-        odom.pose.covariance[0] = xy_variance
-        odom.pose.covariance[7] = xy_variance
-        odom.pose.covariance[14] = 1.0e6
-        odom.pose.covariance[21] = 1.0e6
-        odom.pose.covariance[28] = 1.0e6
-        odom.pose.covariance[35] = yaw_variance
-        odom.twist.covariance[0] = linear_variance
-        odom.twist.covariance[7] = 1.0e6
-        odom.twist.covariance[14] = 1.0e6
-        odom.twist.covariance[21] = 1.0e6
-        odom.twist.covariance[28] = 1.0e6
-        odom.twist.covariance[35] = angular_variance
-        self._odom_publisher.publish(odom)
 
     def _publish_battery(self, telemetry: protocol.Telemetry, stamp):
         battery = BatteryState()
@@ -435,7 +420,7 @@ class Esp32Bridge(Node):
     def _diagnostic(name: str, level: int, message: str, values) -> DiagnosticStatus:
         status = DiagnosticStatus()
         status.name = name
-        status.hardware_id = 'esp32_motor_controller'
+        status.hardware_id = 'nodemcu_esp8266_motor_controller'
         status.level = level
         status.message = message
         status.values = [KeyValue(key=str(key), value=str(value)) for key, value in values]
@@ -500,10 +485,18 @@ class Esp32Bridge(Node):
             elif telemetry.watchdog_triggered:
                 controller_level = DiagnosticStatus.ERROR
                 controller_message = 'motor controller watchdog stopped propulsion'
+            elif self._require_open_loop and not telemetry.open_loop_mode:
+                controller_level = DiagnosticStatus.ERROR
+                controller_message = 'unexpected controller mode; open-loop required'
+            elif telemetry.open_loop_mode:
+                controller_level = DiagnosticStatus.WARN
+                controller_message = 'controller ready; wheel feedback unavailable'
             controller_values = [
                 ('configuration_valid', telemetry.configuration_valid),
                 ('estop_active', telemetry.estop_active),
                 ('watchdog_triggered', telemetry.watchdog_triggered),
+                ('open_loop_mode', telemetry.open_loop_mode),
+                ('wheel_feedback_valid', not telemetry.open_loop_mode),
                 ('firmware_rx_crc_errors', telemetry.rx_crc_errors),
                 ('command_age_ms', telemetry.command_age_ms),
             ]
@@ -512,7 +505,7 @@ class Esp32Bridge(Node):
         message.header.stamp = self.get_clock().now().to_msg()
         message.status = [
             self._diagnostic(
-                'navigen/esp32_transport',
+                'navigen/motor_controller_transport',
                 transport_level,
                 transport_message,
                 transport_values,
@@ -530,7 +523,7 @@ class Esp32Bridge(Node):
                 ],
             ),
             self._diagnostic(
-                'navigen/esp32_controller',
+                'navigen/motor_controller',
                 controller_level,
                 controller_message,
                 controller_values,
@@ -559,13 +552,13 @@ def main(args=None):
     rclpy.init(args=args)
     node = None
     try:
-        node = Esp32Bridge()
+        node = MotorControllerBridge()
         rclpy.spin(node)
     except (ValueError, RuntimeError) as error:
         if node is not None:
             node.get_logger().fatal(str(error))
         else:
-            print(f'esp32_bridge configuration error: {error}')
+            print(f'motor_controller_bridge configuration error: {error}')
         raise
     except KeyboardInterrupt:
         pass

@@ -1,41 +1,38 @@
-"""Deterministic protocol-level ESP32 emulator for hardware-free integration tests."""
+"""Deterministic protocol-level encoderless motor-controller emulator."""
 
 from __future__ import annotations
-
-import math
 
 from navigen_hardware import serial_protocol as protocol
 
 
-class MockEsp32:
-    """Emulate command parsing, e-stop, watchdog, encoders, and telemetry."""
+class MockMotorController:
+    """Emulate open-loop PWM, e-stop, watchdog, and telemetry."""
 
     def __init__(
         self,
-        wheel_radius: float,
-        ticks_per_revolution: float,
+        max_wheel_velocity: float,
+        max_pwm: int,
         watchdog_timeout: float,
         battery_voltage: float = 12.0,
         ultrasonic_left: float = 2.5,
-        ultrasonic_right: float = 2.5,
+        ultrasonic_right: float = -1.0,
     ):
         if (
-            wheel_radius <= 0.0
-            or ticks_per_revolution <= 0.0
+            max_wheel_velocity <= 0.0
+            or max_pwm <= 0
             or watchdog_timeout <= 0.0
             or battery_voltage < 0.0
         ):
-            raise ValueError('mock geometry and watchdog timeout must be positive')
-        self.wheel_radius = wheel_radius
-        self.ticks_per_revolution = ticks_per_revolution
+            raise ValueError('mock limits and watchdog timeout must be positive')
+        self.max_wheel_velocity = max_wheel_velocity
+        self.max_pwm = max_pwm
         self.watchdog_timeout = watchdog_timeout
         self.battery_voltage = battery_voltage
         self.ultrasonic_left = ultrasonic_left
         self.ultrasonic_right = ultrasonic_right
         self.parser = protocol.FrameParser()
         self.target = (0.0, 0.0)
-        self.velocity = (0.0, 0.0)
-        self.distance = [0.0, 0.0]
+        self.applied_pwm = (0, 0)
         self.software_estop = False
         self.hardware_estop = False
         self.last_velocity_time = None
@@ -58,6 +55,11 @@ class MockEsp32:
                     continue
                 self.last_command_sequence = frame.sequence
 
+    def _velocity_to_pwm(self, velocity: float) -> int:
+        ratio = min(1.0, abs(velocity) / self.max_wheel_velocity)
+        magnitude = int(round(ratio * self.max_pwm))
+        return magnitude if velocity >= 0.0 else -magnitude
+
     def step(self, dt: float, now: float) -> protocol.Telemetry:
         if dt <= 0.0:
             raise ValueError('mock timestep must be positive')
@@ -66,15 +68,10 @@ class MockEsp32:
             or now - self.last_velocity_time > self.watchdog_timeout
         )
         stopped = watchdog or self.software_estop or self.hardware_estop
-        self.velocity = (0.0, 0.0) if stopped else self.target
-        for index, velocity in enumerate(self.velocity):
-            self.distance[index] += velocity * dt
-
-        circumference = 2.0 * math.pi * self.wheel_radius
-        ticks_per_metre = (
-            self.ticks_per_revolution / circumference
-            if self.ticks_per_revolution > 0.0
-            else 0.0
+        self.applied_pwm = (
+            (0, 0)
+            if stopped
+            else tuple(self._velocity_to_pwm(value) for value in self.target)
         )
         command_age_ms = (
             0xFFFF
@@ -82,18 +79,19 @@ class MockEsp32:
             else min(0xFFFF, int(max(0.0, now - self.last_velocity_time) * 1000.0))
         )
         return protocol.Telemetry(
-            left_velocity=self.velocity[0],
-            right_velocity=self.velocity[1],
-            left_pwm=0,
-            right_pwm=0,
-            left_ticks=int(round(self.distance[0] * ticks_per_metre)),
-            right_ticks=int(round(self.distance[1] * ticks_per_metre)),
+            left_velocity=0.0,
+            right_velocity=0.0,
+            left_pwm=self.applied_pwm[0],
+            right_pwm=self.applied_pwm[1],
+            left_ticks=0,
+            right_ticks=0,
             battery_voltage=self.battery_voltage,
             ultrasonic_left=self.ultrasonic_left,
             ultrasonic_right=self.ultrasonic_right,
             estop_active=self.software_estop or self.hardware_estop,
             watchdog_triggered=watchdog,
             configuration_valid=True,
+            open_loop_mode=True,
             acknowledged_command_sequence=self.last_command_sequence,
             command_age_ms=command_age_ms,
             rx_crc_errors=self.parser.crc_errors,

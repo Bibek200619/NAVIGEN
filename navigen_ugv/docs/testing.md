@@ -26,15 +26,17 @@ simulation plugin/sensor inclusion, the no-GPS invariant, world/bridge assets, a
 headless Gazebo gates. The Phase 2 test checks sensor/odometry topics and bounded teleoperation.
 The Phase 3 test activates the complete Nav2 lifecycle, sends a 7 m `NavigateToPose` goal,
 requires Smac's path to deviate around the mapped central obstacle, verifies command limits,
-checks arrival tolerance, and requires a final zero command. Phase 4 adds protocol/CRC/sequence,
-kinematics, encoder conversion, PID, watchdog, reconnect, mock-controller, and ROS bridge tests.
-Phase 5 adds a no-Gazebo real-launch gate that proves startup inhibition, explicit release,
-bounded mock motion, encoder odometry, TF, and e-stop override. Later phases add perception in
-Phase 7 and full safety arbitration in Phase 10.
+checks arrival tolerance, and requires a final zero command. The revised Phase 4 gate adds
+protocol/CRC/sequence, differential-drive conversion, open-loop PWM mapping, watchdog, reconnect,
+mock-controller, and ROS bridge tests. Firmware validation compiles the pinned NodeMCU ESP8266
+target for the one-L298N side layout. Phase 5 adds a no-Gazebo real-launch gate that proves startup
+inhibition, explicit release, bounded PWM output, honest missing wheel feedback, no fabricated
+`/wheel/odom`, TF, and e-stop override. Later phases add perception and visual-inertial
+localization before real autonomous navigation.
 
 ## Phase 4 firmware and mock hardware
 
-Compile native protocol/control tests and the pinned ESP32 target:
+Compile native protocol/control tests and the pinned NodeMCU ESP8266 target:
 
 ```bash
 ./scripts/validate_firmware.sh
@@ -50,7 +52,7 @@ colcon test-result --verbose
 The whole workspace runs without any hardware:
 
 ```bash
-ros2 launch navigen_hardware esp32_bridge.launch.py mock_hardware:=true
+ros2 launch navigen_hardware motor_controller_bridge.launch.py mock_hardware:=true
 ros2 topic pub -r 20 /cmd_vel geometry_msgs/msg/Twist '{linear: {x: 0.2}}'
 ros2 topic echo /motor/telemetry
 ```
@@ -69,9 +71,9 @@ colcon test --packages-select navigen_bringup \
 colcon test-result --verbose
 ```
 
-This proves the software command chain but does not certify motor wiring, encoder polarity,
-physical e-stop wiring, USB-loss stopping time, or chassis behavior. Complete and record the
-lifted-wheel procedure in [hardware.md](hardware.md) before marking Phase 5 green.
+This proves the software command chain but does not certify motor wiring, physical power-cut
+rating/feedback, USB-loss stopping time, open-loop direction/trim, or chassis behavior. Complete
+and record the lifted-wheel procedure in [hardware.md](hardware.md) before marking Phase 5 green.
 
 ## Simulation smoke test
 

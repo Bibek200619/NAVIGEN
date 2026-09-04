@@ -1,4 +1,4 @@
-"""Launch the configurable ESP32 bridge in real or mock mode."""
+"""Launch the configurable motor-controller bridge in real or mock mode."""
 
 from pathlib import Path
 
@@ -22,8 +22,8 @@ def generate_launch_description():
         DeclareLaunchArgument('baud_rate', default_value='115200'),
         Node(
             package='navigen_hardware',
-            executable='esp32_bridge',
-            name='esp32_bridge',
+            executable='motor_controller_bridge',
+            name='motor_controller_bridge',
             output='screen',
             parameters=[
                 LaunchConfiguration('params_file'),

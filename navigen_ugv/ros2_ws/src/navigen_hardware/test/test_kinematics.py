@@ -1,5 +1,3 @@
-import math
-
 import pytest
 
 from navigen_hardware.kinematics import (
@@ -37,17 +35,6 @@ def test_body_and_wheel_limits_preserve_curvature() -> None:
     linear, angular = fast.wheels_to_twist(left, right)
     assert max(abs(left), abs(right)) == pytest.approx(0.5)
     assert linear / angular == pytest.approx(0.6 / 2.0)
-
-
-def test_encoder_tick_conversions() -> None:
-    kinematics = DiffDriveKinematics(CONFIG)
-    circumference = 2.0 * math.pi * CONFIG.wheel_radius
-    assert kinematics.ticks_to_distance(1320, 1320) == pytest.approx(circumference)
-    assert kinematics.ticks_to_velocity(660, 0.5, 1320) == pytest.approx(circumference)
-    with pytest.raises(ValueError):
-        kinematics.ticks_to_velocity(10, 0.0, 1320)
-    with pytest.raises(ValueError):
-        kinematics.ticks_to_distance(10, 0.0)
 
 
 def test_non_finite_and_invalid_configuration_are_rejected() -> None:

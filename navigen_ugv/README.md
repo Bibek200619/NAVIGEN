@@ -8,12 +8,12 @@ Smart India Hackathon 2026 — Problem Statement **SIH26126**: Vision Based Auto
 
 ```
 Camera ─> Preprocess ─> Traversability segmentation ─> Local costmap ─┐
-Camera + IMU ─> ORB-SLAM3 (VIO) ─> /visual_odom ──────────────┐       │
-Wheel encoders + IMU + visual odom ─> robot_localization EKF ─┴─> /odometry/filtered
+Camera + IMU ─> ORB-SLAM3 mono-inertial VIO ─> /visual_odom ──┐       │
+IMU + visual odom ─> robot_localization EKF ──────────────────┴─> /odometry/filtered
                                                                       │
 Goal + pose + costmap ─> Nav2 (SmacPlanner2D + RegulatedPurePursuit) ─┘
-        ─> /cmd_vel ─> Safety supervisor ─> ESP32 serial bridge
-        ─> left/right wheel PID (ESP32, 100 Hz) ─> motor drivers ─> 4WD motors
+        ─> /cmd_vel ─> Safety supervisor ─> NodeMCU ESP8266 serial bridge
+        ─> bounded left/right open-loop PWM ─> one L298N ─> 4WD motors
 ```
 
 See [docs/architecture.md](docs/architecture.md) for the full node/topic/TF design.
@@ -21,21 +21,27 @@ See [docs/architecture.md](docs/architecture.md) for the full node/topic/TF desi
 ## 2. Hardware Requirements
 
 - Raspberry Pi 5 (8 GB recommended), Ubuntu 24.04 64-bit, ROS 2 Jazzy
-- ESP32 dev board (USB serial to the Pi)
-- 4WD skid-steer chassis, 4 DC geared motors with quadrature encoders
-- Dual motor drivers (e.g. 2x dual H-bridge), pins fully configurable
-- Stereo camera (preferred) or monocular USB / Pi camera
-- MPU6050 IMU, 2x front HC-SR04 ultrasonic sensors
-- Physical emergency-stop switch cutting motor power
+- Raspberry Pi Camera (monocular, rigidly mounted)
+- NodeMCU 1.0 ESP8266 (`ESP8266MOD` / ESP-12E), USB serial to the Pi
+- 4WD skid-steer chassis with four encoderless 3-6 V, 200 RPM BO geared motors
+- one L298N: channel A drives the left pair, channel B drives the right pair
+- MPU6050 on Raspberry Pi I2C and one centered HC-SR04 on the ESP8266
+- one suitably rated physical motor-power cutoff switch
+- a known 3-6 V motor battery and a separate regulated USB-C supply/power bank for the Pi; the
+  current no-buck plan excludes the photographed three-cell 18650 holder from propulsion
 
 Details and wiring assumptions: [docs/hardware.md](docs/hardware.md).
 
 ## 3. Wiring / Interface Assumptions
 
-- ESP32 owns ALL real-time I/O: encoders, motor PWM/DIR, ultrasonics, e-stop input.
-- Raspberry Pi talks to the ESP32 only via USB serial (framed binary protocol, CRC-8).
-- Camera and IMU connect to the Raspberry Pi (IMU via I2C or via ESP32 — configurable).
-- No pin numbers are hard-coded: fill `firmware/esp32_motor_controller/include/board_config.h`.
+- ESP8266 owns motor PWM/DIR, one ultrasonic, watchdog, and motor-power feedback.
+- Raspberry Pi talks to it through a versioned CRC-8 USB-serial protocol.
+- Camera and MPU6050 connect to the Raspberry Pi; the servos remain disconnected and the camera
+  stays fixed for SLAM.
+- The reviewed NodeMCU pin map and arming flag are centralized in
+  `firmware/esp8266_motor_controller/include/board_config.h`.
+- No encoder exists. Real/mock hardware never publishes fake `/wheel/odom`; visual-inertial pose
+  is mandatory before autonomous ground operation.
 
 ## 4. Ubuntu Setup
 
@@ -108,18 +114,22 @@ Gazebo and Phase 5 hardware bringup consume the same `/cmd_vel` interface. Real 
 with software e-stop asserted; release it only after the lifted-wheel checks in
 [docs/hardware.md](docs/hardware.md).
 
-## 10. ESP32 Flashing
+## 10. NodeMCU ESP8266 Flashing
 
-Phase 4 provides tested firmware and the ROS bridge. The checked-in board configuration is
-deliberately unarmed: fill and verify every required pin, calibration, limit, and PID value before
-expecting propulsion.
+Phase 4 now targets the photographed NodeMCU 1.0 and one L298N. The checked-in configuration is
+deliberately unarmed (`HARDWARE_CONFIGURATION_CONFIRMED=0`). Review wiring, divider voltages,
+power ratings, stop behavior, and measured limits before setting it to `1`. The product listing
+confirms 3-6 V motors, so the photographed three-cell 18650 holder must not feed the L298N motor
+rail directly. Because the current plan uses no buck converter, that holder is not used at all.
 
 ```bash
-cd firmware/esp32_motor_controller
-# 1. Fill include/board_config.h (pins, encoders, PID, geometry, safety)
+cd firmware/esp8266_motor_controller
 ../../scripts/validate_firmware.sh
-pio run -t upload            # physical flash; see firmware README safety procedure
+pio run -e nodemcuv2 -t upload
 ```
+
+Keep ENA/ENB jumpers installed; firmware PWM-drives IN1–IN4. See
+[docs/hardware.md](docs/hardware.md) before connecting motor power.
 
 ## 11. Real UGV Launch
 
@@ -137,7 +147,7 @@ by `ls -l /dev/serial/by-id/`:
 
 ```bash
 ros2 launch navigen_bringup real.launch.py \
-  serial_port:=/dev/serial/by-id/<YOUR_ESP32> baud_rate:=115200
+  serial_port:=/dev/serial/by-id/<YOUR_NODEMCU> baud_rate:=115200
 ```
 
 Startup remains inhibited until `./scripts/estop.sh release --confirm`. The bridge commands zero
@@ -155,15 +165,17 @@ Use `ros2 run camera_calibration cameracalibrator` with a checkerboard; store re
 Keep the UGV stationary and level for 30 s, record `/imu/data`, compute gyro/accel biases,
 enter them in the IMU driver config. See [docs/calibration.md](docs/calibration.md).
 
-## 14. Encoder Calibration
+## 14. Encoder Status
 
-Set `ticks_per_revolution` in `ros2_ws/src/navigen_hardware/config/hardware.yaml`.
-Validate: push the UGV exactly 1.0 m and compare integrated wheel odometry.
+The available motors have no encoders. Do not enter invented ticks/revolution and do not derive
+odometry from commands. Real localization will use camera + MPU6050 VIO. If encoders are added
+later, they require a separate reviewed controller/firmware profile.
 
-## 15. PID Tuning
+## 15. Open-Loop PWM Calibration
 
-Tune left/right velocity PIDs in `board_config.h` (P first, then I, small D), verify with
-`/motor/telemetry` setpoint-vs-measured plots. See [docs/calibration.md](docs/calibration.md).
+On stands, tune only the minimum starting PWM and reduce the faster side with `LEFT_PWM_SCALE` or
+`RIGHT_PWM_SCALE`. These are not speed PID gains and cannot remove terrain/load drift. Follow
+[docs/calibration.md](docs/calibration.md).
 
 ## 16. Visual SLAM Setup (Phase 8)
 
@@ -195,7 +207,8 @@ See [docs/troubleshooting.md](docs/troubleshooting.md).
 
 - ALWAYS test in simulation first. Keep the physical e-stop reachable at all times.
 - Default speed limit is 0.4 m/s (configurable, keep it conservative for demos).
-- The ESP32 watchdog stops motors after ~300 ms without valid commands.
+- The ESP8266 watchdog stops PWM after ~300 ms without valid commands.
+- The physical switch must cut L298N motor power independently; GPIO feedback is additional.
 - The safety supervisor overrides navigation whenever any trigger is active; never bypass it.
 - Lift wheels off the ground for the first powered motor test.
 
@@ -208,9 +221,9 @@ The detailed evidence and activity log are maintained in [PROJECT_PROGRESS.md](P
 | 1 | Repo, packages, URDF, TF, config | ✅ Green (`787917e`) |
 | 2 | Gazebo sim + teleop | ✅ Green (`edd8468`) |
 | 3 | Nav2 point-to-point (sim) | ✅ Green (see `PROJECT_PROGRESS.md`) |
-| 4 | ESP32 firmware + serial bridge | ✅ Green (see `PROJECT_PROGRESS.md`) |
+| 4 | NodeMCU ESP8266 open-loop firmware + serial bridge | ✅ Software green (see `PROJECT_PROGRESS.md`) |
 | 5 | Real teleop | 🟨 Software gate green; physical UGV validation pending |
-| 6 | Wheel odom + IMU + EKF | ⬜ |
+| 6 | MPU6050 + visual-odom-ready EKF (no wheel odom) | ⬜ |
 | 7 | Camera + perception | ⬜ |
 | 8 | ORB-SLAM3 | ⬜ |
 | 9 | Traversability → costmap | ⬜ |

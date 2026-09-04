@@ -26,7 +26,7 @@ def generate_launch_description():
     )
     hardware = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
-            str(hardware_share / 'launch' / 'esp32_bridge.launch.py')
+            str(hardware_share / 'launch' / 'motor_controller_bridge.launch.py')
         ),
         launch_arguments={
             'params_file': LaunchConfiguration('hardware_params_file'),

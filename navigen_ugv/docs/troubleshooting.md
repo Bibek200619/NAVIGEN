@@ -13,16 +13,19 @@
 | Nav2 has `map → odom` TF conflicts | Phase 3 bootstrap and localization are both running; relaunch with `publish_map_to_odom:=false` when SLAM owns the transform |
 | Nav2 runs but simulation does not advance | Verify `/clock` is live and every Nav2 node has `use_sim_time:=true` |
 | Serial permission denied | `sudo usermod -aG dialout $USER` and re-login |
-| ESP32 bridge exits before opening serial | `ticks_per_revolution` is still zero/invalid in `navigen_hardware/config/hardware.yaml`; calibrate it first |
 | Real/mock launch is healthy but commands remain zero | This is the intended startup interlock. Verify the wheels are safe, then run `./scripts/estop.sh release --confirm`; inspect `estop_active` in telemetry. |
 | Software e-stop release has no effect | The physical e-stop may still be active, firmware configuration may be invalid, or the one-shot publisher ran before launch. Check `/motor/telemetry` and `/diagnostics`, then retry only after resolving the reported state. |
-| ESP32 serial repeatedly disconnects | Check `/diagnostics`, USB power/cable, `/dev/ttyUSB*`, dialout membership, baud, and whether another process owns the port |
-| ESP32 telemetry rejected | Compare protocol version and baud; inspect bridge/firmware CRC counters in `/diagnostics` and `/motor/telemetry` |
-| Firmware says configuration invalid | Fill every required `board_config.h` pin/calibration/PID value; remove duplicate GPIOs and incomplete encoder pairs; rebuild and flash |
+| NodeMCU serial repeatedly disconnects | Check `/diagnostics`, USB power/cable, `/dev/ttyUSB*`, dialout membership, baud, and whether another process owns the port. Use a stable `/dev/serial/by-id/...` path. |
+| NodeMCU telemetry rejected | Firmware and bridge must both use protocol version 2 and 115200 baud; inspect CRC/version counters in `/diagnostics` and `/motor/telemetry`. |
+| Firmware says configuration invalid | Verify the checked-in NodeMCU map, divider voltages, stop circuit, and limits; set `HARDWARE_CONFIGURATION_CONFIRMED=1` only after review, rebuild, and flash. |
 | Motors stop every ~300 ms | Firmware watchdog detected lost valid velocity packets; verify bridge connection and configured command rate ≥20 Hz |
-| ESP32 device changes after reboot | Launch with the stable `/dev/serial/by-id/<device>` symlink instead of `/dev/ttyUSB0`. |
-| Motor direction or encoder velocity sign is wrong | Set the corresponding `MOTOR_*_INVERTED` or `ENCODER_*_INVERTED`; do not patch control equations |
-| Robot drives but odometry drifts badly | Encoder `ticks_per_revolution` / `track_width` wrong — redo encoder calibration |
+| NodeMCU device changes after reboot | Launch with the stable `/dev/serial/by-id/<device>` symlink instead of `/dev/ttyUSB0`. |
+| Motor direction is wrong | Set the corresponding `MOTOR_*_INVERTED`; if two motors on one shared side disagree, reverse one motor's physical leads. |
+| Robot curves under a straight command | This is expected with encoderless open-loop drive. Reduce the faster side's `*_PWM_SCALE`; VIO must close the real navigation loop. |
+| `/wheel/odom` is absent in real/mock mode | Expected: the motors have no encoders and the bridge refuses to fabricate odometry. Gazebo still provides `/wheel/odom`; real pose arrives later from VIO/EKF. |
+| Right ultrasonic is NaN | Expected in the one-sensor NodeMCU profile; the centered sensor is carried on `/ultrasonic/front_left`. |
+| NodeMCU will not boot after wiring | Disconnect peripherals, then check D8/GPIO15 is not pulled HIGH. It is a boot-strap pin and is reserved only for HC-SR04 TRIG. |
+| Battery topic reports 0 V | Expected until A0 input scaling and a safe battery divider are measured and `BATTERY_MONITOR_ENABLED` is enabled. |
 | EKF output jumps | Two sources publishing odom TF (gz plugin + EKF) — disable one |
 | SLAM stuck INITIALIZING | Not enough texture/parallax; move slowly with rotation; check camera calibration |
 | Safety supervisor always e-stopped | `ros2 topic echo /safety/state` — `active_triggers` names the exact cause |

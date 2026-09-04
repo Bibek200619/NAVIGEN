@@ -18,16 +18,16 @@ NAVIGEN/
 | Camera / Vision, Object Detection | `navigen_ugv/ros2_ws/src/navigen_perception` |
 | SLAM / Localization, Sensor Fusion | `navigen_ugv/ros2_ws/src/navigen_localization` |
 | Path Planning | `navigen_ugv/ros2_ws/src/navigen_navigation` |
-| ESP32 Communication, Motor Control | `navigen_ugv/ros2_ws/src/navigen_hardware` + `navigen_ugv/firmware` |
+| ESP8266 Communication, Motor Control | `navigen_ugv/ros2_ws/src/navigen_hardware` + `navigen_ugv/firmware` |
 | Safety | `navigen_ugv/ros2_ws/src/navigen_safety` |
-| Telemetry | `navigen_ugv/ros2_ws/src/navigen_interfaces` + ESP32 bridge |
+| Telemetry | `navigen_ugv/ros2_ws/src/navigen_interfaces` + motor-controller bridge |
 | Testing | per-package tests + `navigen_ugv/tests` |
 
 Full UGV documentation (setup, build, calibration, demo): [navigen_ugv/README.md](navigen_ugv/README.md).
 
 Web and mobile apps consume UGV telemetry through a bridge on the Raspberry Pi
 (e.g. rosbridge_suite / WebSocket); they are operator tools only and are NEVER in the
-autonomy control loop — the safety supervisor and ESP32 watchdog remain authoritative.
+autonomy control loop — the safety supervisor and ESP8266 watchdog remain authoritative.
 
 > Note: directory names use snake_case (no spaces) because colcon, CMake and most CI tooling
 > break on paths containing spaces.

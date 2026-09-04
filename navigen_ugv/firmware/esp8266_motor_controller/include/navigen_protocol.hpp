@@ -10,7 +10,7 @@ namespace navigen::protocol {
 
 constexpr uint8_t SYNC_FIRST = 0xAA;
 constexpr uint8_t SYNC_SECOND = 0x55;
-constexpr uint8_t VERSION = 1;
+constexpr uint8_t VERSION = 2;
 constexpr std::size_t HEADER_SIZE = 5;
 constexpr std::size_t MAX_PAYLOAD_SIZE = 64;
 constexpr std::size_t MAX_FRAME_SIZE = 2 + HEADER_SIZE + MAX_PAYLOAD_SIZE + 1;
@@ -22,6 +22,7 @@ constexpr uint8_t MSG_TELEMETRY = 0x10;
 constexpr uint8_t FLAG_ESTOP = 0x01;
 constexpr uint8_t FLAG_WATCHDOG = 0x02;
 constexpr uint8_t FLAG_CONFIG_INVALID = 0x04;
+constexpr uint8_t FLAG_OPEN_LOOP = 0x08;
 constexpr uint16_t ULTRASONIC_INVALID = 0xFFFF;
 
 inline uint8_t crc8(const uint8_t* data, std::size_t size) {

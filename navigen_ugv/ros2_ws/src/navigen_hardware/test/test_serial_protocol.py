@@ -5,18 +5,19 @@ from navigen_hardware import serial_protocol as protocol
 
 def make_telemetry(**overrides) -> protocol.Telemetry:
     values = {
-        'left_velocity': 0.25,
-        'right_velocity': -0.25,
+        'left_velocity': 0.0,
+        'right_velocity': 0.0,
         'left_pwm': 120,
         'right_pwm': -120,
-        'left_ticks': 12345,
-        'right_ticks': -6789,
+        'left_ticks': 0,
+        'right_ticks': 0,
         'battery_voltage': 11.7,
         'ultrasonic_left': 1.234,
         'ultrasonic_right': -1.0,
         'estop_active': False,
         'watchdog_triggered': True,
         'configuration_valid': True,
+        'open_loop_mode': True,
         'acknowledged_command_sequence': 0x1234,
         'command_age_ms': 42,
         'rx_crc_errors': 3,
@@ -27,7 +28,7 @@ def make_telemetry(**overrides) -> protocol.Telemetry:
 
 def test_velocity_command_golden_vector_and_decode() -> None:
     frame = protocol.encode_velocity_command(0.25, -0.25, 0x1234)
-    assert frame.hex() == 'aa550101341204fa0006ff3c'
+    assert frame.hex() == 'aa550201341204fa0006ffb7'
     parsed = protocol.FrameParser().feed(frame)
     assert len(parsed) == 1
     assert parsed[0].message_id == protocol.MSG_CMD_VELOCITY
@@ -42,15 +43,16 @@ def test_telemetry_round_trip_and_invalid_ultrasonic() -> None:
     [frame] = parser.feed(protocol.encode_telemetry(make_telemetry(), sequence=9))
     telemetry = protocol.decode_telemetry(frame.payload)
     assert frame.sequence == 9
-    assert telemetry.left_velocity == pytest.approx(0.25)
-    assert telemetry.right_velocity == pytest.approx(-0.25)
-    assert telemetry.left_ticks == 12345
-    assert telemetry.right_ticks == -6789
+    assert telemetry.left_velocity == pytest.approx(0.0)
+    assert telemetry.right_velocity == pytest.approx(0.0)
+    assert telemetry.left_ticks == 0
+    assert telemetry.right_ticks == 0
     assert telemetry.battery_voltage == pytest.approx(11.7)
     assert telemetry.ultrasonic_left == pytest.approx(1.234)
     assert telemetry.ultrasonic_right == -1.0
     assert telemetry.watchdog_triggered is True
     assert telemetry.configuration_valid is True
+    assert telemetry.open_loop_mode is True
     assert telemetry.acknowledged_command_sequence == 0x1234
     assert telemetry.command_age_ms == 42
     assert telemetry.rx_crc_errors == 3

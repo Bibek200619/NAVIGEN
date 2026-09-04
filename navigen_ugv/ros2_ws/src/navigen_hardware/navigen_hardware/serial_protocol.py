@@ -1,4 +1,4 @@
-"""Versioned framed serial protocol shared conceptually with the ESP32 firmware."""
+"""Versioned framed serial protocol shared with the motor-controller firmware."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ import struct
 
 
 SYNC = b'\xaa\x55'
-PROTOCOL_VERSION = 1
+PROTOCOL_VERSION = 2
 MAX_PAYLOAD_SIZE = 64
 
 MSG_CMD_VELOCITY = 0x01
@@ -18,6 +18,7 @@ MSG_TELEMETRY = 0x10
 FLAG_ESTOP = 0x01
 FLAG_WATCHDOG = 0x02
 FLAG_CONFIG_INVALID = 0x04
+FLAG_OPEN_LOOP = 0x08
 US_INVALID = 0xFFFF
 
 _HEADER_STRUCT = struct.Struct('<BBHB')
@@ -108,13 +109,14 @@ class Telemetry:
     estop_active: bool
     watchdog_triggered: bool
     configuration_valid: bool
+    open_loop_mode: bool
     acknowledged_command_sequence: int
     command_age_ms: int
     rx_crc_errors: int
 
 
 def encode_telemetry(telemetry: Telemetry, sequence: int) -> bytes:
-    """Encode telemetry for golden-vector tests and the mock ESP32."""
+    """Encode telemetry for golden-vector tests and the mock controller."""
     flags = 0
     if telemetry.estop_active:
         flags |= FLAG_ESTOP
@@ -122,6 +124,8 @@ def encode_telemetry(telemetry: Telemetry, sequence: int) -> bytes:
         flags |= FLAG_WATCHDOG
     if not telemetry.configuration_valid:
         flags |= FLAG_CONFIG_INVALID
+    if telemetry.open_loop_mode:
+        flags |= FLAG_OPEN_LOOP
     battery_mv = max(
         0, min(0xFFFF, int(round(telemetry.battery_voltage * 1000.0)))
     )
@@ -178,6 +182,7 @@ def decode_telemetry(payload: bytes) -> Telemetry:
         estop_active=bool(flags & FLAG_ESTOP),
         watchdog_triggered=bool(flags & FLAG_WATCHDOG),
         configuration_valid=not bool(flags & FLAG_CONFIG_INVALID),
+        open_loop_mode=bool(flags & FLAG_OPEN_LOOP),
         acknowledged_command_sequence=acknowledged_sequence,
         command_age_ms=command_age_ms,
         rx_crc_errors=rx_crc_errors,
