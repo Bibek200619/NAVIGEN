@@ -82,65 +82,15 @@ export function generateIdempotencyKey(): string {
 }
 
 /**
- * Interface representing the typed REST API client.
- */
-export interface ApiClient {
-  baseUrl: string;
-  tokenProvider: TokenProvider | null;
-  setTokenProvider(provider: TokenProvider | null): void;
-  getAuthHeader(options?: RequestOptions): Promise<Record<string, string>>;
-  handleResponse<T>(response: Response): Promise<T>;
-  get<T>(endpoint: string, options?: RequestOptions): Promise<T>;
-  post<T>(endpoint: string, data: unknown, options?: RequestOptions): Promise<T>;
-  patch<T>(endpoint: string, data: unknown, options?: RequestOptions): Promise<T>;
-  getStatus(options?: RequestOptions): Promise<SystemStatusResponse>;
-  getRobots(params?: ListRobotsParams, options?: RequestOptions): Promise<Page<Robot>>;
-  getRobot(robotId: string, options?: RequestOptions): Promise<Robot>;
-  getRobotTelemetry(
-    robotId: string,
-    params?: GetTelemetryParams,
-    options?: RequestOptions,
-  ): Promise<RobotTelemetryResponse[]>;
-  getRobotSafety(
-    robotId: string,
-    params?: GetSafetyParams,
-    options?: RequestOptions,
-  ): Promise<SafetyEventResponse[]>;
-  getRobotSensors(robotId: string, options?: RequestOptions): Promise<SensorStatusResponse[]>;
-  getRobotLocalization(
-    robotId: string,
-    options?: RequestOptions,
-  ): Promise<LocalizationStatusResponse | null>;
-  getMissions(
-    params?: ListMissionsParams,
-    options?: RequestOptions,
-  ): Promise<Page<MissionResponse>>;
-  getMission(missionId: string, options?: RequestOptions): Promise<MissionDetailResponse>;
-  getMissionGoals(missionId: string, options?: RequestOptions): Promise<MissionGoalResponse[]>;
-  createMission(data: MissionCreate, options?: RequestOptions): Promise<MissionDetailResponse>;
-  updateMission(
-    missionId: string,
-    data: MissionUpdate,
-    options?: RequestOptions,
-  ): Promise<MissionResponse>;
-  createRobotCommand(
-    robotId: string,
-    command: CommandCreate,
-    options?: RequestOptions & { idempotencyKey?: string },
-  ): Promise<CommandResponse>;
-  getCommand(commandId: string, options?: RequestOptions): Promise<CommandResponse>;
-}
-
-/**
  * Typed REST API client for backend communication.
  */
-export const apiClient: ApiClient = {
-  baseUrl: APP_CONFIG.API_BASE_URL,
-  tokenProvider: null as TokenProvider | null,
+export class ApiClient {
+  baseUrl: string = APP_CONFIG.API_BASE_URL;
+  tokenProvider: TokenProvider | null = null;
 
   setTokenProvider(provider: TokenProvider | null): void {
     this.tokenProvider = provider;
-  },
+  }
 
   async getAuthHeader(options?: RequestOptions): Promise<Record<string, string>> {
     const token = options?.token ?? (this.tokenProvider ? await this.tokenProvider() : null);
@@ -148,7 +98,7 @@ export const apiClient: ApiClient = {
       return { Authorization: `Bearer ${token}` };
     }
     return {};
-  },
+  }
 
   async handleResponse<T>(response: Response): Promise<T> {
     if (!response.ok) {
@@ -188,7 +138,7 @@ export const apiClient: ApiClient = {
       return null as T;
     }
     return JSON.parse(text) as T;
-  },
+  }
 
   async get<T>(endpoint: string, options?: RequestOptions): Promise<T> {
     const authHeader = await this.getAuthHeader(options);
@@ -201,7 +151,7 @@ export const apiClient: ApiClient = {
       signal: options?.signal,
     });
     return this.handleResponse<T>(response);
-  },
+  }
 
   async post<T>(endpoint: string, data: unknown, options?: RequestOptions): Promise<T> {
     const authHeader = await this.getAuthHeader(options);
@@ -217,7 +167,7 @@ export const apiClient: ApiClient = {
       signal: options?.signal,
     });
     return this.handleResponse<T>(response);
-  },
+  }
 
   async patch<T>(endpoint: string, data: unknown, options?: RequestOptions): Promise<T> {
     const authHeader = await this.getAuthHeader(options);
@@ -233,7 +183,7 @@ export const apiClient: ApiClient = {
       signal: options?.signal,
     });
     return this.handleResponse<T>(response);
-  },
+  }
 
   // ------------------------------------------------------------------
   // Typed backend endpoints
@@ -241,7 +191,7 @@ export const apiClient: ApiClient = {
 
   async getStatus(options?: RequestOptions): Promise<SystemStatusResponse> {
     return this.get<SystemStatusResponse>('/api/v1/status', options);
-  },
+  }
 
   async getRobots(params?: ListRobotsParams, options?: RequestOptions): Promise<Page<Robot>> {
     const query = buildQueryString(params ? {
@@ -249,11 +199,11 @@ export const apiClient: ApiClient = {
       offset: params.offset,
     } : undefined);
     return this.get<Page<Robot>>(`/api/v1/robots${query}`, options);
-  },
+  }
 
   async getRobot(robotId: string, options?: RequestOptions): Promise<Robot> {
     return this.get<Robot>(`/api/v1/robots/${encodeURIComponent(robotId)}`, options);
-  },
+  }
 
   async getRobotTelemetry(
     robotId: string,
@@ -269,7 +219,7 @@ export const apiClient: ApiClient = {
       `/api/v1/robots/${encodeURIComponent(robotId)}/telemetry${query}`,
       options,
     );
-  },
+  }
 
   async getRobotSafety(
     robotId: string,
@@ -283,7 +233,7 @@ export const apiClient: ApiClient = {
       `/api/v1/robots/${encodeURIComponent(robotId)}/safety${query}`,
       options,
     );
-  },
+  }
 
   async getRobotSensors(
     robotId: string,
@@ -293,7 +243,7 @@ export const apiClient: ApiClient = {
       `/api/v1/robots/${encodeURIComponent(robotId)}/sensors`,
       options,
     );
-  },
+  }
 
   async getRobotLocalization(
     robotId: string,
@@ -303,7 +253,7 @@ export const apiClient: ApiClient = {
       `/api/v1/robots/${encodeURIComponent(robotId)}/localization`,
       options,
     );
-  },
+  }
 
   async getMissions(
     params?: ListMissionsParams,
@@ -316,7 +266,7 @@ export const apiClient: ApiClient = {
       offset: params.offset,
     } : undefined);
     return this.get<Page<MissionResponse>>(`/api/v1/missions${query}`, options);
-  },
+  }
 
   async getMission(
     missionId: string,
@@ -326,7 +276,7 @@ export const apiClient: ApiClient = {
       `/api/v1/missions/${encodeURIComponent(missionId)}`,
       options,
     );
-  },
+  }
 
   async getMissionGoals(
     missionId: string,
@@ -336,14 +286,14 @@ export const apiClient: ApiClient = {
       `/api/v1/missions/${encodeURIComponent(missionId)}/goals`,
       options,
     );
-  },
+  }
 
   async createMission(
     data: MissionCreate,
     options?: RequestOptions,
   ): Promise<MissionDetailResponse> {
     return this.post<MissionDetailResponse>('/api/v1/missions', data, options);
-  },
+  }
 
   async updateMission(
     missionId: string,
@@ -355,7 +305,7 @@ export const apiClient: ApiClient = {
       data,
       options,
     );
-  },
+  }
 
   async createRobotCommand(
     robotId: string,
@@ -375,12 +325,14 @@ export const apiClient: ApiClient = {
         headers,
       },
     );
-  },
+  }
 
   async getCommand(commandId: string, options?: RequestOptions): Promise<CommandResponse> {
     return this.get<CommandResponse>(
       `/api/v1/commands/${encodeURIComponent(commandId)}`,
       options,
     );
-  },
-};
+  }
+}
+
+export const apiClient = new ApiClient();
