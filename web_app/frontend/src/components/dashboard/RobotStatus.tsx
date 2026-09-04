@@ -94,21 +94,21 @@ export const RobotStatus: React.FC<RobotStatusProps> = ({
   return (
     <Panel title="Robot Status" className={className}>
       <div className="space-y-4">
-        {/* Status header row */}
-        <div className="grid grid-cols-2 gap-2.5 pb-3 border-b border-slate-800 text-xs">
-          <div className="flex items-center justify-between p-1.5 bg-slate-950/60 rounded border border-slate-800/80">
+        {/* Status header list */}
+        <div className="space-y-1.5 pb-3 border-b border-slate-800 text-xs">
+          <div className="flex items-center justify-between py-1 px-2.5 bg-slate-950/60 rounded border border-slate-800/80">
             <span className="text-slate-400">Gateway:</span>
             <StatusBadge status={gatewayConfig.label} variant={gatewayConfig.variant} />
           </div>
-          <div className="flex items-center justify-between p-1.5 bg-slate-950/60 rounded border border-slate-800/80">
+          <div className="flex items-center justify-between py-1 px-2.5 bg-slate-950/60 rounded border border-slate-800/80">
             <span className="text-slate-400">Robot link:</span>
             <StatusBadge status={robotConnConfig.label} variant={robotConnConfig.variant} />
           </div>
-          <div className="flex items-center justify-between p-1.5 bg-slate-950/60 rounded border border-slate-800/80">
+          <div className="flex items-center justify-between py-1 px-2.5 bg-slate-950/60 rounded border border-slate-800/80">
             <span className="text-slate-400">Robot status:</span>
             <StatusBadge status={robotStatusConfig.label} variant={robotStatusConfig.variant} />
           </div>
-          <div className="flex items-center justify-between p-1.5 bg-slate-950/60 rounded border border-slate-800/80">
+          <div className="flex items-center justify-between py-1 px-2.5 bg-slate-950/60 rounded border border-slate-800/80">
             <span className="text-slate-400">Telemetry:</span>
             <StatusBadge status={telemetryConfig.label} variant={telemetryConfig.variant} />
           </div>

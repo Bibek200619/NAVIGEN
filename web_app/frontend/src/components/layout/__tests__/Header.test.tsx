@@ -77,4 +77,16 @@ describe('Header', () => {
 
     expect(screen.getByText('System Offline')).toBeInTheDocument();
   });
+
+  it('renders mobile navigation toggle button and handles click', () => {
+    mockUseWebSocket.mockReturnValue(defaultWsReturn());
+    const handleToggle = vi.fn();
+
+    render(<Header onToggleMobileNav={handleToggle} isMobileNavOpen={false} />);
+
+    const toggleBtn = screen.getByRole('button', { name: /Open navigation menu/i });
+    expect(toggleBtn).toBeInTheDocument();
+    toggleBtn.click();
+    expect(handleToggle).toHaveBeenCalledTimes(1);
+  });
 });

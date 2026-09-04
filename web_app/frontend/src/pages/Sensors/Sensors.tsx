@@ -1,4 +1,5 @@
 import React from 'react';
+import { Cpu, RefreshCw, Activity } from 'lucide-react';
 import { CameraStatus } from '../../components/sensors/CameraStatus';
 import { IMUStatus } from '../../components/sensors/IMUStatus';
 import { OdometryStatus } from '../../components/sensors/OdometryStatus';
@@ -52,24 +53,65 @@ export const SensorsPage: React.FC = () => {
   );
   const additionalSensors = sensors.filter((s) => !matchedIds.has(s.id));
 
+  // Compute sensor health summary
+  const activeCount = sensors.filter((s) => s.is_active).length;
+  const totalCount = sensors.length > 0 ? sensors.length : 5;
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-xl font-bold text-slate-100">Sensor Interfaces</h2>
-          <p className="text-xs text-slate-400 mt-0.5">
+      {/* Tactical Top Command Strip */}
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 p-4 bg-slate-900/90 rounded-lg border border-slate-800 shadow-sm">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <h2 className="text-xl font-bold text-slate-100 tracking-tight flex items-center gap-2">
+              <Cpu className="w-5 h-5 text-sky-400" />
+              <span>Sensor Interfaces</span>
+            </h2>
+            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-sky-950/60 border border-sky-800/40 text-sky-400 font-semibold uppercase tracking-wider">
+              Telemetry Feeds
+            </span>
+          </div>
+          {selectedRobot ? (
+            <div className="text-xs font-mono text-slate-400">
+              Active Robot: <span className="text-slate-200 font-semibold">{selectedRobot.name}</span>{' '}
+              <span className="text-slate-500 font-mono">({selectedRobot.id})</span>
+            </div>
+          ) : (
+            <div className="text-xs text-slate-500 font-mono">
+              Fleet Status: No active robot selected
+            </div>
+          )}
+          <p className="text-xs text-slate-400 hidden sm:block">
             Real-time sensor telemetry and interface health
           </p>
         </div>
-        {selectedRobot && (
-          <div className="text-xs font-mono text-slate-400">
-            Active Robot: <span className="text-slate-200 font-semibold">{selectedRobot.name}</span> ({selectedRobot.id})
-          </div>
-        )}
+
+        {/* Quick Indicators */}
+        <div className="flex items-center gap-2.5 flex-wrap">
+          {selectedRobot && (
+            <div className="flex items-center gap-2 px-2.5 py-1.5 bg-slate-950/80 rounded border border-slate-800 text-xs font-mono">
+              <Activity className="w-3.5 h-3.5 text-sky-400" />
+              <span className="text-slate-400 text-[11px]">Active Feeds:</span>
+              <span className="text-slate-200 font-semibold text-[11px]">
+                {activeCount} / {totalCount}
+              </span>
+            </div>
+          )}
+
+          <button
+            type="button"
+            onClick={() => refetch()}
+            title="Refresh Sensor Telemetry"
+            aria-label="Refresh Sensors"
+            className="p-1.5 bg-slate-950 hover:bg-slate-800 text-slate-400 hover:text-slate-200 border border-slate-800 rounded transition-colors focus:outline-none focus:ring-1 focus:ring-sky-500 cursor-pointer"
+          >
+            <RefreshCw className="w-3.5 h-3.5" />
+          </button>
+        </div>
       </div>
 
       {isLoading ? (
-        <div className="p-8 text-center bg-slate-900 border border-slate-800 rounded-lg text-slate-400 text-sm">
+        <div className="p-8 text-center bg-slate-900 border border-slate-800 rounded-lg text-slate-400 text-sm font-mono">
           Loading sensor interfaces...
         </div>
       ) : error ? (
@@ -77,7 +119,7 @@ export const SensorsPage: React.FC = () => {
           <div>Failed to retrieve sensor data: {error.message}</div>
           <button
             onClick={() => refetch()}
-            className="px-3 py-1 bg-rose-500/20 hover:bg-rose-500/30 text-rose-200 rounded text-xs transition-colors"
+            className="px-3 py-1 bg-rose-500/20 hover:bg-rose-500/30 text-rose-200 rounded text-xs transition-colors cursor-pointer"
           >
             Retry
           </button>
@@ -90,7 +132,7 @@ export const SensorsPage: React.FC = () => {
       ) : (
         <>
           {sensors.length === 0 && (
-            <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-lg text-amber-300 text-xs">
+            <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg text-amber-300 text-xs font-mono">
               No sensor records returned by the backend for robot {selectedRobot.name}. Displaying known interface slots as Unavailable.
             </div>
           )}
@@ -121,11 +163,11 @@ export const SensorsPage: React.FC = () => {
 
                     <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-800 text-xs">
                       <div>
-                        <div className="text-slate-500">Frequency</div>
+                        <div className="text-slate-500 font-mono text-[10px] uppercase">Frequency</div>
                         <div className="font-mono text-slate-200 mt-0.5">{frequencyText}</div>
                       </div>
                       <div>
-                        <div className="text-slate-500">Last Update</div>
+                        <div className="text-slate-500 font-mono text-[10px] uppercase">Last Update</div>
                         <div className="font-mono text-slate-200 mt-0.5">{lastUpdateText}</div>
                       </div>
                     </div>

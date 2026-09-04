@@ -68,7 +68,45 @@ describe('MissionStatus Component', () => {
     };
 
     render(<MissionStatus mission={mockCompleted} />);
-
     expect(screen.getAllByText('Completed').length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('renders loading state', () => {
+    render(<MissionStatus isLoading={true} />);
+    expect(screen.getByText('Loading mission status...')).toBeInTheDocument();
+  });
+
+  it('renders canonical "Pending" status badge', () => {
+    const mockPending: Mission = {
+      id: 'm-pending',
+      name: 'Scheduled Perimeter Route',
+      description: null,
+      status: 'pending',
+      startedAt: null,
+      completedAt: null,
+      failureReason: null,
+      createdAt: '2026-09-04T09:55:00Z',
+      updatedAt: '2026-09-04T09:55:00Z',
+    };
+
+    render(<MissionStatus mission={mockPending} />);
+    expect(screen.getByText('Pending')).toBeInTheDocument();
+  });
+
+  it('renders canonical "Aborted" status badge', () => {
+    const mockAborted: Mission = {
+      id: 'm-aborted',
+      name: 'Emergency Stopped Sweep',
+      description: null,
+      status: 'aborted',
+      startedAt: '2026-09-04T10:00:00Z',
+      completedAt: '2026-09-04T10:02:00Z',
+      failureReason: null,
+      createdAt: '2026-09-04T09:55:00Z',
+      updatedAt: '2026-09-04T10:02:00Z',
+    };
+
+    render(<MissionStatus mission={mockAborted} />);
+    expect(screen.getByText('Aborted')).toBeInTheDocument();
   });
 });

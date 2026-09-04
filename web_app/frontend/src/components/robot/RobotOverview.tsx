@@ -1,4 +1,5 @@
 import React from 'react';
+import { Bot, Wifi } from 'lucide-react';
 import { Panel } from '../common/Panel';
 import { StatusBadge } from '../common/StatusBadge';
 import { useRobot } from '../../hooks/useRobot';
@@ -47,14 +48,16 @@ export const RobotOverview: React.FC = () => {
   return (
     <Panel title="Robot Overview">
       <div className="space-y-4">
-        {/* Status header row */}
-        <div className="flex items-center justify-between pb-3 border-b border-slate-800 text-xs">
+        {/* Status Header Row */}
+        <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-slate-800 text-xs">
           <div className="flex items-center gap-2">
-            <span className="text-slate-400">Gateway:</span>
+            <Wifi className="w-3.5 h-3.5 text-slate-400" />
+            <span className="text-slate-400 font-mono text-[11px]">Gateway:</span>
             <StatusBadge status={gatewayConfig.label} variant={gatewayConfig.variant} />
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-slate-400">Robot Status:</span>
+            <Bot className="w-3.5 h-3.5 text-slate-400" />
+            <span className="text-slate-400 font-mono text-[11px]">Robot Status:</span>
             <StatusBadge status={robotStatusConfig.label} variant={robotStatusConfig.variant} />
           </div>
         </div>
@@ -62,8 +65,9 @@ export const RobotOverview: React.FC = () => {
         {/* Content */}
         {!robotState ? (
           <div className="py-8 px-4 flex flex-col items-center justify-center text-center bg-slate-950/40 rounded-lg border border-dashed border-slate-800">
+            <Bot className="w-8 h-8 text-slate-600 mb-2" />
             <span className="text-sm font-medium text-slate-300">No robot telemetry</span>
-            <p className="text-xs text-slate-500 mt-1 max-w-xs">
+            <p className="text-xs text-slate-500 mt-1 max-w-xs leading-relaxed">
               {connectionStatus === 'connected'
                 ? 'Connected to gateway. Waiting for robot telemetry packets...'
                 : connectionStatus === 'connecting'
@@ -74,14 +78,16 @@ export const RobotOverview: React.FC = () => {
             </p>
           </div>
         ) : (
-          <div className="p-3 bg-slate-950/60 rounded-md border border-slate-800 space-y-2 text-xs">
+          <div className="p-3.5 bg-slate-950/60 rounded-md border border-slate-800 space-y-2.5 text-xs">
             <div className="flex items-center justify-between">
-              <span className="text-slate-400">Robot ID</span>
-              <span className="font-mono text-slate-200">{robotState.id || '--'}</span>
+              <span className="text-slate-400 font-mono text-[11px]">Robot ID</span>
+              <span className="font-mono text-slate-200 font-medium">
+                {robotState.id || '--'}
+              </span>
             </div>
-            <div className="flex items-center justify-between">
-              <span className="text-slate-400">Robot State</span>
-              <span className="text-slate-500 italic">Status unavailable</span>
+            <div className="flex items-center justify-between pt-2 border-t border-slate-800/60">
+              <span className="text-slate-400 font-mono text-[11px]">Robot State</span>
+              <span className="text-slate-500 italic text-[11px]">Status unavailable</span>
             </div>
           </div>
         )}

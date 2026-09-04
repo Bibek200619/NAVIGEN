@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { RefreshCw, Navigation, ShieldCheck, Wifi } from 'lucide-react';
 import { MissionStatus } from '../../components/mission/MissionStatus';
 import {
   MissionControls,
@@ -12,6 +13,7 @@ import { useMissionDetail } from '../../hooks/useMissionDetail';
 import { useRobotCommand } from '../../hooks/useRobotCommand';
 import { useTelemetry } from '../../hooks/useTelemetry';
 import { useSafetyStatus } from '../../hooks/useSafetyStatus';
+import { StatusBadge } from '../../components/common/StatusBadge';
 import type { Mission } from '../../types/mission';
 import type { CommandType } from '../../types/api';
 
@@ -21,6 +23,23 @@ const isMissionTerminal = (status?: string | null): boolean => {
 
 const isMissionActive = (status?: string | null): boolean => {
   return status === 'in_progress' || status === 'pending';
+};
+
+const getHeaderMissionBadgeConfig = (status?: string | null) => {
+  switch (status) {
+    case 'in_progress':
+      return { label: 'IN PROGRESS', variant: 'info' as const };
+    case 'completed':
+      return { label: 'COMPLETED', variant: 'success' as const };
+    case 'pending':
+      return { label: 'PENDING', variant: 'warning' as const };
+    case 'failed':
+      return { label: 'FAILED', variant: 'danger' as const };
+    case 'aborted':
+      return { label: 'ABORTED', variant: 'danger' as const };
+    default:
+      return { label: 'UNKNOWN', variant: 'default' as const };
+  }
 };
 
 export const MissionPage: React.FC = () => {
@@ -190,20 +209,97 @@ export const MissionPage: React.FC = () => {
   const isGlobalLoading = isRobotLoading || (Boolean(selectedRobotId) && isMissionsLoading);
   const globalError = robotError || missionsError;
 
+  const getQuickSafetyStatus = () => {
+    if (!selectedRobotId || !latestSafetyEvent) {
+      return { label: 'SAFETY: NOMINAL', variant: 'success' as const };
+    }
+    switch (latestSafetyEvent.state) {
+      case 'ok':
+        return { label: 'SAFETY: NOMINAL', variant: 'success' as const };
+      case 'warning':
+        return { label: 'SAFETY: WARNING', variant: 'warning' as const };
+      case 'emergency_stop':
+        return { label: 'SAFETY: EMERGENCY STOP', variant: 'danger' as const };
+      default:
+        return { label: 'SAFETY: UNKNOWN', variant: 'default' as const };
+    }
+  };
+
+  const quickSafety = getQuickSafetyStatus();
+  const headerMissionBadge = currentMission ? getHeaderMissionBadgeConfig(currentMission.status) : null;
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-xl font-bold text-slate-100">Mission Management</h2>
-          <p className="text-xs text-slate-400 mt-1">
+      {/* TOP: Tactical Mission Command Header */}
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 p-4 bg-slate-900/90 rounded-lg border border-slate-800 shadow-sm">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <h2 className="text-xl font-bold text-slate-100 tracking-tight flex items-center gap-2">
+              <Navigation className="w-5 h-5 text-sky-400" />
+              <span>Mission Control</span>
+            </h2>
+            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-sky-950/60 border border-sky-800/40 text-sky-400 font-semibold uppercase tracking-wider">
+              Mission Management
+            </span>
+          </div>
+          {selectedRobot ? (
+            <div className="text-xs font-mono text-slate-400">
+              Active Robot: <span className="text-slate-200 font-semibold">{selectedRobot.name}</span>{' '}
+              <span className="text-slate-500 font-mono">({selectedRobot.id})</span>
+            </div>
+          ) : (
+            <div className="text-xs text-slate-500 font-mono">
+              Fleet Status: No active robot selected
+            </div>
+          )}
+          <p className="text-xs text-slate-400 hidden sm:block">
             Monitor active missions and issue safe UGV operational commands.
           </p>
         </div>
-        {selectedRobot && (
-          <div className="text-xs font-mono text-slate-400">
-            Active Robot: <span className="text-slate-200 font-semibold">{selectedRobot.name}</span> ({selectedRobot.id})
+
+        {/* Tactical Quick-Scan Indicators */}
+        <div className="flex items-center gap-2.5 flex-wrap">
+          {/* Mission Status Indicator */}
+          {headerMissionBadge ? (
+            <div className="flex items-center gap-2 px-2.5 py-1.5 bg-slate-950/80 rounded border border-slate-800 text-xs">
+              <span className="text-slate-400 text-[11px] font-mono">Status:</span>
+              <StatusBadge status={headerMissionBadge.label} variant={headerMissionBadge.variant} />
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 px-2.5 py-1.5 bg-slate-950/80 rounded border border-slate-800 text-xs">
+              <span className="text-slate-400 text-[11px] font-mono">Status:</span>
+              <span className="font-mono text-[11px] text-slate-400 font-semibold">NO ACTIVE MISSION</span>
+            </div>
+          )}
+
+          {/* Gateway Link Pill */}
+          <div className="flex items-center gap-2 px-2.5 py-1.5 bg-slate-950/80 rounded border border-slate-800 text-xs">
+            <Wifi className={`w-3.5 h-3.5 ${!isRobotDisconnected ? 'text-emerald-400' : 'text-slate-500'}`} />
+            <span className="text-slate-400 text-[11px] font-mono">Gateway</span>
+            <span
+              className={`w-2 h-2 rounded-full ${
+                !isRobotDisconnected ? 'bg-emerald-400' : 'bg-slate-600'
+              }`}
+            />
           </div>
-        )}
+
+          {/* Safety State Indicator */}
+          <div className="flex items-center gap-1.5">
+            <ShieldCheck className="w-4 h-4 text-slate-400" />
+            <StatusBadge status={quickSafety.label} variant={quickSafety.variant} />
+          </div>
+
+          {/* Sync Button */}
+          <button
+            type="button"
+            onClick={() => refetchMissions()}
+            title="Sync Missions State"
+            aria-label="Refresh Missions"
+            className="p-1.5 bg-slate-950 hover:bg-slate-800 text-slate-400 hover:text-slate-200 border border-slate-800 rounded transition-colors focus:outline-none focus:ring-1 focus:ring-sky-500 cursor-pointer"
+          >
+            <RefreshCw className="w-3.5 h-3.5" />
+          </button>
+        </div>
       </div>
 
       {globalError && (
@@ -233,7 +329,7 @@ export const MissionPage: React.FC = () => {
           <button
             type="button"
             onClick={() => setFeedbackMessage(null)}
-            className="text-slate-400 hover:text-slate-200 text-xs font-semibold ml-4"
+            className="text-slate-400 hover:text-slate-200 text-xs font-semibold ml-4 cursor-pointer"
           >
             Dismiss
           </button>
@@ -246,38 +342,42 @@ export const MissionPage: React.FC = () => {
           <div className="text-xs mt-1">Connect or select an active robot to manage missions.</div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <MissionStatus
-            mission={detailedMission ?? currentMission}
-            isLoading={isGlobalLoading || isDetailLoading}
-          />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+          <div className="space-y-6">
+            <MissionStatus
+              mission={detailedMission ?? currentMission}
+              isLoading={isGlobalLoading || isDetailLoading}
+            />
 
-          <MissionControls
-            onSetGoal={handleSetGoal}
-            onSoftwareEstop={handleSoftwareEstop}
-            commandStatus={lastCommand?.status ?? 'ready'}
-            lastCommandType={lastCommandType}
-            lastCommandResponse={lastCommand}
-            hasActiveMission={isCurrentMissionActive}
-            isHistoricalMission={isCurrentMissionTerminal}
-            isGoalDisabled={isGoalDisabled}
-            isEstopDisabled={isEstopDisabled}
-            safetyReason={safetyReason}
-            isDispatching={isCommandLoading}
-            errorMessage={commandError?.message}
-          />
+            <MissionGoals
+              goals={goals}
+              isLoading={isDetailLoading}
+            />
+          </div>
 
-          <MissionGoals
-            goals={goals}
-            isLoading={isDetailLoading}
-          />
+          <div className="space-y-6">
+            <MissionControls
+              onSetGoal={handleSetGoal}
+              onSoftwareEstop={handleSoftwareEstop}
+              commandStatus={lastCommand?.status ?? 'ready'}
+              lastCommandType={lastCommandType}
+              lastCommandResponse={lastCommand}
+              hasActiveMission={isCurrentMissionActive}
+              isHistoricalMission={isCurrentMissionTerminal}
+              isGoalDisabled={isGoalDisabled}
+              isEstopDisabled={isEstopDisabled}
+              safetyReason={safetyReason}
+              isDispatching={isCommandLoading}
+              errorMessage={commandError?.message}
+            />
 
-          <MissionHistory
-            missions={missions}
-            isLoading={isMissionsLoading}
-            selectedMissionId={currentMission?.id}
-            onSelectMission={(m) => setSelectedMissionOverride(m)}
-          />
+            <MissionHistory
+              missions={missions}
+              isLoading={isMissionsLoading}
+              selectedMissionId={currentMission?.id}
+              onSelectMission={(m) => setSelectedMissionOverride(m)}
+            />
+          </div>
         </div>
       )}
     </div>
