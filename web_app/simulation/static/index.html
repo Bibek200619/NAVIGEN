@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#f5f7f1" />
+    <title>NAVIGEN — UGV simulation</title>
+    <link rel="stylesheet" href="/static/style.css" />
+    <link rel="icon" href="data:," />
+  </head>
+  <body>
+    <header class="topbar">
+      <a href="/" class="brand"><span>N</span>NAVIGEN</a
+      ><span class="simulation-tag">SIMULATION <b>/</b> DEMO 01</span
+      ><a
+        class="dashboard-link"
+        href="http://127.0.0.1:5174"
+        target="_blank"
+        rel="noopener"
+        >Open operator dashboard ↗</a
+      >
+    </header>
+    <main>
+      <header class="page-heading">
+        <div>
+          <p class="eyebrow">AUTONOMOUS GROUND VEHICLE</p>
+          <h1>Meet your field operator.</h1>
+          <p class="subtitle">
+            A warehouse inspection, from the first waypoint to a safe return.
+          </p>
+        </div>
+        <span id="connection" class="connection">Connecting simulator…</span>
+      </header>
+      <div class="workspace">
+        <section class="world-column" aria-label="Simulation environment">
+          <header class="section-heading">
+            <h2>Inspection floor <span>/ 24 × 20 m</span></h2>
+            <div class="view-controls" aria-label="Camera view">
+              <button data-view="overview" aria-pressed="true">Overview</button
+              ><button data-view="follow" aria-pressed="false">
+                Follow UGV</button
+              ><button data-view="driver" aria-pressed="false">Driver</button>
+            </div>
+          </header>
+          <div class="world" id="world">
+            <canvas
+              id="scene"
+              aria-label="Interactive 3D warehouse with a simulated four-wheel UGV"
+              tabindex="0"
+            ></canvas>
+            <div class="scene-legend">
+              <span><i class="route-dot"></i>Planned route</span
+              ><span><i class="vehicle-dot"></i>NAVIGEN 01</span>
+            </div>
+            <span class="scene-instruction"
+              >Drag to orbit · Scroll to zoom</span
+            >
+            <div id="world-notice" class="world-notice" hidden></div>
+          </div>
+          <div class="waypoints" id="waypoints"></div>
+          <dl class="metrics">
+            <div>
+              <dt>Velocity</dt>
+              <dd id="speed">0.00 <small>m/s</small></dd>
+            </div>
+            <div>
+              <dt>Battery</dt>
+              <dd id="battery">94 <small>%</small></dd>
+            </div>
+            <div>
+              <dt>Distance travelled</dt>
+              <dd id="distance">0.0 <small>m</small></dd>
+            </div>
+            <div>
+              <dt>Mission time</dt>
+              <dd id="elapsed">00:00</dd>
+            </div>
+          </dl>
+          <section class="events-section">
+            <header class="section-heading">
+              <h2>Activity</h2>
+              <span class="eyebrow">LIVE SIMULATION EVENTS</span>
+            </header>
+            <ol id="events" class="events"></ol>
+          </section>
+        </section>
+        <aside class="control-column">
+          <header class="section-heading">
+            <h2>Mission control</h2>
+            <span id="status" class="status">Ready</span>
+          </header>
+          <p id="mission-description" class="mission-description">
+            Four checkpoints. One autonomous inspection. Start the guided demo
+            to see the complete sequence.
+          </p>
+          <button class="button primary guided" id="guided" data-command="demo">
+            <span class="play-icon">▶</span>Run guided demo
+            <span class="duration">~60 sec</span>
+          </button>
+          <div class="manual-controls">
+            <button class="button" id="start" data-command="start">
+              Start mission</button
+            ><button class="button" id="pause" data-command="pause" disabled>
+              Pause</button
+            ><button
+              class="icon-button"
+              data-command="reset"
+              aria-label="Reset simulation"
+              title="Reset simulation"
+            >
+              ↺
+            </button>
+          </div>
+          <div class="mission-progress">
+            <span id="progress-label">0 of 4 checkpoints</span
+            ><span id="progress-number">0%</span
+            ><progress id="progress" value="0" max="100">0%</progress>
+          </div>
+          <section class="scenario-controls">
+            <h3>Test the response</h3>
+            <p>
+              Place an obstacle in the route and watch the UGV turn around it
+              and continue its inspection.
+            </p>
+            <div class="manual-controls">
+              <button
+                class="button"
+                id="obstacle"
+                data-command="obstacle"
+                disabled
+              >
+                Add obstacle</button
+              ><button
+                class="button"
+                id="clear"
+                data-command="clear_obstacle"
+                disabled
+              >
+                Clear path
+              </button>
+            </div>
+            <button class="button stop" id="estop" data-command="estop">
+              ■ &nbsp; Simulated E-stop
+            </button>
+            <p id="feedback" role="status" class="feedback"></p>
+          </section>
+          <section class="camera-section">
+            <header class="section-heading">
+              <h2>Front camera</h2>
+              <span class="camera-label">SIMULATED</span>
+            </header>
+            <div class="camera-wrap">
+              <img
+                id="camera"
+                alt="Simulated front camera from the UGV position"
+                width="640"
+                height="360"
+              /><span id="camera-state">Connecting camera…</span>
+            </div>
+            <p class="camera-caption">
+              Rendered from the vehicle pose · 640 × 360
+            </p>
+          </section>
+          <dl class="position">
+            <div>
+              <dt>Position</dt>
+              <dd id="position">−7.00, −6.00 m</dd>
+            </div>
+            <div>
+              <dt>Heading</dt>
+              <dd id="heading">0°</dd>
+            </div>
+            <div>
+              <dt>Safety state</dt>
+              <dd id="safety">Normal</dd>
+            </div>
+          </dl>
+        </aside>
+      </div>
+    </main>
+    <footer class="footer">
+      <span>NAVIGEN / Product demonstration</span
+      ><span
+        >Simulated environment and sensors. No physical vehicle connected.</span
+      ><span>Space: pause/resume · R: reset</span>
+    </footer>
+    <script type="module" src="/static/app.js"></script>
+  </body>
+</html>

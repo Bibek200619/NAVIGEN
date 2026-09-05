@@ -1,15 +1,17 @@
-import React from 'react';
 import { CameraViewer } from '../../components/camera/CameraViewer';
-
-export const CameraPage: React.FC = () => {
+import { PageHeading } from '../../components/common/PageHeading';
+export function CameraPage() {
   return (
-    <div className="space-y-6">
-      <h2 className="text-xl font-bold text-slate-100">Camera Feed</h2>
-      <div className="max-w-4xl">
-        <CameraViewer />
-      </div>
-    </div>
+    <>
+      <PageHeading
+        eyebrow="VISION / 01"
+        title="Live camera"
+        description="A direct view from the vehicle. Keep the field in focus."
+      />
+      <CameraViewer />
+      <p className="muted-note camera-footnote">
+        Pausing stops this viewer only. The vehicle camera continues operating.
+      </p>
+    </>
   );
-};
-
-export default CameraPage;
+}

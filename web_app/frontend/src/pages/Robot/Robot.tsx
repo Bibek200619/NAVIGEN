@@ -1,21 +1,94 @@
-import React from 'react';
-import { RobotOverview } from '../../components/robot/RobotOverview';
-import { PosePanel } from '../../components/robot/PosePanel';
-import { VelocityPanel } from '../../components/robot/VelocityPanel';
-import { TFTree } from '../../components/robot/TFTree';
-
-export const RobotPage: React.FC = () => {
+import { PageHeading } from '../../components/common/PageHeading';
+import { useRobot } from '../../hooks/useRobot';
+import { useTelemetry } from '../../hooks/useTelemetry';
+export function RobotPage() {
+  const { robotState, isConnected } = useRobot();
+  const { telemetry } = useTelemetry();
+  const fresh = isConnected && telemetry && !telemetry.isStale;
+  const items = [
+    [
+      'Safety state',
+      fresh ? telemetry.safetyState?.replaceAll('_', ' ') || 'Unknown' : '—',
+    ],
+    ['Robot ID', robotState?.id || '—'],
+    [
+      'Vehicle connection',
+      fresh ? robotState?.connectionStatus || 'Unknown' : 'No signal',
+    ],
+    [
+      'Linear velocity',
+      fresh && telemetry.linearVelocity != null
+        ? `${telemetry.linearVelocity.toFixed(2)} m/s`
+        : '—',
+    ],
+    [
+      'Angular velocity',
+      fresh && telemetry.angularVelocity != null
+        ? `${telemetry.angularVelocity.toFixed(2)} rad/s`
+        : '—',
+    ],
+    [
+      'Battery level',
+      fresh && telemetry.batteryLevel != null
+        ? `${telemetry.batteryLevel.toFixed(1)}%`
+        : '—',
+    ],
+  ];
   return (
-    <div className="space-y-6">
-      <h2 className="text-xl font-bold text-slate-100">Robot Status & Configuration</h2>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <RobotOverview />
-        <PosePanel />
-        <VelocityPanel />
-        <TFTree />
-      </div>
-    </div>
+    <>
+      <PageHeading
+        eyebrow="VEHICLE / 01"
+        title="Robot"
+        description="The latest reported state of your ground vehicle."
+      />
+      <section className="settings-section">
+        <div>
+          <h2>Vehicle state</h2>
+          <p>
+            Readings reflect the latest telemetry received from the vehicle.
+          </p>
+        </div>
+        <dl className="detail-list">
+          {items.map(([label, value]) => (
+            <div key={label}>
+              <dt>{label}</dt>
+              <dd>{value}</dd>
+            </div>
+          ))}
+        </dl>
+      </section>
+      <section className="settings-section">
+        <div>
+          <h2>Position & orientation</h2>
+          <p>Position and heading from the latest vehicle localization data.</p>
+        </div>
+        <dl className="detail-list">
+          <div>
+            <dt>Position X</dt>
+            <dd>
+              {fresh && telemetry.positionX != null
+                ? `${telemetry.positionX.toFixed(2)} m`
+                : '—'}
+            </dd>
+          </div>
+          <div>
+            <dt>Position Y</dt>
+            <dd>
+              {fresh && telemetry.positionY != null
+                ? `${telemetry.positionY.toFixed(2)} m`
+                : '—'}
+            </dd>
+          </div>
+          <div>
+            <dt>Heading</dt>
+            <dd>
+              {fresh && telemetry.yaw != null
+                ? `${(((telemetry.yaw * 180) / Math.PI + 360) % 360).toFixed(1)}°`
+                : '—'}
+            </dd>
+          </div>
+        </dl>
+      </section>
+    </>
   );
-};
-
-export default RobotPage;
+}

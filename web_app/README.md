@@ -66,3 +66,16 @@ Before adding a database field, API name, WebSocket event, or ROS-to-app mapping
 - [`docs/DATABASE_SCHEMA.md`](docs/DATABASE_SCHEMA.md)
 
 Database/API-facing names use `snake_case`; frontend models may use `camelCase` through explicit adapters.
+
+## Live camera and operator workspace
+
+The redesigned workspace includes an authenticated live MJPEG camera viewer with snapshots,
+pause/resume, full screen, and explicit connection states. See
+[Live camera setup](docs/LIVE_CAMERA.md) for vehicle configuration and verification.
+
+## First product demo — simulated UGV
+
+Run `./simulation/start.sh` to launch a local 3D warehouse inspection and a dedicated
+operator dashboard with simulated video and telemetry. Open <http://127.0.0.1:8010>
+and click **Run guided demo**. The demo dashboard runs at <http://127.0.0.1:5174>.
+See [simulation/README.md](simulation/README.md) for the presentation script and controls.

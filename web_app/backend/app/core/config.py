@@ -1,5 +1,6 @@
 from functools import lru_cache
 from typing import Annotated, Literal
+from urllib.parse import urlsplit
 from uuid import UUID
 
 from pydantic import Field, SecretStr, field_validator, model_validator
@@ -27,6 +28,19 @@ class Settings(BaseSettings):
     websocket_queue_size: int = Field(default=100, ge=5, le=1000)
     websocket_max_dropped_messages: int = Field(default=25, ge=1, le=1000)
     websocket_auth_timeout_seconds: float = Field(default=5.0, gt=0, le=30)
+    camera_stream_url: str = ""
+    camera_timeout_seconds: float = Field(default=8.0, ge=1, le=30)
+    camera_max_viewers: int = Field(default=4, ge=1, le=20)
+    camera_max_frame_bytes: int = Field(default=4_194_304, ge=65_536, le=16_777_216)
+
+    @field_validator("camera_stream_url")
+    @classmethod
+    def validate_camera_url(cls, value: str) -> str:
+        if value:
+            url = urlsplit(value)
+            if url.scheme not in {"http", "https"} or not url.hostname or url.fragment:
+                raise ValueError("CAMERA_STREAM_URL must be an HTTP(S) MJPEG endpoint")
+        return value
 
     model_config = SettingsConfigDict(
         env_file=".env", env_file_encoding="utf-8", extra="ignore", case_sensitive=False
