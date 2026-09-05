@@ -744,3 +744,192 @@ progress::-moz-progress-bar {
     scroll-behavior: auto !important;
   }
 }
+
+/* Environment controls share the page's open layout. */
+[hidden] {
+  display: none !important;
+}
+.environment-picker {
+  margin-bottom: 24px;
+  border-bottom: 1px solid #dce3d4;
+  padding-bottom: 22px;
+}
+.environment-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+}
+.environment-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.environment-tabs button {
+  background: transparent;
+  border: 1px solid #cdd5c5;
+  border-radius: 4px;
+  padding: 11px 18px;
+  color: #34472d;
+  font-size: 13px;
+}
+.environment-tabs button span {
+  color: #748467;
+  margin-right: 9px;
+  font-size: 11px;
+}
+.environment-tabs button[aria-pressed='true'] {
+  background: #e4eadc;
+  border-color: #718361;
+  color: #253b20;
+}
+.environment-tabs button:hover {
+  background: #ecf0e6;
+}
+.environment-note {
+  margin-top: 12px;
+  color: #58654f;
+  font-size: 12px;
+  line-height: 1.7;
+}
+.environment-note > span {
+  color: #35462e;
+  margin-right: 12px;
+}
+.custom-editor {
+  margin-top: 22px;
+  border-top: 1px solid #dce3d4;
+  padding-top: 20px;
+}
+.custom-fields {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 22px 28px;
+}
+.custom-fields label {
+  font-size: 12px;
+  font-weight: 550;
+  color: #3f4f35;
+}
+.custom-fields input:not([type='range']),
+.custom-fields select {
+  display: block;
+  width: 100%;
+  padding: 10px 12px;
+  margin-top: 8px;
+  border: 1px solid #bcc9b0;
+  border-radius: 3px;
+  background: #fbfcf8;
+  color: #283321;
+  font: inherit;
+  min-height: 39px;
+}
+.custom-fields input[type='range'] {
+  display: block;
+  width: 100%;
+  margin: 14px 0 0;
+  accent-color: #4f7039;
+}
+.custom-fields output {
+  float: right;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+}
+.custom-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 22px;
+}
+.custom-actions > span {
+  margin-left: auto;
+  font-size: 11px;
+  color: #627058;
+}
+.file-button {
+  position: relative;
+  cursor: pointer;
+  overflow: hidden;
+}
+.file-button input {
+  position: absolute;
+  opacity: 0;
+  inset: 0;
+  width: 100%;
+  cursor: pointer;
+}
+input:focus-visible,
+select:focus-visible,
+.file-button:focus-within {
+  outline: 2px solid #506f3c;
+  outline-offset: 3px;
+}
+.section-heading h2 #environment-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #283321;
+  margin: 0;
+}
+.scene-legend,
+.scene-instruction {
+  background: #f5f6ecdd;
+  padding: 8px 10px;
+  border-radius: 3px;
+  color: #37472e;
+}
+.terrain-readings {
+  margin-top: 16px;
+  padding-top: 8px;
+  border-top: 1px solid #dce3d4;
+}
+.terrain-metrics {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 17px;
+  margin: 0;
+}
+.terrain-metrics dt {
+  color: #607053;
+  font-size: 11px;
+}
+.terrain-metrics dd {
+  margin: 6px 0 0;
+  font-size: 20px;
+  font-variant-numeric: tabular-nums;
+}
+@media (min-width: 1400px) {
+  .world {
+    height: 620px;
+  }
+}
+@media (max-width: 900px) {
+  .environment-toolbar {
+    display: block;
+  }
+  .environment-tabs {
+    margin-top: 12px;
+  }
+  .custom-fields {
+    grid-template-columns: 1fr 1fr;
+  }
+  .custom-actions > span {
+    width: 100%;
+    margin: 2px 0;
+  }
+}
+@media (max-width: 520px) {
+  .environment-tabs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+  .environment-tabs button {
+    text-align: left;
+    padding: 10px;
+  }
+  .custom-fields {
+    gap: 18px;
+  }
+  .environment-note > span {
+    display: block;
+  }
+}

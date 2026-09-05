@@ -4,6 +4,9 @@ import { PageHeading } from '../common/PageHeading';
 
 interface SimulationState {
   status: string;
+  environment: { name: string };
+  position_z: number;
+  slope_degrees: number;
   target_index: number;
   waypoints: { name: string; x: number; y: number }[];
   distance_m: number;
@@ -56,8 +59,8 @@ export function SimulationMission() {
     <>
       <PageHeading
         eyebrow="SIMULATION / NAVIGATION"
-        title="Warehouse inspection"
-        description="Four checkpoints, obstacle avoidance, and a return to the charging dock."
+        title={state ? `${state.environment.name} patrol` : 'Off-road patrol'}
+        description="Four checkpoints, obstacle avoidance, and a return to base camp."
         action={
           <a
             className="button"
@@ -78,13 +81,15 @@ export function SimulationMission() {
           <h2>Mission controls</h2>
           <p>
             Run the guided demo to see the UGV turn around a test obstacle,
-            rejoin its route, and complete its route.
+            rejoin its route, and return to base camp. Choose mountain, rocky,
+            forest, or custom terrain in the 3D simulator.
           </p>
         </div>
         <div>
           <p className="simulation-state">
             {state?.status.replaceAll('_', ' ') || 'Connecting…'} ·{' '}
-            {state?.distance_m.toFixed(1) || '0.0'} m travelled
+            {state?.distance_m.toFixed(1) || '0.0'} m travelled ·{' '}
+            {state?.position_z.toFixed(1) || '0.0'} m elevation
           </p>
           <div className="simulation-actions">
             <button

@@ -3,8 +3,10 @@
 from heapq import heappop, heappush
 from math import hypot
 
+from environments import WORLD_BOUNDS
+
 # Covers the entire rover at any heading, including its wheels.
-ROVER_RADIUS = 0.96
+ROVER_RADIUS = 1.0
 PLANNING_MARGIN = 0.24
 
 
@@ -24,8 +26,11 @@ def rectangles(objects, obstacle, clearance):
     return bounds
 
 
-def segment_clear(a, b, bounds, clearance):
-    if any(abs(x) >= 12 - clearance or abs(y) >= 10 - clearance for x, y in (a, b)):
+def segment_clear(a, b, bounds, clearance, world_bounds=WORLD_BOUNDS):
+    if any(
+        abs(x) >= world_bounds[0] - clearance or abs(y) >= world_bounds[1] - clearance
+        for x, y in (a, b)
+    ):
         return False
     for left, bottom, right, top in bounds:
         low, high = 0.0, 1.0

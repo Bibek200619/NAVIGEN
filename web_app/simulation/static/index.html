@@ -11,7 +11,7 @@
   <body>
     <header class="topbar">
       <a href="/" class="brand"><span>N</span>NAVIGEN</a
-      ><span class="simulation-tag">SIMULATION <b>/</b> DEMO 01</span
+      ><span class="simulation-tag">SIMULATION <b>/</b> FIELD LAB</span
       ><a
         class="dashboard-link"
         href="http://127.0.0.1:5174"
@@ -24,17 +24,152 @@
       <header class="page-heading">
         <div>
           <p class="eyebrow">AUTONOMOUS GROUND VEHICLE</p>
-          <h1>Meet your field operator.</h1>
+          <h1>Built for the ground ahead.</h1>
           <p class="subtitle">
-            A warehouse inspection, from the first waypoint to a safe return.
+            Off-road patrols across mountain slopes, rocky ground, and forest
+            trails.
           </p>
         </div>
         <span id="connection" class="connection">Connecting simulator…</span>
       </header>
+      <section class="environment-picker" aria-label="Choose an environment">
+        <div class="environment-toolbar">
+          <p class="eyebrow">TEST ENVIRONMENT</p>
+          <div class="environment-tabs" aria-label="Terrain presets">
+            <button data-environment="mountain" aria-pressed="true">
+              <span>01</span> Mountain
+            </button>
+            <button data-environment="rocky" aria-pressed="false">
+              <span>02</span> Rocky ground
+            </button>
+            <button data-environment="forest" aria-pressed="false">
+              <span>03</span> Forest
+            </button>
+            <button data-environment="custom" aria-pressed="false">
+              <span>＋</span> Custom
+            </button>
+          </div>
+        </div>
+        <p class="environment-note">
+          <span id="terrain-summary"
+            >Mountain slopes, exposed ridges, and scattered boulders.</span
+          >
+          Switching terrain resets the patrol at base camp.
+        </p>
+        <section
+          id="custom-editor"
+          class="custom-editor"
+          aria-label="Custom environment"
+          hidden
+        >
+          <form id="custom-form">
+            <div class="custom-fields">
+              <label
+                >Environment name<input
+                  id="custom-name"
+                  name="name"
+                  value="My field site"
+                  required
+                  maxlength="48"
+              /></label>
+              <label
+                >Terrain type<select name="profile">
+                  <option value="mountain">Mountain</option>
+                  <option value="rocky">Rocky ground</option>
+                  <option value="forest">Forest</option>
+                </select></label
+              >
+              <label
+                >Weather<select name="weather">
+                  <option value="clear">Clear</option>
+                  <option value="mist">Mist</option>
+                  <option value="rain">Rain</option>
+                </select></label
+              >
+              <label
+                >Terrain seed<input
+                  name="seed"
+                  type="number"
+                  min="0"
+                  max="999999"
+                  step="1"
+                  value="42"
+                  required
+              /></label>
+              <label for="custom-relief"
+                >Height scale <output for="custom-relief">7 m</output
+                ><input
+                  id="custom-relief"
+                  name="relief"
+                  type="range"
+                  min="0"
+                  max="10"
+                  step="0.5"
+                  value="7"
+              /></label>
+              <label for="custom-roughness"
+                >Roughness <output for="custom-roughness">35%</output
+                ><input
+                  id="custom-roughness"
+                  name="roughness"
+                  type="range"
+                  min="0"
+                  max="1"
+                  step=".05"
+                  value=".35"
+              /></label>
+              <label for="custom-density"
+                >Rocks / trees <output for="custom-density">24</output
+                ><input
+                  id="custom-density"
+                  name="density"
+                  type="range"
+                  min="0"
+                  max="40"
+                  step="1"
+                  value="24"
+              /></label>
+              <label for="custom-grip"
+                >Surface grip <output for="custom-grip">82%</output
+                ><input
+                  id="custom-grip"
+                  name="grip"
+                  type="range"
+                  min=".35"
+                  max="1"
+                  step=".01"
+                  value=".82"
+              /></label>
+            </div>
+            <div class="custom-actions">
+              <button
+                class="button primary"
+                id="apply-environment"
+                type="submit"
+              >
+                Generate &amp; switch
+              </button>
+              <button class="button" id="save-environment" type="button">
+                Save setup
+              </button>
+              <label class="button file-button"
+                >Load setup<input
+                  id="load-environment"
+                  type="file"
+                  accept="application/json,.json"
+              /></label>
+              <span>Same seed, same landscape. Settings files use JSON.</span>
+            </div>
+          </form>
+        </section>
+      </section>
       <div class="workspace">
         <section class="world-column" aria-label="Simulation environment">
           <header class="section-heading">
-            <h2>Inspection floor <span>/ 24 × 20 m</span></h2>
+            <h2>
+              <span id="environment-title">Alpine ridge</span>
+              <span>/ 48 × 40 m</span>
+            </h2>
             <div class="view-controls" aria-label="Camera view">
               <button data-view="overview" aria-pressed="true">Overview</button
               ><button data-view="follow" aria-pressed="false">
@@ -45,7 +180,7 @@
           <div class="world" id="world">
             <canvas
               id="scene"
-              aria-label="Interactive 3D warehouse with a simulated four-wheel UGV"
+              aria-label="Interactive off-road terrain with a simulated four-wheel UGV"
               tabindex="0"
             ></canvas>
             <div class="scene-legend">
@@ -90,12 +225,12 @@
             <span id="status" class="status">Ready</span>
           </header>
           <p id="mission-description" class="mission-description">
-            Four checkpoints. One autonomous inspection. Start the guided demo
-            to see the complete sequence.
+            Four checkpoints across uneven ground. Start the guided demo to see
+            the complete sequence.
           </p>
           <button class="button primary guided" id="guided" data-command="demo">
             <span class="play-icon">▶</span>Run guided demo
-            <span class="duration">~60 sec</span>
+            <span class="duration">~2 min</span>
           </button>
           <div class="manual-controls">
             <button class="button" id="start" data-command="start">
@@ -161,10 +296,40 @@
               Rendered from the vehicle pose · 640 × 360
             </p>
           </section>
+          <section
+            class="terrain-readings"
+            aria-label="Vehicle terrain readings"
+          >
+            <header class="section-heading">
+              <h2>Ground response</h2>
+              <span id="active-weather" class="camera-label">Clear</span>
+            </header>
+            <dl class="terrain-metrics">
+              <div>
+                <dt>Elevation</dt>
+                <dd id="altitude">0.0 m</dd>
+              </div>
+              <div>
+                <dt>Pitch</dt>
+                <dd id="pitch">0.0°</dd>
+              </div>
+              <div>
+                <dt>Roll</dt>
+                <dd id="roll">0.0°</dd>
+              </div>
+              <div>
+                <dt>Surface grip</dt>
+                <dd id="traction">82%</dd>
+              </div>
+            </dl>
+            <p class="camera-caption">
+              Estimated 4WD rover · Terrain-aware kinematic model
+            </p>
+          </section>
           <dl class="position">
             <div>
               <dt>Position</dt>
-              <dd id="position">−7.00, −6.00 m</dd>
+              <dd id="position">−16.00, −12.00 m</dd>
             </div>
             <div>
               <dt>Heading</dt>

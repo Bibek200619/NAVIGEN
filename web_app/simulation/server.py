@@ -9,6 +9,7 @@ from typing import Annotated, Literal
 
 from camera import render_camera
 from engine import ROBOT_ID, Simulation, now
+from environments import TerrainConfig, catalog
 from fastapi import (
     Depends,
     FastAPI,
@@ -20,7 +21,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 ROOT = Path(__file__).resolve().parent
 DEMO_TOKEN = "navigen-local-simulation"
@@ -105,6 +106,25 @@ async def state():
     return sim.snapshot()
 
 
+class EnvironmentSelection(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    environment_id: Literal["mountain", "rocky", "forest", "custom"]
+    config: TerrainConfig | None = None
+
+
+@app.get("/simulation/environments")
+async def environments():
+    return {"presets": catalog(), "custom": sim.custom_config.model_dump()}
+
+
+@app.post("/simulation/environment", dependencies=[Depends(authorized)])
+async def select_environment(selection: EnvironmentSelection):
+    return sim.select_environment(
+        selection.environment_id,
+        selection.config.model_dump() if selection.config else None,
+    )
+
+
 class Command(BaseModel):
     action: Literal[
         "demo", "start", "pause", "reset", "obstacle", "clear_obstacle", "estop"
@@ -137,7 +157,9 @@ async def camera_stream():
         while True:
             async with frame_ready:
                 await asyncio.wait_for(
-                    frame_ready.wait_for(lambda seen=seen: frame_version != seen and bool(frame)),
+                    frame_ready.wait_for(
+                        lambda seen=seen: frame_version != seen and bool(frame)
+                    ),
                     5,
                 )
                 image = frame
@@ -193,7 +215,7 @@ async def missions():
             {
                 "id": "demo-inspection",
                 "robot_id": ROBOT_ID,
-                "name": "Warehouse inspection",
+                "name": f"{sim.environment['name']} patrol",
                 "status": status,
                 "simulation": True,
             }

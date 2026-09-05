@@ -75,7 +75,7 @@ pause/resume, full screen, and explicit connection states. See
 
 ## First product demo — simulated UGV
 
-Run `./simulation/start.sh` to launch a local 3D warehouse inspection and a dedicated
+Run `./simulation/start.sh` to launch a local 3D off-road patrol with mountain, rocky, forest, and custom terrain, plus a dedicated
 operator dashboard with simulated video and telemetry. Open <http://127.0.0.1:8010>
 and click **Run guided demo**. The demo dashboard runs at <http://127.0.0.1:5174>.
 See [simulation/README.md](simulation/README.md) for the presentation script and controls.
