@@ -1,8 +1,9 @@
 from fastapi import APIRouter
 
-from app.api.v1.routes import admin, commands, logs, missions, robots, system
+from app.api.v1.routes import admin, cameras, commands, logs, missions, robots, system
 
 router = APIRouter()
+router.include_router(cameras.router, prefix="/cameras", tags=["cameras"])
 router.include_router(system.router, tags=["system"])
 router.include_router(robots.router, prefix="/robots", tags=["robots"])
 router.include_router(missions.router, prefix="/missions", tags=["missions"])

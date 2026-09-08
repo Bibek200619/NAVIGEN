@@ -1,0 +1,7 @@
+{
+  "name": "navigen-ugv-simulation",
+  "private": true,
+  "type": "module",
+  "scripts": {"start": "bash start.sh"},
+  "dependencies": {"three": "^0.180.0"}
+}

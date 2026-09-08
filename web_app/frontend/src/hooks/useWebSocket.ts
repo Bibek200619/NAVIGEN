@@ -1,9 +1,12 @@
+import { useAccessToken } from '../services/session';
 import { useState, useEffect, useCallback } from 'react';
 import {
   wsService,
   type WebSocketStatus,
   type WebSocketEnvelope,
 } from '../services/websocket';
+
+let subscribers = 0;
 
 export interface UseWebSocketReturn<T = unknown> {
   isConnected: boolean;
@@ -19,8 +22,12 @@ export interface UseWebSocketReturn<T = unknown> {
  * Manages connection lifecycle, event subscriptions, and synchronizes state with React.
  */
 export const useWebSocket = <T = unknown>(): UseWebSocketReturn<T> => {
-  const [status, setStatus] = useState<WebSocketStatus>(() => wsService.getStatus());
-  const [latestMessage, setLatestMessage] = useState<WebSocketEnvelope<T> | null>(null);
+  const token = useAccessToken();
+  const [status, setStatus] = useState<WebSocketStatus>(() =>
+    wsService.getStatus(),
+  );
+  const [latestMessage, setLatestMessage] =
+    useState<WebSocketEnvelope<T> | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -37,15 +44,17 @@ export const useWebSocket = <T = unknown>(): UseWebSocketReturn<T> => {
       }
     });
 
+    subscribers += 1;
     wsService.connect();
 
     return () => {
       isMounted = false;
       unsubscribeStatus();
       unsubscribeMessage();
-      wsService.disconnect();
+      subscribers -= 1;
+      if (subscribers === 0) wsService.disconnect();
     };
-  }, []);
+  }, [token]);
 
   const sendMessage = useCallback((data: unknown) => {
     wsService.send(data);

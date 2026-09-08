@@ -28,6 +28,7 @@ from app.repositories.telemetry import (
     SensorStatusRepository,
 )
 from app.services.audit_service import AuditService
+from app.services.camera_service import CameraService
 from app.services.telemetry_service import TelemetryService
 from app.ugv_integration.bridge import RosbridgeUGVBridge
 from app.ugv_integration.ingestion import UGVIngestionCoordinator
@@ -81,6 +82,11 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             timeout_seconds=app_settings.ugv_connection_timeout_seconds,
         )
         application.state.settings = app_settings
+        camera = CameraService(
+            app_settings.camera_stream_url, app_settings.camera_timeout_seconds,
+            app_settings.camera_max_viewers, app_settings.camera_max_frame_bytes,
+        )
+        application.state.camera_service = camera
         application.state.db_client = database
         application.state.auth_client = auth
         application.state.websocket_manager = manager
@@ -111,6 +117,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         try:
             yield
         finally:
+            await camera.close()
             if ingestion is not None:
                 await ingestion.stop()
             else:

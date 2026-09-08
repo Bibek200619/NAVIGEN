@@ -1,6 +1,8 @@
+import { getAccessToken } from './session';
 import { APP_CONFIG } from '../constants/config';
 
-export type WebSocketStatus = 'connecting' | 'connected' | 'disconnected' | 'reconnecting';
+export type WebSocketStatus =
+  'connecting' | 'connected' | 'disconnected' | 'reconnecting';
 
 export interface WebSocketEnvelope<T = unknown> {
   schema_version: number;
@@ -45,10 +47,18 @@ export class WebSocketService {
       this.url = targetUrl;
     }
 
+    if (!getAccessToken()) {
+      this.disconnect();
+      return;
+    }
     this.isExplicitlyDisconnected = false;
     this.clearReconnectTimer();
 
-    if (this.ws && (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING)) {
+    if (
+      this.ws &&
+      (this.ws.readyState === WebSocket.OPEN ||
+        this.ws.readyState === WebSocket.CONNECTING)
+    ) {
       return;
     }
 
@@ -66,7 +76,12 @@ export class WebSocketService {
         if (this.ws !== socket) return;
         this.reconnectAttempts = 0;
         this.clearReconnectTimer();
-        this.setStatus('connected');
+        socket.send(
+          JSON.stringify({
+            type: 'authenticate',
+            access_token: getAccessToken(),
+          }),
+        );
       };
 
       socket.onmessage = (event: MessageEvent) => {
@@ -79,7 +94,8 @@ export class WebSocketService {
         console.error('[WebSocketService] WebSocket error:', error);
       };
 
-      socket.onclose = () => {
+      socket.onclose = (event) => {
+        if (event.code === 4401) this.isExplicitlyDisconnected = true;
         if (this.ws !== socket) return;
         this.handleClose();
       };
@@ -110,7 +126,9 @@ export class WebSocketService {
         console.error('[WebSocketService] Failed to serialize message:', error);
       }
     } else {
-      console.warn('[WebSocketService] Cannot send message: WebSocket is not open');
+      console.warn(
+        '[WebSocketService] Cannot send message: WebSocket is not open',
+      );
     }
   }
 
@@ -131,17 +149,31 @@ export class WebSocketService {
 
   private handleMessage(event: MessageEvent): void {
     try {
-      const rawData = typeof event.data === 'string' ? event.data : String(event.data);
+      const rawData =
+        typeof event.data === 'string' ? event.data : String(event.data);
       const parsed = JSON.parse(rawData) as WebSocketEnvelope<unknown>;
+      const control = parsed as unknown as { type?: string };
+      if (control.type === 'authenticated') {
+        this.setStatus('connected');
+        this.send({ type: 'subscribe', robot_ids: [] });
+        return;
+      }
+      if (!parsed.event_type) return;
       this.messageListeners.forEach((listener) => {
         try {
           listener(parsed);
         } catch (listenerError) {
-          console.error('[WebSocketService] Error in message listener:', listenerError);
+          console.error(
+            '[WebSocketService] Error in message listener:',
+            listenerError,
+          );
         }
       });
     } catch (parseError) {
-      console.error('[WebSocketService] Failed to parse message JSON:', parseError);
+      console.error(
+        '[WebSocketService] Failed to parse message JSON:',
+        parseError,
+      );
     }
   }
 
@@ -160,7 +192,7 @@ export class WebSocketService {
 
     const delay = Math.min(
       this.initialReconnectDelayMs * Math.pow(2, this.reconnectAttempts),
-      this.maxReconnectDelayMs
+      this.maxReconnectDelayMs,
     );
     this.reconnectAttempts += 1;
 
@@ -185,7 +217,10 @@ export class WebSocketService {
       socket.onmessage = null;
       socket.onerror = null;
       socket.onclose = null;
-      if (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING) {
+      if (
+        socket.readyState === WebSocket.OPEN ||
+        socket.readyState === WebSocket.CONNECTING
+      ) {
         socket.close();
       }
     }
@@ -198,7 +233,10 @@ export class WebSocketService {
         try {
           listener(newStatus);
         } catch (listenerError) {
-          console.error('[WebSocketService] Error in status listener:', listenerError);
+          console.error(
+            '[WebSocketService] Error in status listener:',
+            listenerError,
+          );
         }
       });
     }

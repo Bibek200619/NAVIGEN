@@ -1,47 +1,94 @@
-import React from 'react';
-import { Bot, Cpu } from 'lucide-react';
-import { RobotOverview } from '../../components/robot/RobotOverview';
-import { PosePanel } from '../../components/robot/PosePanel';
-import { VelocityPanel } from '../../components/robot/VelocityPanel';
-import { TFTree } from '../../components/robot/TFTree';
-
-export const RobotPage: React.FC = () => {
+import { PageHeading } from '../../components/common/PageHeading';
+import { useRobot } from '../../hooks/useRobot';
+import { useTelemetry } from '../../hooks/useTelemetry';
+export function RobotPage() {
+  const { robotState, isConnected } = useRobot();
+  const { telemetry } = useTelemetry();
+  const fresh = isConnected && telemetry && !telemetry.isStale;
+  const items = [
+    [
+      'Safety state',
+      fresh ? telemetry.safetyState?.replaceAll('_', ' ') || 'Unknown' : '—',
+    ],
+    ['Robot ID', robotState?.id || '—'],
+    [
+      'Vehicle connection',
+      fresh ? robotState?.connectionStatus || 'Unknown' : 'No signal',
+    ],
+    [
+      'Linear velocity',
+      fresh && telemetry.linearVelocity != null
+        ? `${telemetry.linearVelocity.toFixed(2)} m/s`
+        : '—',
+    ],
+    [
+      'Angular velocity',
+      fresh && telemetry.angularVelocity != null
+        ? `${telemetry.angularVelocity.toFixed(2)} rad/s`
+        : '—',
+    ],
+    [
+      'Battery level',
+      fresh && telemetry.batteryLevel != null
+        ? `${telemetry.batteryLevel.toFixed(1)}%`
+        : '—',
+    ],
+  ];
   return (
-    <div className="space-y-6">
-      {/* Tactical Top Command Strip */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 p-4 bg-slate-900/90 rounded-lg border border-slate-800 shadow-sm">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2.5 flex-wrap">
-            <h2 className="text-xl font-bold text-slate-100 tracking-tight flex items-center gap-2">
-              <Bot className="w-5 h-5 text-sky-400" />
-              <span>Robot Status & Configuration</span>
-            </h2>
-            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-sky-950/60 border border-sky-800/40 text-sky-400 font-semibold uppercase tracking-wider">
-              Kinematics & Frames
-            </span>
-          </div>
-          <p className="text-xs text-slate-400">
-            UGV Subsystem Diagnostics, Velocity Metrics & Coordinate Transforms
+    <>
+      <PageHeading
+        eyebrow="VEHICLE / 01"
+        title="Robot"
+        description="The latest reported state of your ground vehicle."
+      />
+      <section className="settings-section">
+        <div>
+          <h2>Vehicle state</h2>
+          <p>
+            Readings reflect the latest telemetry received from the vehicle.
           </p>
         </div>
-
-        <div className="flex items-center gap-2.5">
-          <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-950/80 rounded border border-slate-800 text-xs font-mono text-slate-400">
-            <Cpu className="w-3.5 h-3.5 text-sky-400" />
-            <span>Chassis: Differential Drive UGV</span>
-          </div>
+        <dl className="detail-list">
+          {items.map(([label, value]) => (
+            <div key={label}>
+              <dt>{label}</dt>
+              <dd>{value}</dd>
+            </div>
+          ))}
+        </dl>
+      </section>
+      <section className="settings-section">
+        <div>
+          <h2>Position & orientation</h2>
+          <p>Position and heading from the latest vehicle localization data.</p>
         </div>
-      </div>
-
-      {/* Main Diagnostic Panels Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <RobotOverview />
-        <PosePanel />
-        <VelocityPanel />
-        <TFTree />
-      </div>
-    </div>
+        <dl className="detail-list">
+          <div>
+            <dt>Position X</dt>
+            <dd>
+              {fresh && telemetry.positionX != null
+                ? `${telemetry.positionX.toFixed(2)} m`
+                : '—'}
+            </dd>
+          </div>
+          <div>
+            <dt>Position Y</dt>
+            <dd>
+              {fresh && telemetry.positionY != null
+                ? `${telemetry.positionY.toFixed(2)} m`
+                : '—'}
+            </dd>
+          </div>
+          <div>
+            <dt>Heading</dt>
+            <dd>
+              {fresh && telemetry.yaw != null
+                ? `${(((telemetry.yaw * 180) / Math.PI + 360) % 360).toFixed(1)}°`
+                : '—'}
+            </dd>
+          </div>
+        </dl>
+      </section>
+    </>
   );
-};
-
-export default RobotPage;
+}

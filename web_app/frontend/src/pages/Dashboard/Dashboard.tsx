@@ -1,5 +1,6 @@
 import React from 'react';
-import { RefreshCw, Activity, ShieldCheck, Wifi, Radio } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { RefreshCw, Activity, ShieldCheck, Wifi, Radio, ArrowUpRight } from 'lucide-react';
 import { LiveMap } from '../../components/dashboard/LiveMap';
 import { RobotStatus } from '../../components/dashboard/RobotStatus';
 import { TelemetryPanel } from '../../components/dashboard/TelemetryPanel';
@@ -135,8 +136,15 @@ export const DashboardPage: React.FC = () => {
         <OperationalStatus robotId={selectedRobotId} />
         <SensorStatus robotId={selectedRobotId} className="md:col-span-2 xl:col-span-1" />
       </div>
+      <section className="overview-bottom">
+        <p>
+          <span className="eyebrow">AT A GLANCE</span>Video and vehicle
+          telemetry connect independently.
+        </p>
+        <Link to="/sensors" className="text-link">
+          Inspect sensors <ArrowUpRight size={15} />
+        </Link>
+      </section>
     </div>
   );
-};
-
-export default DashboardPage;
+}

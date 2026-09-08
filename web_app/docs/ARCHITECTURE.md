@@ -757,3 +757,10 @@ The architecture contract is adopted when:
 - [ ] RLS/grants are reviewed for every exposed Supabase table;
 - [ ] mock end-to-end integration tests pass;
 - [ ] Web, backend, UGV, and mobile contributors approve the shared contract.
+
+## Live camera implementation
+
+The primary camera uses an authenticated, read-only HTTP MJPEG relay. Camera configuration
+is deployment-owned; clients cannot supply upstream URLs. Frames pass through the backend
+without database persistence. The v1 camera resources, source configuration, lifecycle limits,
+and frontend connection workflow are defined in [LIVE_CAMERA.md](./LIVE_CAMERA.md).

@@ -1,98 +1,162 @@
-import React from 'react';
-import { VideoOff } from 'lucide-react';
-import { Panel } from '../common/Panel';
-import { StatusBadge } from '../common/StatusBadge';
-import { ROS_TOPICS } from '../../constants/topics';
+import { useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
+import {
+  Camera,
+  Download,
+  Maximize,
+  Pause,
+  Play,
+  RotateCw,
+  ArrowUpRight,
+} from 'lucide-react';
+import { useCamera } from '../../hooks/useCamera';
 
-export interface CameraViewerProps {
-  className?: string;
-  imageSrc?: string | null;
-  children?: React.ReactNode;
-}
-
-export const CameraViewer: React.FC<CameraViewerProps> = ({
-  className = '',
-  imageSrc = null,
-  children,
-}) => {
-  const hasSource = Boolean(imageSrc || children);
-
-  return (
-    <Panel title="Primary Camera Stream" className={className}>
-      <div className="space-y-3">
-        {/* Header: Topic & Status Badge */}
-        <div className="flex items-center justify-between pb-2 border-b border-slate-800 text-xs">
-          <span
-            className="font-mono text-slate-400 text-[11px] truncate"
-            title={ROS_TOPICS.CAMERA_IMAGE_RAW}
-          >
-            {ROS_TOPICS.CAMERA_IMAGE_RAW}
-          </span>
-          <StatusBadge status="Unavailable" variant="default" />
-        </div>
-
-        {/* Viewport Area */}
-        <div
-          role="region"
-          aria-label="Primary camera stream display"
-          className="relative aspect-video w-full flex flex-col items-center justify-center bg-slate-950 rounded border border-slate-800 text-center px-4 overflow-hidden"
-        >
-          {/* Viewfinder Corner Reticle Marks */}
-          <div className="absolute top-3 left-3 w-3.5 h-3.5 border-t-2 border-l-2 border-slate-700/70 pointer-events-none" />
-          <div className="absolute top-3 right-3 w-3.5 h-3.5 border-t-2 border-r-2 border-slate-700/70 pointer-events-none" />
-          <div className="absolute bottom-3 left-3 w-3.5 h-3.5 border-b-2 border-l-2 border-slate-700/70 pointer-events-none" />
-          <div className="absolute bottom-3 right-3 w-3.5 h-3.5 border-b-2 border-r-2 border-slate-700/70 pointer-events-none" />
-
-          {hasSource ? (
-            <div className="w-full h-full flex items-center justify-center">
-              {imageSrc && (
-                <img
-                  src={imageSrc}
-                  alt="Primary Camera Stream"
-                  className="w-full h-full object-contain"
-                />
-              )}
-              {children}
-            </div>
-          ) : (
-            <div className="flex flex-col items-center space-y-2 text-slate-500">
-              <VideoOff className="w-8 h-8 text-slate-600" />
-              <div className="text-xs font-semibold text-slate-300">
-                Camera preview unavailable
-              </div>
-              <div className="text-[11px] text-slate-500">
-                Waiting for camera source
-              </div>
-              {/* Baseline placeholder text preserved */}
-              <div className="text-[10px] font-mono text-slate-600 mt-1">
-                Camera Stream Viewport
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Metadata Footer */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-slate-800 text-xs">
-          <div>
-            <div className="text-slate-500 text-[10px] uppercase font-mono tracking-wider">Resolution</div>
-            <div className="font-mono text-slate-200 mt-0.5 text-xs">N/A</div>
-          </div>
-          <div>
-            <div className="text-slate-500 text-[10px] uppercase font-mono tracking-wider">Framerate</div>
-            <div className="font-mono text-slate-200 mt-0.5 text-xs">N/A</div>
-          </div>
-          <div>
-            <div className="text-slate-500 text-[10px] uppercase font-mono tracking-wider">Latency</div>
-            <div className="font-mono text-slate-200 mt-0.5 text-xs">N/A</div>
-          </div>
-          <div>
-            <div className="text-slate-500 text-[10px] uppercase font-mono tracking-wider">Topic</div>
-            <div className="font-mono text-slate-200 mt-0.5 text-xs truncate" title={ROS_TOPICS.CAMERA_IMAGE_RAW}>
-              {ROS_TOPICS.CAMERA_IMAGE_RAW}
-            </div>
-          </div>
-        </div>
-      </div>
-    </Panel>
+export function CameraViewer({ compact = false }: { compact?: boolean }) {
+  const [paused, setPaused] = useState(false);
+  const [attempt, setAttempt] = useState(0);
+  const [notice, setNotice] = useState('');
+  const container = useRef<HTMLElement>(null);
+  const { canvasRef, state, message, dimensions, fps } = useCamera(
+    paused,
+    attempt,
   );
-};
+  const live = state === 'live';
+  function snapshot() {
+    canvasRef.current?.toBlob(
+      (blob) => {
+        if (!blob) return;
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `navigen-camera-${new Date().toISOString().replaceAll(':', '-')}.jpg`;
+        link.click();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        setNotice('Snapshot saved.');
+      },
+      'image/jpeg',
+      0.92,
+    );
+  }
+  async function fullscreen() {
+    try {
+      if (document.fullscreenElement) await document.exitFullscreen();
+      else await container.current?.requestFullscreen();
+    } catch {
+      setNotice('Full screen is not available in this browser.');
+    }
+  }
+  return (
+    <section
+      className={`camera-viewer ${compact ? 'compact' : ''}`}
+      ref={container}
+      aria-label="Front camera viewer"
+    >
+      <header className="section-heading">
+        <h2>
+          Front camera <span className="camera-id">/ CAM 01</span>
+        </h2>
+        {compact ? (
+          <Link
+            to="/camera"
+            className="icon-button"
+            aria-label="Open full camera view"
+          >
+            <ArrowUpRight size={17} />
+          </Link>
+        ) : (
+          <span className="eyebrow">PRIMARY VIEW</span>
+        )}
+      </header>
+      <div className="camera-stage">
+        <span className="camera-state">
+          <i className={live ? 'status-dot live' : 'status-dot'} />
+          {live
+            ? 'Live'
+            : state === 'authentication'
+              ? 'Not connected'
+              : state === 'connecting'
+                ? 'Connecting'
+                : state === 'paused'
+                  ? 'Paused'
+                  : 'No signal'}
+        </span>
+        <span className="viewport-label">NAVIGEN / FRONT</span>
+        <canvas
+          ref={canvasRef}
+          aria-label="Live view from the front camera"
+          className={live ? '' : 'hidden-canvas'}
+        />
+        {!live && (
+          <div className="camera-empty" role="status">
+            <Camera size={32} strokeWidth={1} />
+            <h3>
+              {state === 'connecting'
+                ? 'Establishing a view'
+                : state === 'paused'
+                  ? 'View paused'
+                  : state === 'authentication'
+                    ? 'Ready when you are.'
+                    : 'Camera unavailable'}
+            </h3>
+            <p>{message}</p>
+            {state === 'authentication' ? (
+              <Link to="/settings" className="camera-connect">
+                Connect session <ArrowUpRight size={14} />
+              </Link>
+            ) : state === 'unavailable' ? (
+              <button
+                className="camera-connect"
+                onClick={() => setAttempt((n) => n + 1)}
+              >
+                <RotateCw size={14} />
+                Retry connection
+              </button>
+            ) : null}
+          </div>
+        )}
+        <span className="viewport-corner">
+          01 <span>/</span> FORWARD
+        </span>
+      </div>
+      <footer className="camera-toolbar">
+        <span className="stream-meta">
+          {live ? `${dimensions} · ${fps || '—'} fps` : 'Front-facing camera'}
+          <span className="transport-label">MJPEG</span>
+        </span>
+        <div className="camera-actions">
+          <button
+            className="icon-button"
+            onClick={() => setPaused((v) => !v)}
+            disabled={state === 'authentication'}
+            aria-label={paused ? 'Resume camera' : 'Pause camera'}
+            title={paused ? 'Resume' : 'Pause'}
+          >
+            {paused ? <Play size={16} /> : <Pause size={16} />}
+          </button>
+          <button
+            className="icon-button"
+            disabled={!live}
+            onClick={snapshot}
+            aria-label="Save snapshot"
+            title="Save snapshot"
+          >
+            <Download size={16} />
+          </button>
+          <button
+            className="icon-button"
+            onClick={fullscreen}
+            aria-label="Toggle full screen"
+            title="Full screen"
+          >
+            <Maximize size={16} />
+          </button>
+        </div>
+      </footer>
+      {notice && (
+        <p className="muted-note" role="status">
+          {notice}
+        </p>
+      )}
+    </section>
+  );
+}
