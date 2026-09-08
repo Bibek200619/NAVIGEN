@@ -13,14 +13,7 @@ export interface TelemetryData {
   connectionStatus?: ConnectionStatus;
   linearVelocity?: number;
   angularVelocity?: number;
-  positionX?: number;
-  positionY?: number;
-  positionZ?: number;
-  yaw?: number;
-  safetyState?: 'ok' | 'warning' | 'emergency_stop';
   isStale?: boolean;
-
-  // Extended fields supporting backend RobotTelemetryResponse
   positionX?: number | null;
   positionY?: number | null;
   positionZ?: number | null;
@@ -31,8 +24,6 @@ export interface TelemetryData {
   dataAgeMs?: number;
   recordedAt?: string;
   receivedAt?: string;
-
-  // Snake_case aliases matching raw backend schema
   position_x?: number | null;
   position_y?: number | null;
   position_z?: number | null;
