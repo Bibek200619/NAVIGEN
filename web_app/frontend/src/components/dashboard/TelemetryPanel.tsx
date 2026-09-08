@@ -1,5 +1,6 @@
 import { useTelemetry } from '../../hooks/useTelemetry';
 export function TelemetryPanel({ robotId: _robotId }: { robotId?: string | null } = {}) {
+  void _robotId;
   const { telemetry, status, isConnected } = useTelemetry();
   const fresh = isConnected && telemetry && !telemetry.isStale;
   return (
