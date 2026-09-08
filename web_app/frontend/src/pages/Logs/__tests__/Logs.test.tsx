@@ -1,38 +1,13 @@
 import { describe, it, expect } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import { LogsPage } from '../Logs';
 
 describe('LogsPage', () => {
-  it('renders system logs header and default logs', () => {
-    render(<LogsPage />);
-
-    expect(screen.getByText('System Logs')).toBeInTheDocument();
-    expect(screen.getByText('Recent Logs')).toBeInTheDocument();
-    expect(screen.getByText(/System initialized successfully/)).toBeInTheDocument();
-    expect(screen.getByText(/Webapp foundation ready/)).toBeInTheDocument();
-  });
-
-  it('filters log items by level', () => {
-    render(<LogsPage />);
-
-    const errorFilterBtn = screen.getByRole('button', { name: 'ERROR' });
-    fireEvent.click(errorFilterBtn);
-
-    expect(screen.getByText('No log entries match the current filter.')).toBeInTheDocument();
-
-    const infoFilterBtn = screen.getByRole('button', { name: 'INFO' });
-    fireEvent.click(infoFilterBtn);
-
-    expect(screen.getByText(/System initialized successfully/)).toBeInTheDocument();
-  });
-
-  it('filters log items by search query', () => {
-    render(<LogsPage />);
-
-    const searchInput = screen.getByLabelText('Search logs');
-    fireEvent.change(searchInput, { target: { value: 'foundation' } });
-
-    expect(screen.getByText(/Webapp foundation ready/)).toBeInTheDocument();
-    expect(screen.queryByText(/System initialized successfully/)).not.toBeInTheDocument();
+  it('prompts for an operator session when disconnected', () => {
+    render(<MemoryRouter><LogsPage /></MemoryRouter>);
+    expect(screen.getByRole('heading', { name: 'Activity' })).toBeInTheDocument();
+    expect(screen.getByText('Connect an operator session to view activity.')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Open connection settings' })).toHaveAttribute('href', '/settings');
   });
 });
