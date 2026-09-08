@@ -28,6 +28,18 @@ export interface RequestOptions {
   signal?: AbortSignal;
 }
 
+export async function apiFetch(endpoint: string, options: RequestInit = {}): Promise<Response> {
+  const headers = new Headers(options.headers);
+  const token = getAccessToken();
+  if (token) headers.set('Authorization', `Bearer ${token}`);
+  const response = await fetch(`${APP_CONFIG.API_BASE_URL}${endpoint}`, { ...options, headers });
+  if (!response.ok) {
+    const body = await response.json().catch(() => null);
+    throw new ApiError(body?.error?.message || `Request failed (${response.status}).`, response.status, response.statusText);
+  }
+  return response;
+}
+
 export class ApiError extends Error {
   readonly status: number;
   readonly statusText: string;
