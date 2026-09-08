@@ -22,7 +22,7 @@ describe('useTelemetry', () => {
       recorded_at: '2026-01-01T00:00:00Z', received_at: '2026-01-01T00:00:01Z',
       payload: { battery_level_pct: 85, linear_velocity: 1.5, angular_velocity: 0.75, connection_status: 'connected', is_stale: false },
     };
-    mockUseWebSocket.mockReturnValue({ isConnected: true, status: 'connected', latestMessage: null });
+    mockUseWebSocket.mockReturnValue({ isConnected: true, status: 'connected', latestMessage: null, ...socketDefaults });
     const { result, rerender } = renderHook(() => useTelemetry());
     mockUseWebSocket.mockReturnValue({ isConnected: true, status: 'connected', latestMessage: packet, ...socketDefaults });
     rerender();
