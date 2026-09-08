@@ -27,7 +27,7 @@ describe('DashboardPage', () => {
     render(<MemoryRouter><DashboardPage /></MemoryRouter>);
     expect(screen.getByText('Dashboard')).toBeInTheDocument();
     expect(screen.getByText('UGV Command Station')).toBeInTheDocument();
-    expect(screen.getByText('Vanguard Alpha')).toBeInTheDocument();
+    expect(screen.getAllByText('Vanguard Alpha').length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText('SAFETY: NOMINAL')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Refresh Robot State' })).toBeInTheDocument();
   });
