@@ -3,21 +3,12 @@ import { render, screen } from '@testing-library/react';
 import { SettingsPage } from '../Settings';
 
 describe('SettingsPage', () => {
-  it('renders application configuration and endpoint inputs', () => {
+  it('renders the operator session form and service endpoints', () => {
     render(<SettingsPage />);
-
-    expect(screen.getByText('Settings')).toBeInTheDocument();
-    expect(screen.getByText('Application Configuration')).toBeInTheDocument();
-    expect(screen.getByText('API Base URL')).toBeInTheDocument();
-    expect(screen.getByText('WebSocket URL')).toBeInTheDocument();
-
-    const apiInput = screen.getByLabelText('API Base URL');
-    expect(apiInput).toHaveAttribute('readonly');
-
-    const wsInput = screen.getByLabelText('WebSocket URL');
-    expect(wsInput).toHaveAttribute('readonly');
-
-    expect(screen.getByText('Runtime Environment')).toBeInTheDocument();
-    expect(screen.getByText(/NAVIGEN Web GCS/)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Connection' })).toBeInTheDocument();
+    expect(screen.getByLabelText('Access token')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Connect session/i })).toBeDisabled();
+    expect(screen.getByText('http://localhost:3000')).toBeInTheDocument();
+    expect(screen.getByText('ws://localhost:3000/ws/v1/telemetry')).toBeInTheDocument();
   });
 });
