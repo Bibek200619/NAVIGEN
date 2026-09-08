@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { RefreshCw, Activity, ShieldCheck, Wifi, Radio } from 'lucide-react';
 import { LiveMap } from '../../components/dashboard/LiveMap';
 import { RobotStatus } from '../../components/dashboard/RobotStatus';
