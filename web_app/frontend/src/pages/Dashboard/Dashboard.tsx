@@ -144,6 +144,7 @@ export const DashboardPage: React.FC = () => {
           Inspect sensors <ArrowUpRight size={15} />
         </Link>
       </section>
+      </div>
     </>
   );
 }
