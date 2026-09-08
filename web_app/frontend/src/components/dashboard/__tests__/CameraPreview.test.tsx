@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import { CameraPreview } from '../CameraPreview';
 
 vi.mock('../../../hooks/useCamera', () => ({
@@ -14,7 +15,7 @@ vi.mock('../../../hooks/useCamera', () => ({
 
 describe('CameraPreview', () => {
   it('renders the front camera viewer and connection prompt', () => {
-    render(<CameraPreview />);
+    render(<MemoryRouter><CameraPreview /></MemoryRouter>);
     expect(screen.getByRole('region', { name: 'Front camera viewer' })).toBeInTheDocument();
     expect(screen.getByText('Front camera')).toBeInTheDocument();
     expect(screen.getByText('Not connected')).toBeInTheDocument();
@@ -22,7 +23,7 @@ describe('CameraPreview', () => {
   });
 
   it('supports compact mode link to the full camera view', () => {
-    render(<CameraPreview compact />);
+    render(<MemoryRouter><CameraPreview compact /></MemoryRouter>);
     expect(screen.getByRole('link', { name: 'Open full camera view' })).toHaveAttribute('href', '/camera');
   });
 });
