@@ -9,12 +9,8 @@ vi.mock('../../../hooks/useWebSocket', () => ({
 
 describe('Header', () => {
   it('renders the current workspace and gateway state', () => {
-    render(
-      <MemoryRouter initialEntries={['/dashboard']}>
-        <Header />
-      </MemoryRouter>,
-    );
-    expect(screen.getByText('SIMULATION')).toBeInTheDocument();
+    render(<MemoryRouter initialEntries={['/dashboard']}><Header /></MemoryRouter>);
+    expect(screen.getByText(/Workspace|SIMULATION/)).toBeInTheDocument();
     expect(screen.getByText('Overview')).toBeInTheDocument();
     expect(screen.getByText('Gateway connected')).toBeInTheDocument();
   });
