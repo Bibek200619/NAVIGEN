@@ -8,7 +8,7 @@ describe('MissionPage', () => {
     render(<MemoryRouter><MissionPage /></MemoryRouter>);
     expect(screen.getByRole('heading', { name: 'Missions' })).toBeInTheDocument();
     expect(screen.getByText('Mission controls')).toBeInTheDocument();
-    expect(screen.getByText('Mission history is not connected.')).toBeInTheDocument();
+    expect(screen.getByText('No past missions recorded for this robot.')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'open the camera.' })).toHaveAttribute('href', '/camera');
   });
 });
