@@ -5,11 +5,12 @@ import type { UseWebSocketReturn } from '../useWebSocket';
 import type { WebSocketEnvelope } from '../../services/websocket';
 
 const mockUseWebSocket = vi.fn<() => UseWebSocketReturn>();
+const socketDefaults = { sendMessage: vi.fn(), connect: vi.fn(), disconnect: vi.fn() };
 vi.mock('../useWebSocket', () => ({ useWebSocket: () => mockUseWebSocket() }));
 
 describe('useTelemetry', () => {
   it('returns no telemetry before a packet arrives', () => {
-    mockUseWebSocket.mockReturnValue({ isConnected: false, status: 'disconnected', latestMessage: null });
+    mockUseWebSocket.mockReturnValue({ isConnected: false, status: 'disconnected', latestMessage: null, ...socketDefaults });
     const { result } = renderHook(() => useTelemetry());
     expect(result.current.telemetry).toBeNull();
     expect(result.current.status).toBe('disconnected');
@@ -23,7 +24,7 @@ describe('useTelemetry', () => {
     };
     mockUseWebSocket.mockReturnValue({ isConnected: true, status: 'connected', latestMessage: null });
     const { result, rerender } = renderHook(() => useTelemetry());
-    mockUseWebSocket.mockReturnValue({ isConnected: true, status: 'connected', latestMessage: packet });
+    mockUseWebSocket.mockReturnValue({ isConnected: true, status: 'connected', latestMessage: packet, ...socketDefaults });
     rerender();
     expect(result.current.telemetry).toMatchObject({ batteryLevel: 85, linearVelocity: 1.5, angularVelocity: 0.75, connectionStatus: 'connected' });
     expect(result.current.isConnected).toBe(true);
