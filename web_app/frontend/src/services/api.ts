@@ -1,4 +1,5 @@
 import { APP_CONFIG } from '../constants/config';
+import { getAccessToken } from './session';
 import type {
   Robot,
   RobotTelemetryResponse,
