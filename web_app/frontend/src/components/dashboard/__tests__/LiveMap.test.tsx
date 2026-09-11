@@ -6,13 +6,11 @@ describe('LiveMap Component', () => {
   it('renders tactical map header, viewport, and metadata', () => {
     render(<LiveMap />);
 
-    expect(screen.getByText('Live Map')).toBeInTheDocument();
+    expect(screen.getByText('Live map')).toBeInTheDocument();
     expect(screen.getByText(/Ref: odom → base_link/)).toBeInTheDocument();
     expect(screen.getByText('MAP VIEW')).toBeInTheDocument();
     expect(screen.getByTestId('live-map-viewport')).toBeInTheDocument();
-    expect(screen.getByText('Reference Frame')).toBeInTheDocument();
-    expect(screen.getByText('Grid Division')).toBeInTheDocument();
-    expect(screen.getByText('Projection')).toBeInTheDocument();
+    expect(screen.getByText(/2D orthographic/)).toBeInTheDocument();
   });
 
   it('provides accessible map controls with interactive zoom and recenter', () => {

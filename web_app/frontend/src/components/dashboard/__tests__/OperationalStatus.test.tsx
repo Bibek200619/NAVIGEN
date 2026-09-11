@@ -26,7 +26,7 @@ describe('OperationalStatus Component', () => {
   it('renders unavailable states when no robot ID or data is present and never defaults to OK', () => {
     render(<OperationalStatus robotId={null} />);
 
-    expect(screen.getByText('Operational Status')).toBeInTheDocument();
+    expect(screen.getByText('Operational status')).toBeInTheDocument();
     expect(screen.getByText('UNAVAILABLE')).toBeInTheDocument();
     expect(screen.getByText('Unavailable')).toBeInTheDocument();
     expect(screen.getAllByText('No active robot').length).toBe(2);
@@ -88,8 +88,8 @@ describe('OperationalStatus Component', () => {
     );
 
     expect(screen.getByText('WARNING')).toBeInTheDocument();
-    expect(screen.getByText('cliff_detected')).toBeInTheDocument();
-    expect(screen.getByText('proximity_alert')).toBeInTheDocument();
+    expect(screen.getByText(/cliff_detected/)).toBeInTheDocument();
+    expect(screen.getByText(/proximity_alert/)).toBeInTheDocument();
   });
 
   it('renders Safety EMERGENCY STOP and Localization LOST correctly', () => {

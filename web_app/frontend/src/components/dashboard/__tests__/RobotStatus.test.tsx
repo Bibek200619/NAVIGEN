@@ -112,12 +112,12 @@ describe('RobotStatus', () => {
 
     const { rerender } = render(<RobotStatus isLoading={false} robot={baseRobot} />);
 
-    expect(within(screen.getByText('Gateway:').parentElement!).getByText('Connected')).toBeInTheDocument();
-    expect(within(screen.getByText('Robot link:').parentElement!).getByText('Connected')).toBeInTheDocument();
-    expect(within(screen.getByText('Robot status:').parentElement!).getByText('Navigating')).toBeInTheDocument();
-    expect(within(screen.getByText('Telemetry:').parentElement!).getByText('Live')).toBeInTheDocument();
-    expect(screen.getByText('1.45')).toBeInTheDocument();
-    expect(screen.getByText('0.35')).toBeInTheDocument();
+    expect(within(screen.getByText('Gateway').closest('div')!).getByText('Connected')).toBeInTheDocument();
+    expect(within(screen.getByText('Robot link').closest('div')!).getByText('Connected')).toBeInTheDocument();
+    expect(within(screen.getByText('Robot status').closest('div')!).getByText('Navigating')).toBeInTheDocument();
+    expect(within(screen.getByText('Telemetry').closest('div')!).getByText('Live')).toBeInTheDocument();
+    expect(screen.getByText('1.45 m/s')).toBeInTheDocument();
+    expect(screen.getByText('0.35 rad/s')).toBeInTheDocument();
 
     // 2. Telemetry stream becomes stale (link remains connected)
     mockUseRobot.mockReturnValue(
@@ -134,9 +134,9 @@ describe('RobotStatus', () => {
     );
     rerender(<RobotStatus isLoading={false} robot={baseRobot} />);
 
-    expect(within(screen.getByText('Gateway:').parentElement!).getByText('Connected')).toBeInTheDocument();
-    expect(within(screen.getByText('Robot link:').parentElement!).getByText('Connected')).toBeInTheDocument();
-    expect(within(screen.getByText('Telemetry:').parentElement!).getByText('Stale')).toBeInTheDocument();
+    expect(within(screen.getByText('Gateway').closest('div')!).getByText('Connected')).toBeInTheDocument();
+    expect(within(screen.getByText('Robot link').closest('div')!).getByText('Connected')).toBeInTheDocument();
+    expect(within(screen.getByText('Telemetry').closest('div')!).getByText('Stale')).toBeInTheDocument();
 
     // 3. Reconnecting state (gateway disconnects and attempts to reconnect)
     mockUseRobot.mockReturnValue(
@@ -158,10 +158,10 @@ describe('RobotStatus', () => {
       />,
     );
 
-    expect(within(screen.getByText('Gateway:').parentElement!).getByText('Reconnecting')).toBeInTheDocument();
-    expect(within(screen.getByText('Robot link:').parentElement!).getByText('Disconnected')).toBeInTheDocument();
-    expect(within(screen.getByText('Telemetry:').parentElement!).getByText('Stale')).toBeInTheDocument();
-    expect(screen.getAllByText('--').length).toBeGreaterThanOrEqual(2);
+    expect(within(screen.getByText('Gateway').closest('div')!).getByText('Reconnecting')).toBeInTheDocument();
+    expect(within(screen.getByText('Robot link').closest('div')!).getByText('Disconnected')).toBeInTheDocument();
+    expect(within(screen.getByText('Telemetry').closest('div')!).getByText('Stale')).toBeInTheDocument();
+    expect(screen.getAllByText('—').length).toBeGreaterThanOrEqual(2);
 
     // 4. Disconnected / offline state
     mockUseRobot.mockReturnValue(
@@ -178,10 +178,10 @@ describe('RobotStatus', () => {
       />,
     );
 
-    expect(within(screen.getByText('Gateway:').parentElement!).getByText('Disconnected')).toBeInTheDocument();
-    expect(within(screen.getByText('Robot link:').parentElement!).getByText('Disconnected')).toBeInTheDocument();
-    expect(within(screen.getByText('Robot status:').parentElement!).getByText('Offline')).toBeInTheDocument();
-    expect(within(screen.getByText('Telemetry:').parentElement!).getByText('Unavailable')).toBeInTheDocument();
+    expect(within(screen.getByText('Gateway').closest('div')!).getByText('Disconnected')).toBeInTheDocument();
+    expect(within(screen.getByText('Robot link').closest('div')!).getByText('Disconnected')).toBeInTheDocument();
+    expect(within(screen.getByText('Robot status').closest('div')!).getByText('Offline')).toBeInTheDocument();
+    expect(within(screen.getByText('Telemetry').closest('div')!).getByText('Unavailable')).toBeInTheDocument();
 
     // 5. Connection restored / live again
     mockUseRobot.mockReturnValue(
@@ -203,12 +203,12 @@ describe('RobotStatus', () => {
       />,
     );
 
-    expect(within(screen.getByText('Gateway:').parentElement!).getByText('Connected')).toBeInTheDocument();
-    expect(within(screen.getByText('Robot link:').parentElement!).getByText('Connected')).toBeInTheDocument();
-    expect(within(screen.getByText('Robot status:').parentElement!).getByText('Navigating')).toBeInTheDocument();
-    expect(within(screen.getByText('Telemetry:').parentElement!).getByText('Live')).toBeInTheDocument();
-    expect(screen.getByText('0.82')).toBeInTheDocument();
-    expect(screen.getByText('-0.18')).toBeInTheDocument();
+    expect(within(screen.getByText('Gateway').closest('div')!).getByText('Connected')).toBeInTheDocument();
+    expect(within(screen.getByText('Robot link').closest('div')!).getByText('Connected')).toBeInTheDocument();
+    expect(within(screen.getByText('Robot status').closest('div')!).getByText('Navigating')).toBeInTheDocument();
+    expect(within(screen.getByText('Telemetry').closest('div')!).getByText('Live')).toBeInTheDocument();
+    expect(screen.getByText('0.82 m/s')).toBeInTheDocument();
+    expect(screen.getByText('-0.18 rad/s')).toBeInTheDocument();
   });
 
   it('updates telemetry and status correctly when robot prop is omitted and driven by WebSocket robotState', () => {
@@ -229,8 +229,8 @@ describe('RobotStatus', () => {
     render(<RobotStatus isLoading={false} robot={null} />);
 
     expect(screen.getByText('No robot registered')).toBeInTheDocument();
-    expect(within(screen.getByText('Gateway:').parentElement!).getByText('Connected')).toBeInTheDocument();
-    expect(within(screen.getByText('Robot link:').parentElement!).getByText('Connected')).toBeInTheDocument();
-    expect(within(screen.getByText('Telemetry:').parentElement!).getByText('Live')).toBeInTheDocument();
+    expect(within(screen.getByText('Gateway').closest('div')!).getByText('Connected')).toBeInTheDocument();
+    expect(within(screen.getByText('Robot link').closest('div')!).getByText('Connected')).toBeInTheDocument();
+    expect(within(screen.getByText('Telemetry').closest('div')!).getByText('Live')).toBeInTheDocument();
   });
 });

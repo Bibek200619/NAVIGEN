@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { RefreshCw, Activity, ShieldCheck, Wifi, Radio, ArrowUpRight } from 'lucide-react';
+import { RefreshCw, ArrowUpRight } from 'lucide-react';
 import { LiveMap } from '../../components/dashboard/LiveMap';
 import { RobotStatus } from '../../components/dashboard/RobotStatus';
 import { TelemetryPanel } from '../../components/dashboard/TelemetryPanel';
@@ -45,82 +45,54 @@ export const DashboardPage: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* TOP: Tactical Command HUD Strip */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 p-4 bg-slate-900/90 rounded-lg border border-slate-800 shadow-sm">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2.5 flex-wrap">
-            <h2 className="text-xl font-bold text-slate-100 tracking-tight flex items-center gap-2">
-              <Activity className="w-5 h-5 text-sky-400" />
-              <span>Dashboard</span>
-            </h2>
-            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-sky-950/60 border border-sky-800/40 text-sky-400 font-semibold uppercase tracking-wider">
-              UGV Command Station
-            </span>
-          </div>
+      <header className="dashboard-strip">
+        <div>
+          <h2>Dashboard</h2>
           {selectedRobot ? (
-            <div className="text-xs font-mono text-slate-400">
-              Active Robot: <span className="text-slate-200 font-semibold">{selectedRobot.name}</span>{' '}
-              <span className="text-slate-500 font-mono">({selectedRobot.id})</span>
-            </div>
+            <p className="fleet-meta">
+              Active robot: <strong>{selectedRobot.name}</strong>{' '}
+              <span className="mono">({selectedRobot.id})</span>
+            </p>
           ) : (
-            <div className="text-xs text-slate-500 font-mono">
-              Fleet Status: No active robot selected
-            </div>
+            <p className="fleet-meta">Fleet status: No active robot selected</p>
           )}
         </div>
 
-        {/* Tactical Quick-Scan Indicators */}
-        <div className="flex items-center gap-2.5 flex-wrap">
-          {/* Gateway link pill */}
-          <div className="flex items-center gap-2 px-2.5 py-1.5 bg-slate-950/80 rounded border border-slate-800 text-xs">
-            <Wifi className={`w-3.5 h-3.5 ${isWsConnected ? 'text-emerald-400' : 'text-slate-500'}`} />
-            <span className="text-slate-400 text-[11px] font-mono">Gateway</span>
-            <span
-              className={`w-2 h-2 rounded-full ${
-                isWsConnected ? 'bg-emerald-400' : 'bg-slate-600'
-              }`}
+        <div className="dashboard-pills">
+          <span className="dashboard-pill">
+            Gateway
+            <StatusBadge
+              status={isWsConnected ? 'Connected' : 'Offline'}
+              variant={isWsConnected ? 'success' : 'default'}
             />
-          </div>
-
-          {/* Operational State Pill */}
+          </span>
           {selectedRobot && (
-            <div className="flex items-center gap-2 px-2.5 py-1.5 bg-slate-950/80 rounded border border-slate-800 text-xs">
-              <Radio className="w-3.5 h-3.5 text-sky-400" />
-              <span className="text-slate-400 text-[11px] font-mono">Mode</span>
-              <span className="font-mono text-[11px] text-slate-200 uppercase font-semibold">
-                {selectedRobot.status}
-              </span>
-            </div>
+            <span className="dashboard-pill">
+              Mode
+              <strong>{selectedRobot.status}</strong>
+            </span>
           )}
-
-          {/* Safety State Pill */}
-          <div className="flex items-center gap-1.5">
-            <ShieldCheck className="w-4 h-4 text-slate-400" />
-            <StatusBadge status={quickSafety.label} variant={quickSafety.variant} />
-          </div>
-
-          {/* Sync Button */}
+          <StatusBadge status={quickSafety.label} variant={quickSafety.variant} />
           <button
             type="button"
             onClick={() => refetchRobot()}
-            title="Sync Robot Fleet State"
+            title="Sync robot fleet state"
             aria-label="Refresh Robot State"
-            className="p-1.5 bg-slate-950 hover:bg-slate-800 text-slate-400 hover:text-slate-200 border border-slate-800 rounded transition-colors focus:outline-none focus:ring-1 focus:ring-sky-500"
+            className="icon-button"
           >
-            <RefreshCw className="w-3.5 h-3.5" />
+            <RefreshCw size={15} />
           </button>
         </div>
-      </div>
+      </header>
 
-      {/* MAIN: Tactical Situational Awareness (Map, Camera, Robot Vehicle Status) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        <div className="lg:col-span-12 xl:col-span-5">
+      <div className="dashboard-grid">
+        <div className="dashboard-card">
           <LiveMap />
         </div>
-        <div className="lg:col-span-6 xl:col-span-4">
-          <CameraPreview />
+        <div className="dashboard-card">
+          <CameraPreview compact />
         </div>
-        <div className="lg:col-span-6 xl:col-span-3">
+        <div className="dashboard-card">
           <RobotStatus
             robot={selectedRobot}
             isLoading={robotLoading}
@@ -130,12 +102,12 @@ export const DashboardPage: React.FC = () => {
         </div>
       </div>
 
-      {/* LOWER: Telemetry & Drive, Operational Diagnostics & SLAM, Sensor Health Matrix */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 items-start">
+      <div className="dashboard-grid-lower">
         <TelemetryPanel robotId={selectedRobotId} />
         <OperationalStatus robotId={selectedRobotId} />
-        <SensorStatus robotId={selectedRobotId} className="md:col-span-2 xl:col-span-1" />
+        <SensorStatus robotId={selectedRobotId} />
       </div>
+
       <section className="overview-bottom">
         <p>
           <span className="eyebrow">AT A GLANCE</span>Video and vehicle
@@ -147,4 +119,4 @@ export const DashboardPage: React.FC = () => {
       </section>
     </div>
   );
-}
+};
