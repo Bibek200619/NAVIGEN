@@ -139,6 +139,134 @@ async def command(command: Command):
         raise HTTPException(409, str(exc)) from exc
 
 
+def _require_robot(robot_id: str):
+    if robot_id != ROBOT_ID:
+        raise HTTPException(404, "Robot not found.")
+
+
+def _robot_status() -> str:
+    return {
+        "idle": "idle",
+        "running": "navigating",
+        "avoiding": "navigating",
+        "blocked": "navigating",
+        "paused": "manual",
+        "completed": "idle",
+        "emergency_stop": "error",
+    }.get(sim.status, "idle")
+
+
+def _robot_record():
+    timestamp = now()
+    return {
+        "id": ROBOT_ID,
+        "name": "NAVIGEN 01",
+        "slug": "navigen-01",
+        "status": _robot_status(),
+        "connection_status": "connected",
+        "last_seen_at": timestamp,
+        "description": f"Simulated UGV on {sim.environment['name']}",
+        "metadata": {"simulation": True},
+        "created_at": timestamp,
+        "updated_at": timestamp,
+    }
+
+
+def _safety_triggers() -> list[str]:
+    if sim.estop:
+        return ["emergency_stop"]
+    if sim.status in ("avoiding", "blocked"):
+        return ["obstacle_detected"]
+    return []
+
+
+def _sensor_catalog():
+    return [
+        ("camera", "Camera", "/camera/image_raw", 8),
+        ("imu", "Inertial measurement", "/imu/data", 50),
+        ("wheel_odom", "Wheel odometry", "/wheel/odom", 30),
+        ("tf", "Transforms", "/tf", 30),
+        ("joint_states", "Joint states", "/joint_states", 30),
+    ]
+
+
+@app.get("/api/v1/robots", dependencies=[Depends(authorized)])
+async def robots(limit: int = 50, offset: int = 0):
+    return {
+        "items": [_robot_record()],
+        "total": 1,
+        "limit": limit,
+        "offset": offset,
+    }
+
+
+@app.get("/api/v1/robots/{robot_id}", dependencies=[Depends(authorized)])
+async def robot(robot_id: str):
+    _require_robot(robot_id)
+    return _robot_record()
+
+
+@app.get("/api/v1/robots/{robot_id}/safety", dependencies=[Depends(authorized)])
+async def robot_safety(robot_id: str, limit: int = 10):
+    _require_robot(robot_id)
+    timestamp = now()
+    state = sim.telemetry()["safety_state"]
+    description = None
+    if state == "warning":
+        description = f"Simulation status: {sim.status}"
+    elif state == "emergency_stop":
+        description = "Simulated emergency stop is active."
+    return [
+        {
+            "id": None,
+            "robot_id": ROBOT_ID,
+            "recorded_at": timestamp,
+            "received_at": timestamp,
+            "state": state,
+            "active_triggers": _safety_triggers(),
+            "description": description,
+            "created_at": None,
+        }
+    ][: max(1, min(limit, 100))]
+
+
+@app.get("/api/v1/robots/{robot_id}/localization", dependencies=[Depends(authorized)])
+async def robot_localization(robot_id: str):
+    _require_robot(robot_id)
+    timestamp = now()
+    return {
+        "id": None,
+        "robot_id": ROBOT_ID,
+        "recorded_at": timestamp,
+        "received_at": timestamp,
+        "state": sim.telemetry()["localization_state"],
+        "tracked_features": 128,
+        "created_at": None,
+    }
+
+
+@app.get("/api/v1/robots/{robot_id}/sensors", dependencies=[Depends(authorized)])
+async def robot_sensors(robot_id: str):
+    _require_robot(robot_id)
+    timestamp = now()
+    active = not sim.estop
+    return [
+        {
+            "id": f"sim-{sensor_key}",
+            "robot_id": ROBOT_ID,
+            "sensor_key": sensor_key,
+            "name": name,
+            "topic": topic,
+            "is_active": active,
+            "frequency_hz": hz,
+            "last_updated_at": timestamp,
+            "details": {"simulation": True},
+            "updated_at": timestamp,
+        }
+        for sensor_key, name, topic, hz in _sensor_catalog()
+    ]
+
+
 @app.get("/api/v1/cameras/primary", dependencies=[Depends(authorized)])
 async def camera_status():
     return {

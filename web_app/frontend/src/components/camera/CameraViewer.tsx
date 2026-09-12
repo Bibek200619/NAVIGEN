@@ -67,7 +67,7 @@ export function CameraViewer({ compact = false }: { compact?: boolean }) {
           <span className="eyebrow">PRIMARY VIEW</span>
         )}
       </header>
-      <div className="camera-stage">
+      <div className={`camera-stage ${live ? 'is-live' : 'is-idle'}`}>
         <span className="camera-state">
           <i className={live ? 'status-dot live' : 'status-dot'} />
           {live
@@ -114,9 +114,11 @@ export function CameraViewer({ compact = false }: { compact?: boolean }) {
             ) : null}
           </div>
         )}
-        <span className="viewport-corner">
-          01 <span>/</span> FORWARD
-        </span>
+        {live && (
+          <span className="viewport-corner">
+            01 <span>/</span> FORWARD
+          </span>
+        )}
       </div>
       <footer className="camera-toolbar">
         <span className="stream-meta">
