@@ -29,5 +29,3 @@ Web and mobile apps consume UGV telemetry through a bridge on the Raspberry Pi
 (e.g. rosbridge_suite / WebSocket); they are operator tools only and are NEVER in the
 autonomy control loop — the safety supervisor and ESP8266 watchdog remain authoritative.
 
-> Note: directory names use snake_case (no spaces) because colcon, CMake and most CI tooling
-> break on paths containing spaces.
