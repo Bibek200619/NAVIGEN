@@ -217,6 +217,17 @@ The project is intentionally being developed in gated phases rather than treatin
 - [Calibration](navigen_ugv/docs/calibration.md)
 - [Troubleshooting](navigen_ugv/docs/troubleshooting.md)
 
+## Contributors / Team Contributions
+
+**Nikhil Chhetri** — AI / Full-Stack / DevOps Developer
+
+- Worked on autonomous navigation system development
+- Computer vision and perception pipeline
+- Gazebo-based UGV simulation and testing
+- Backend/API integration
+- Docker-based deployment
+- Integration and testing of the overall system
+
 ## Status Note
 
 This README describes the **actual current engineering state**, not the intended final feature set. The full autonomous outdoor demonstration is a future acceptance target and is not yet complete. Phase status and completion estimates should be updated in `navigen_ugv/PROJECT_PROGRESS.md` as new gates are passed.
