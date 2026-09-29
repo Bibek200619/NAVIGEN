@@ -253,5 +253,3 @@ There is currently no repository license file; contributors should agree on lice
 ## Demo and further reading
 
 **Screenshot placeholder:** no verified product screenshots are committed. Capture the local demo, the Pi camera/dashboard, and the physical build after a reviewed demo run; do not substitute rendered simulation frames for field photos. For a live review, run the local demo or Pi mock above; [simulation guidance](web_app/simulation/README.md) describes the presentation sequence. Useful source documents are the [physical operations guide](navigen_ugv/pi_controller/OPERATIONS.md), [ESP8266 firmware and pin map](navigen_ugv/firmware/esp8266_motor_controller/README.md), [ROS research setup](navigen_ugv/README.md), and [web backend/API guide](web_app/backend/README.md).
-
-**Contributor credited in the previous project README:** Nikhil Chhetri — AI/full-stack/DevOps development, Gazebo simulation, backend integration and testing.
