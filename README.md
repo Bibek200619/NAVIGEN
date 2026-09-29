@@ -1,7 +1,13 @@
 # NAVIGEN — Vision-Based Autonomous Navigation for an Outdoor UGV
 
+
+> **Current physical hardware (2026-09-30):** Raspberry Pi + Pi Camera, NodeMCU ESP8266, one L298N, four motors without encoders, and one rear ultrasonic sensor. The runnable camera-driving code and setup are in [navigen_ugv/pi_controller/README.md](navigen_ugv/pi_controller/README.md). The ROS/Gazebo roadmap below predates this hardware profile.
+
+Vision-based GPS-denied autonomous navigation platform for an outdoor Unmanned Ground Vehicle.
+=======
 **Smart India Hackathon 2026 — Problem Statement SIH26126**  
 **Vision Based Autonomous Navigation for Unmanned Ground Vehicle for Outdoor Environment**
+
 
 NAVIGEN is a vision-first autonomous navigation platform for a 4WD Unmanned Ground Vehicle (UGV) designed to operate outdoors **without GPS as a navigation input**. The system is being developed around a Raspberry Pi 5, Raspberry Pi camera, MPU6050 IMU, NodeMCU ESP8266 motor controller, L298N motor driver, and a 4WD skid-steer chassis.
 

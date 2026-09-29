@@ -17,6 +17,7 @@ constexpr std::size_t MAX_FRAME_SIZE = 2 + HEADER_SIZE + MAX_PAYLOAD_SIZE + 1;
 
 constexpr uint8_t MSG_CMD_VELOCITY = 0x01;
 constexpr uint8_t MSG_CMD_ESTOP = 0x02;
+constexpr uint8_t MSG_CMD_BUZZER = 0x03;
 constexpr uint8_t MSG_TELEMETRY = 0x10;
 
 constexpr uint8_t FLAG_ESTOP = 0x01;
@@ -196,6 +197,21 @@ inline bool decodeEstop(const Frame& frame, bool& active) {
   return true;
 }
 
+inline bool decodeBuzzerConfig(const Frame& frame, bool& enabled,
+                               uint16_t& threshold_mm) {
+  if (frame.message_id != MSG_CMD_BUZZER || frame.payload_size != 3 ||
+      frame.payload[0] > 1) {
+    return false;
+  }
+  const uint16_t requested_threshold = readUint16(frame.payload.data() + 1);
+  if (requested_threshold < 50 || requested_threshold > 4000) {
+    return false;
+  }
+  enabled = frame.payload[0] != 0;
+  threshold_mm = requested_threshold;
+  return true;
+}
+
 struct Telemetry {
   int16_t left_velocity_mmps{0};
   int16_t right_velocity_mmps{0};
@@ -210,11 +226,13 @@ struct Telemetry {
   uint16_t acknowledged_sequence{0};
   uint16_t command_age_ms{0xFFFF};
   uint16_t rx_crc_errors{0};
+  bool buzzer_enabled{false};
+  uint16_t buzzer_threshold_mm{300};
 };
 
 inline std::size_t encodeTelemetry(const Telemetry& telemetry, uint16_t sequence,
                                    uint8_t* output, std::size_t capacity) {
-  constexpr uint8_t payload_size = 29;
+  constexpr uint8_t payload_size = 32;
   uint8_t payload[payload_size]{};
   std::size_t offset = 0;
   auto append16 = [&](uint16_t value) {
@@ -238,6 +256,8 @@ inline std::size_t encodeTelemetry(const Telemetry& telemetry, uint16_t sequence
   append16(telemetry.acknowledged_sequence);
   append16(telemetry.command_age_ms);
   append16(telemetry.rx_crc_errors);
+  payload[offset++] = telemetry.buzzer_enabled ? 1 : 0;
+  append16(telemetry.buzzer_threshold_mm);
   return encodeFrame(MSG_TELEMETRY, sequence, payload, payload_size, output,
                      capacity);
 }

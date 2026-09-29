@@ -7,6 +7,7 @@
 #include "board_config.h"
 #include "navigen_control.hpp"
 #include "navigen_protocol.hpp"
+#include "rear_guard.hpp"
 
 namespace {
 
@@ -57,6 +58,7 @@ CommandWatchdog watchdog(WATCHDOG_TIMEOUT_MS);
 
 bool configuration_valid = false;
 bool hardware_ready = false;
+bool auxiliary_hardware_ready = false;
 bool software_estop = false;
 bool host_sequence_seen = false;
 uint16_t last_host_sequence = 0;
@@ -69,12 +71,18 @@ int16_t right_pwm = 0;
 uint32_t last_control_us = 0;
 uint32_t last_telemetry_us = 0;
 uint32_t last_ultrasonic_ms = 0;
+uint32_t buzzer_cycle_started_ms = 0;
 uint32_t motor_test_started_ms = 0;
 bool motor_test_complete = false;
 uint8_t motor_test_step = 0;
+#if BUZZER_ENABLED
+bool buzzer_enabled = BUZZER_DEFAULT_ENABLED != 0;
+uint16_t buzzer_threshold_mm = BUZZER_NEAR_DISTANCE_MM;
+#endif
 
 void writeMotor(const MotorChannel& motor, int16_t requested_pwm);
 void disablePropulsion();
+uint16_t ultrasonicDistanceMm(uint32_t now_us);
 
 void runMotorTest(uint32_t now_ms) {
   static const char* const labels[] = {
@@ -139,15 +147,28 @@ bool motorPinSafe(int pin) {
 }
 
 bool pinsAreUnique() {
-  const std::array<int, 6> pins{
+  const std::array<int, 9> pins{
       PIN_MOTOR_LEFT_A,  PIN_MOTOR_LEFT_B,    PIN_MOTOR_RIGHT_A,
       PIN_MOTOR_RIGHT_B, PIN_MOTOR_LEFT_ENABLE, PIN_MOTOR_RIGHT_ENABLE,
 #if ULTRASONIC_ENABLED
       PIN_US_FRONT_TRIG, PIN_US_FRONT_ECHO,
+#else
+      -1, -1,
+#endif
+#if BUZZER_ENABLED
+      PIN_BUZZER,
+#else
+      -1,
 #endif
   };
   for (std::size_t first = 0; first < pins.size(); ++first) {
+    if (pins[first] < 0) {
+      continue;  // -1 means the L298N enable jumper is installed.
+    }
     for (std::size_t second = first + 1; second < pins.size(); ++second) {
+      if (pins[second] < 0) {
+        continue;
+      }
       if (pins[first] == pins[second]) {
         return false;
       }
@@ -172,6 +193,9 @@ bool validateConfiguration() {
 #if ULTRASONIC_ENABLED
       supportedDigitalPin(PIN_US_FRONT_TRIG) &&
       supportedDigitalPin(PIN_US_FRONT_ECHO) &&
+#endif
+#if BUZZER_ENABLED
+      supportedDigitalPin(PIN_BUZZER) &&
 #endif
 #if ESTOP_INPUT_ENABLED
       supportedDigitalPin(PIN_ESTOP_INPUT) &&
@@ -202,7 +226,22 @@ bool validateConfiguration() {
       (ADC_FULL_SCALE_MV > 0 && BATTERY_DIVIDER > 0.0F);
   return HARDWARE_CONFIGURATION_CONFIRMED == 1 && pins_supported &&
          motor_pins_safe && pinsAreUnique() && control_configured &&
-         ultrasonic_configured && battery_configured;
+      ultrasonic_configured && battery_configured;
+}
+
+bool auxiliaryPinsSupported() {
+#if ULTRASONIC_ENABLED && BUZZER_ENABLED
+  return supportedDigitalPin(PIN_US_FRONT_TRIG) &&
+         supportedDigitalPin(PIN_US_FRONT_ECHO) &&
+         supportedDigitalPin(PIN_BUZZER) && pinsAreUnique();
+#elif ULTRASONIC_ENABLED
+  return supportedDigitalPin(PIN_US_FRONT_TRIG) &&
+         supportedDigitalPin(PIN_US_FRONT_ECHO) && pinsAreUnique();
+#elif BUZZER_ENABLED
+  return supportedDigitalPin(PIN_BUZZER) && pinsAreUnique();
+#else
+  return false;
+#endif
 }
 
 void IRAM_ATTR ultrasonicEchoInterrupt() {
@@ -227,11 +266,10 @@ void configureMotor(const MotorChannel& motor) {
   digitalWrite(motor.pin_b, LOW);
 }
 
-void configureHardware() {
-  analogWriteRange(MAX_PWM);
-  analogWriteFreq(PWM_FREQUENCY_HZ);
-  configureMotor(motor_left);
-  configureMotor(motor_right);
+void configureAuxiliaryHardware() {
+  if (!auxiliaryPinsSupported()) {
+    return;
+  }
 #if ULTRASONIC_ENABLED
   pinMode(PIN_US_FRONT_TRIG, OUTPUT);
   digitalWrite(PIN_US_FRONT_TRIG, LOW);
@@ -239,6 +277,19 @@ void configureHardware() {
   attachInterrupt(digitalPinToInterrupt(PIN_US_FRONT_ECHO),
                   ultrasonicEchoInterrupt, CHANGE);
 #endif
+#if BUZZER_ENABLED
+  pinMode(PIN_BUZZER, OUTPUT);
+  digitalWrite(PIN_BUZZER, BUZZER_ACTIVE_LEVEL == HIGH ? LOW : HIGH);
+#endif
+  auxiliary_hardware_ready = true;
+}
+
+void configureHardware() {
+  analogWriteRange(MAX_PWM);
+  analogWriteFreq(PWM_FREQUENCY_HZ);
+  configureMotor(motor_left);
+  configureMotor(motor_right);
+  configureAuxiliaryHardware();
 #if ESTOP_INPUT_ENABLED
   pinMode(PIN_ESTOP_INPUT,
           ESTOP_USE_PULLDOWN_16 != 0 ? INPUT_PULLDOWN_16 : INPUT);
@@ -289,7 +340,10 @@ bool physicalEstopActive() {
 
 bool stopRequired(uint32_t now_ms) {
   return !configuration_valid || software_estop || physicalEstopActive() ||
-         watchdog.expired(now_ms);
+         watchdog.expired(now_ms) ||
+         navigen::rearBlocks(left_target_mps, right_target_mps,
+                             ultrasonicDistanceMm(micros()),
+                             ULTRASONIC_REVERSE_STOP_MM);
 }
 
 void runControl(uint32_t now_ms) {
@@ -323,6 +377,8 @@ void processFrame(const Frame& frame, uint32_t now_ms) {
   float left = 0.0F;
   float right = 0.0F;
   bool estop = false;
+  bool requested_buzzer_enabled = false;
+  uint16_t requested_buzzer_threshold_mm = 0;
   if (navigen::protocol::decodeVelocity(frame, left, right)) {
     if (!acceptHostSequence(frame.sequence, now_ms)) {
       return;
@@ -347,6 +403,16 @@ void processFrame(const Frame& frame, uint32_t now_ms) {
     if (software_estop) {
       disablePropulsion();
     }
+#if BUZZER_ENABLED
+  } else if (navigen::protocol::decodeBuzzerConfig(
+                 frame, requested_buzzer_enabled,
+                 requested_buzzer_threshold_mm)) {
+    if (!acceptHostSequence(frame.sequence, now_ms)) {
+      return;
+    }
+    buzzer_enabled = requested_buzzer_enabled;
+    buzzer_threshold_mm = requested_buzzer_threshold_mm;
+#endif
   }
 }
 
@@ -370,7 +436,7 @@ void triggerUltrasonic() {
 
 void serviceUltrasonic(uint32_t now_ms) {
 #if ULTRASONIC_ENABLED
-  if (configuration_valid &&
+  if (auxiliary_hardware_ready &&
       static_cast<uint32_t>(now_ms - last_ultrasonic_ms) >=
           ULTRASONIC_SAMPLE_PERIOD_MS) {
     last_ultrasonic_ms = now_ms;
@@ -378,6 +444,31 @@ void serviceUltrasonic(uint32_t now_ms) {
   }
 #else
   (void)now_ms;
+#endif
+}
+
+void serviceBuzzer(uint32_t now_ms, uint16_t distance_mm) {
+#if BUZZER_ENABLED
+  if (!auxiliary_hardware_ready) {
+    return;
+  }
+  const bool near = buzzer_enabled &&
+                    distance_mm != navigen::protocol::ULTRASONIC_INVALID &&
+                    distance_mm <= buzzer_threshold_mm;
+  bool sound = false;
+  if (near) {
+    const uint32_t phase = static_cast<uint32_t>(
+        now_ms - buzzer_cycle_started_ms) % BUZZER_BEEP_PERIOD_MS;
+    sound = phase < BUZZER_BEEP_ON_MS;
+  } else {
+    buzzer_cycle_started_ms = now_ms;
+  }
+  digitalWrite(PIN_BUZZER,
+               sound ? BUZZER_ACTIVE_LEVEL
+                     : (BUZZER_ACTIVE_LEVEL == HIGH ? LOW : HIGH));
+#else
+  (void)now_ms;
+  (void)distance_mm;
 #endif
 }
 
@@ -443,6 +534,10 @@ void sendTelemetry(uint32_t now_us, uint32_t now_ms) {
   telemetry.acknowledged_sequence = acknowledged_sequence;
   telemetry.command_age_ms = watchdog.ageMs(now_ms);
   telemetry.rx_crc_errors = parser.crc_errors;
+#if BUZZER_ENABLED
+  telemetry.buzzer_enabled = buzzer_enabled;
+  telemetry.buzzer_threshold_mm = buzzer_threshold_mm;
+#endif
   std::array<uint8_t, navigen::protocol::MAX_FRAME_SIZE> output{};
   const std::size_t size = navigen::protocol::encodeTelemetry(
       telemetry, telemetry_sequence++, output.data(), output.size());
@@ -458,6 +553,10 @@ void setup() {
   configuration_valid = validateConfiguration();
   if (configuration_valid) {
     configureHardware();
+  } else {
+    // Keep motor GPIOs untouched under the configuration lockout, while still
+    // allowing the low-voltage sensor and proximity buzzer to be bench-tested.
+    configureAuxiliaryHardware();
   }
   const uint32_t now_us = micros();
   last_control_us = now_us;
@@ -482,6 +581,7 @@ void loop() {
     disablePropulsion();
   }
   serviceUltrasonic(now_ms);
+  serviceBuzzer(now_ms, ultrasonicDistanceMm(now_us));
   if (static_cast<uint32_t>(now_us - last_control_us) >= CONTROL_PERIOD_US) {
     last_control_us = now_us;
     runControl(now_ms);

@@ -10,7 +10,8 @@ Raspberry Pi must obtain real-robot localization from camera + MPU6050 visual-in
 
 The controller still provides CRC-protected serial commands and telemetry, acceleration-limited
 setpoints from the Pi, a 300 ms command watchdog, physical stop feedback, software e-stop, one
-ultrasonic measurement, and invalid-configuration lockout.
+ultrasonic measurement, a local reverse/pivot obstacle stop, configurable proximity beeping, and
+invalid-configuration lockout.
 
 ## Fixed team pin profile
 
@@ -25,10 +26,20 @@ ultrasonic measurement, and invalid-configuration lockout.
 | D8 | 15 | HC-SR04 TRIG |
 | D7 | 13 | HC-SR04 ECHO through a verified 5 V→3.3 V divider |
 | D0 | 16 | Motor-power/e-stop feedback, active LOW (disabled in current build) |
+| D0 | 16 | Active buzzer control (off by default; Pi dashboard configurable) |
 
 Keep the L298N **ENA and ENB jumpers installed**. PWM is applied to one direction input at a time,
 which saves two GPIOs. D8/GPIO15 is a boot-strap pin; connect it only to the HC-SR04's
 high-impedance TRIG input and do not add a pull-up. D7 receives ECHO only through a divider.
+The rear sensor blocks reverse and pivot commands at or inside 30 cm, and also blocks reverse
+when its reading is missing or stale. The Pi applies a larger 35 cm margin before sending a
+reverse command. The Pi dashboard sends the buzzer enable setting and threshold to the ESP8266 over the framed
+serial protocol. The default threshold is 30 cm; the buzzer defaults off until enabled in the
+dashboard. It beeps intermittently only when the sensor has a fresh valid reading at or inside the
+configured threshold, and stays silent beyond it or when the reading is invalid. Use an active
+buzzer and a suitable transistor driver; do not power a high-current buzzer directly from the
+ESP8266 GPIO. D0 cannot simultaneously be used for the optional e-stop feedback while the buzzer
+is enabled.
 
 The MPU6050 belongs on the Raspberry Pi I2C bus, not this pin-limited ESP8266. Keep both SG90
 servos disconnected and the camera mount mechanically fixed during SLAM. The relay module is not
@@ -103,6 +114,8 @@ validation compiles but never flashes hardware.
 6. While moving slowly, engage software e-stop, then repeat with the physical switch. Both sides
    must stop. Restoring motor power must be followed by an explicit software-e-stop release.
 7. Unplug USB while moving slowly; propulsion must stop within approximately 300 ms.
+8. With wheels lifted, command reverse with the rear sensor disconnected and with a target within
+   30 cm; both cases must stop propulsion at the ESP8266.
 
 Any unexpected movement, reset, hot driver/wire, failed stop, or invalid telemetry is a red gate.
 Disconnect battery power, correct the issue, and restart from step 1.

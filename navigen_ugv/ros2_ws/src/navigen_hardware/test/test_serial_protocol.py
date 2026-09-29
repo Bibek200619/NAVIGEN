@@ -38,6 +38,17 @@ def test_velocity_command_golden_vector_and_decode() -> None:
     )
 
 
+def test_buzzer_config_round_trip_and_validation() -> None:
+    frame_bytes = protocol.encode_buzzer_config(True, 300, 0x4321)
+    [frame] = protocol.FrameParser().feed(frame_bytes)
+    assert frame.message_id == protocol.MSG_CMD_BUZZER
+    assert frame.sequence == 0x4321
+    assert protocol.decode_buzzer_config(frame.payload) == (True, 300)
+    for enabled, threshold in ((1, 300), (True, 49), (False, 4001)):
+        with pytest.raises(ValueError):
+            protocol.encode_buzzer_config(enabled, threshold, 0)
+
+
 def test_telemetry_round_trip_and_invalid_ultrasonic() -> None:
     parser = protocol.FrameParser()
     [frame] = parser.feed(protocol.encode_telemetry(make_telemetry(), sequence=9))
@@ -56,6 +67,46 @@ def test_telemetry_round_trip_and_invalid_ultrasonic() -> None:
     assert telemetry.acknowledged_command_sequence == 0x1234
     assert telemetry.command_age_ms == 42
     assert telemetry.rx_crc_errors == 3
+    assert telemetry.buzzer_enabled is False
+    assert telemetry.buzzer_threshold_mm == 300
+
+
+def test_extended_telemetry_round_trips_buzzer_configuration() -> None:
+    telemetry = protocol.Telemetry(
+        left_velocity=0.0,
+        right_velocity=0.0,
+        left_pwm=0,
+        right_pwm=0,
+        left_ticks=0,
+        right_ticks=0,
+        battery_voltage=0.0,
+        ultrasonic_left=0.3,
+        ultrasonic_right=-1.0,
+        estop_active=True,
+        watchdog_triggered=True,
+        configuration_valid=False,
+        open_loop_mode=True,
+        acknowledged_command_sequence=0,
+        command_age_ms=0xFFFF,
+        rx_crc_errors=0,
+        buzzer_enabled=True,
+        buzzer_threshold_mm=450,
+    )
+    [frame] = protocol.FrameParser().feed(protocol.encode_telemetry(telemetry, 5))
+    decoded = protocol.decode_telemetry(frame.payload)
+    assert decoded.buzzer_enabled is True
+    assert decoded.buzzer_threshold_mm == 450
+
+
+def test_legacy_telemetry_without_buzzer_fields_remains_readable() -> None:
+    payload = protocol._TELEMETRY_STRUCT.pack(
+        0, 0, 0, 0, 0, 0, 0, 325, protocol.US_INVALID,
+        protocol.FLAG_OPEN_LOOP, 0, 0, 0,
+    )
+    decoded = protocol.decode_telemetry(payload)
+    assert decoded.ultrasonic_left == pytest.approx(0.325)
+    assert decoded.buzzer_enabled is False
+    assert decoded.buzzer_threshold_mm == 300
 
 
 def test_partial_noise_crc_rejection_and_resynchronization() -> None:

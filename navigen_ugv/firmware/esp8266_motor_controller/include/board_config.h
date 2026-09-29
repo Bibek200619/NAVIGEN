@@ -18,7 +18,7 @@
 #define PIN_MOTOR_RIGHT_A       14  // D5 -> IN3
 #define PIN_MOTOR_RIGHT_B       12  // D6 -> IN4
 #define PIN_MOTOR_LEFT_ENABLE   -1  // ENA jumper installed; no GPIO used
-#define PIN_MOTOR_RIGHT_ENABLE  13  // D7 -> ENB (remove ENB jumper)
+#define PIN_MOTOR_RIGHT_ENABLE  -1  // ENB jumper installed; no GPIO used
 #define MOTOR_LEFT_INVERTED      0
 #define MOTOR_RIGHT_INVERTED     0
 
@@ -34,15 +34,28 @@
 #define RIGHT_PWM_SCALE         1.0f
 
 // ---- One centered HC-SR04 backup sensor ----
-// NodeMCU label -> ESP8266 GPIO: D8=15, D7=13. GPIO15 is a boot strap pin and
-// must remain LOW at boot; connect it only to the high-impedance HC-SR04 TRIG.
-// ECHO is 5 V and MUST pass through a verified divider before D7.
-#define ULTRASONIC_ENABLED        0  // D7 is reserved for L298N ENB
-#define PIN_US_FRONT_TRIG        15  // D8 -> TRIG (unused while disabled)
-#define PIN_US_FRONT_ECHO        13  // D7, reserved for ENB while disabled
+// NodeMCU label -> ESP8266 GPIO: D8=15, D7=13. GPIO15 must remain LOW at boot;
+// connect it only to the high-impedance HC-SR04 TRIG. ECHO is 5 V and MUST pass
+// through a verified divider before D7. D7 is free because the L298N ENB jumper
+// stays installed (as does ENA).
+#define ULTRASONIC_ENABLED        1
+#define PIN_US_FRONT_TRIG        15  // D8 -> TRIG
+#define PIN_US_FRONT_ECHO        13  // D7 <- ECHO through verified divider
 #define ULTRASONIC_SAMPLE_PERIOD_MS 80
 #define ULTRASONIC_ECHO_TIMEOUT_US 24000
 #define ULTRASONIC_STALE_MS    250
+#define ULTRASONIC_REVERSE_STOP_MM 300
+
+// ---- Proximity buzzer ----
+// Suggested NodeMCU D0/GPIO16 drives an ACTIVE buzzer through a transistor
+// driver. Do not power a high-current buzzer directly from an ESP8266 GPIO.
+#define BUZZER_ENABLED             1
+#define BUZZER_DEFAULT_ENABLED     0
+#define PIN_BUZZER                16  // D0 -> transistor driver input
+#define BUZZER_ACTIVE_LEVEL        1
+#define BUZZER_NEAR_DISTANCE_MM  300  // Default threshold; configurable from Pi dashboard
+#define BUZZER_BEEP_ON_MS        120
+#define BUZZER_BEEP_PERIOD_MS    500
 
 // ---- Safety and battery status ----
 // Set to 1 only when the D0 motor-power feedback circuit is installed and
