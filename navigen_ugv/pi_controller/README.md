@@ -132,11 +132,15 @@ and [MPU-6050 electrical specifications](https://product.tdk.com/en/search/senso
 Check the breakout's own power pinout; the MPU-6050 chip and Pi GPIO use 3.3 V
 logic. Never pull Pi SDA/SCL to 5 V. The camera ribbon uses CSI and does not
 occupy these header pins. On this Ubuntu Pi, `/dev/i2c-1` already exists and
-the `lenin` service account has access. Install `smbus2` in the camera-stack
-venv, then the service automatically retries the sensor at address `0x68`:
+the `lenin` service account needs membership in the group that owns it (`i2c`
+after a reboot). Add the service user to that group and restart the service so
+it receives the new membership. Install `smbus2` in the camera-stack venv;
+the service then automatically retries the sensor at address `0x68`:
 
 ```bash
 /home/lenin/camera-stack/venv/bin/pip install 'smbus2==0.6.1'
+sudo usermod -aG i2c lenin
+sudo systemctl restart navigen-dashboard.service
 ```
 
 Use `--imu-address 0x69` if AD0 is intentionally tied to 3.3 V. `--no-imu`
