@@ -133,6 +133,10 @@ class Controller:
                 self.engage()
                 # Permit a freshly booted controller's sequence after the link has expired.
                 self.telemetry_sequence=None
+            if self.camera_time is None or not 0 <= now-self.camera_time <= 0.5:
+                # A lost camera requires an explicit operator release after recovery.
+                # Do not resume a held drive command when frames start arriving again.
+                self.engage()
             if self.release_time is not None:
                 if self.telemetry and not self.telemetry.estop_active:
                     self.release_time=None

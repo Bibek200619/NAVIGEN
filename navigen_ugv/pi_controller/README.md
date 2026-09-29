@@ -25,6 +25,7 @@ ROS/Gazebo vision-autonomy roadmap remains separate.
 - `camera.py`: Picamera2 capture, acquisition-age checks, JPEG frames.
 - `static/`: desktop/mobile browser controls.
 - `test/`: controller and HTTP integration tests.
+- `OPERATIONS.md`: current Pi login, live checks, and motor commissioning sequence.
 - `../firmware/esp8266_motor_controller/`: ESP8266 firmware, sensor pin map, and serial protocol.
 
 The runtime imports the existing protocol, kinematics, mock and reconnecting
@@ -90,7 +91,8 @@ For boot startup, install [navigen-dashboard@.service](navigen-dashboard@.servic
 as a systemd template and enable it for the Pi login user. It binds port 8080
 to the Wi-Fi network and keeps its login token in that user's
 `~/.config/navigen/dashboard.token` with owner-only permissions. The template
-expects the checkout at `~/navigen_dashboard` and the ESP8266 on `/dev/ttyUSB0`.
+expects the checkout at `~/navigen_dashboard`; set `ESP8266_PORT` to the stable
+`/dev/serial/by-id/...` path for the attached controller.
 The dashboard remains in e-stop until camera capture and controller telemetry
 are both healthy.
 
@@ -100,9 +102,13 @@ sudo systemctl enable --now navigen-dashboard@YOUR_USER.service
 cat ~/.config/navigen/dashboard.token
 ```
 
-The current Pi runs Ubuntu 24.04, whose camera stack does not support the Pi CSI
-camera according to the [Ubuntu Raspberry Pi support guide](https://ubuntu.com/hardware/docs/boards/how-to/ubuntu_supported/raspberry-pi/).
-A camera-capable OS is needed before driving can be released.
+The current Pi runs Ubuntu 24.04. Its packaged camera stack is too old for the
+Pi 5, but the original OV5647 Pi Camera now captures through a source-built
+Raspberry Pi stack under `/opt/navigen-camera`. The deployed dashboard uses an
+isolated Picamera2 environment and serves fresh camera JPEGs. See the
+[Ubuntu 24.04 camera setup](ubuntu24-camera.md) to reproduce that setup.
+Firmware hardware-configuration lockout remains active until the motor wiring
+is verified; a working camera does not release it.
 
 ## Stop behavior
 
@@ -111,7 +117,8 @@ A camera-capable OS is needed before driving can be released.
 - Browser motion requests expire after 250 ms. Releasing a control commands zero
   immediately without a deceleration ramp. Pi sends bounded commands at 50 Hz.
 - Pi stops for camera frames older than 500 ms and controller telemetry older than
-  250 ms. Serial/controller faults latch e-stop and require operator release.
+  250 ms. Camera and serial/controller faults latch e-stop and require operator
+  release after recovery. Camera capture retries automatically.
 - Rear clearance at/below 0.35 m or invalid rear measurements blocks reverse and
   turns with a reversing wheel. Forward movement is not claimed to be collision-free.
 - ESP8266 adds a 300 ms command watchdog and independently blocks reverse/pivot motion

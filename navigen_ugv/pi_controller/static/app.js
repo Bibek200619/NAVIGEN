@@ -16,7 +16,7 @@ async function command(){
   try{await api("/api/command",active);}catch(error){disconnected(error);}finally{sending=false;}
 }
 async function stop(){active=null;if(connected&&armed){try{await api("/api/command",{linear:0,angular:0});}catch(error){disconnected(error);}}}
-async function estop(){active=null;armed=false;controls();try{await api("/api/estop",{active:true});}catch(error){disconnected(error);}}
+async function estop(){active=null;armed=false;controls();if(!connected)return;try{await api("/api/estop",{active:true});}catch(error){disconnected(error);}}
 $("connect").onclick=async()=>{token=$("token").value.trim();try{await refresh();}catch(error){disconnected(error);}};
 $("release").onclick=async()=>{active=null;try{await api("/api/estop",{active:false});}catch(error){$("status").textContent=error.message;}};
 $("threshold").oninput=()=>{$("thresholdValue").textContent=`${Number($("threshold").value)} cm`;buzzerDraftDirty=true;};

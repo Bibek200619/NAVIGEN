@@ -47,20 +47,22 @@
 #define ULTRASONIC_REVERSE_STOP_MM 300
 
 // ---- Proximity buzzer ----
-// Suggested NodeMCU D0/GPIO16 drives an ACTIVE buzzer through a transistor
-// driver. Do not power a high-current buzzer directly from an ESP8266 GPIO.
+// NodeMCU D0/GPIO16 is wired directly to an active buzzer in the current build.
+// Keep the dashboard buzzer off until its GPIO load is verified, or fit a
+// suitable transistor driver for a buzzer whose current exceeds GPIO limits.
 #define BUZZER_ENABLED             1
 #define BUZZER_DEFAULT_ENABLED     0
-#define PIN_BUZZER                16  // D0 -> transistor driver input
+#define PIN_BUZZER                16  // D0 -> active buzzer or driver input
 #define BUZZER_ACTIVE_LEVEL        1
 #define BUZZER_NEAR_DISTANCE_MM  300  // Default threshold; configurable from Pi dashboard
 #define BUZZER_BEEP_ON_MS        120
 #define BUZZER_BEEP_PERIOD_MS    500
 
 // ---- Safety and battery status ----
-// Set to 1 only when the D0 motor-power feedback circuit is installed and
-// meter-verified. When disabled, D0 is not configured or used by firmware;
-// software e-stop, watchdog, and configuration lockout remain active.
+// Disabled while D0 is assigned to the buzzer. A future motor-power feedback
+// input needs a separate GPIO or a redesigned circuit; never drive one GPIO
+// with both the buzzer output and battery feedback. Software e-stop, watchdog,
+// and configuration lockout remain active.
 #define ESTOP_INPUT_ENABLED      0
 
 // D0 is GPIO16 and supports INPUT_PULLDOWN_16. Normal operation must present a
