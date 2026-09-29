@@ -17,6 +17,7 @@ sys.path.insert(0,str(ROOT/'ros2_ws'/'src'/'navigen_hardware'))
 sys.path.insert(0,str(ROOT))
 from pi_controller.controller import Controller
 from pi_controller.camera import Camera
+from pi_controller.imu import Imu
 
 
 def load_or_create_token(path):
@@ -43,8 +44,8 @@ class Server(ThreadingHTTPServer):
     daemon_threads=True
     allow_reuse_address=True
 
-    def __init__(self,address,controller,camera,token):
-        self.controller,self.camera,self.token=controller,camera,token
+    def __init__(self,address,controller,camera,token,imu=None):
+        self.controller,self.camera,self.token,self.imu=controller,camera,token,imu
         super().__init__(address,Handler)
 
 
@@ -78,6 +79,8 @@ class Handler(BaseHTTPRequestHandler):
         if self.path == '/api/status':
             status=self.server.controller.status()
             status['camera_error']=self.server.camera.error
+            status['imu']=(self.server.imu.status() if self.server.imu else
+                           {'available':False,'sample':None,'error':'Disabled'})
             return self.reply(200,status)
         if self.path == '/api/camera.jpg':
             frame=self.server.camera.latest()
@@ -134,16 +137,24 @@ def main():
     parser.add_argument('--bind',default='127.0.0.1',help='Use SSH forwarding for remote access')
     parser.add_argument('--track-width',type=float,default=0.34,help='Measured effective track width in metres')
     parser.add_argument('--mock',action='store_true',help='Explicit camera and motor simulation; no physical outputs')
+    parser.add_argument('--no-imu',action='store_true',help='Disable optional MPU-6050 polling')
+    parser.add_argument('--imu-bus',type=int,default=1,help='MPU-6050 I2C bus number')
+    parser.add_argument('--imu-address',type=lambda value:int(value,0),default=0x68,
+                        help='MPU-6050 I2C address: 0x68 or 0x69')
     parser.add_argument('--token-file',help='Persist the dashboard login token across restarts')
     args=parser.parse_args()
     controller=Controller(args.port,args.mock,args.track_width)
     camera=Camera(controller,args.mock)
+    imu=None if args.mock or args.no_imu else Imu(args.imu_bus,args.imu_address)
     token=load_or_create_token(args.token_file)
-    server=Server((args.bind,args.http_port),controller,camera,token)
+    server=Server((args.bind,args.http_port),controller,camera,token,imu)
     stop_event=threading.Event()
     control_thread=threading.Thread(target=run_loop,args=(controller,stop_event),daemon=True)
     camera_thread=threading.Thread(target=camera.run,args=(stop_event,),daemon=True)
+    imu_thread=(threading.Thread(target=imu.run,args=(stop_event,),daemon=True)
+                if imu else None)
     control_thread.start();camera_thread.start()
+    if imu_thread:imu_thread.start()
     print(f'NAVIGEN {"MOCK" if args.mock else "ESP8266"}: http://{args.bind}:{args.http_port}',flush=True)
     print(f'Session token: {token}',flush=True)
     print('Startup e-stop engaged. No wheel odometry; rear sensor protects reverse/turns.',flush=True)
@@ -159,6 +170,7 @@ def main():
         stop_event.set()
         control_thread.join(timeout=2)
         camera_thread.join(timeout=2)
+        if imu_thread:imu_thread.join(timeout=2)
         controller.close()
         server.server_close()
 

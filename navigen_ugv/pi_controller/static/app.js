@@ -63,6 +63,16 @@ async function refresh(){
  if(!telemetry){$("buzzerState").textContent="Waiting for ESP8266 telemetry.";}
  else if(!applied||applied.enabled!==state.buzzer.enabled||applied.threshold_mm!==state.buzzer.threshold_mm){$("buzzerState").textContent="Sending settings to the ESP8266…";}
  else{$("buzzerState").textContent=`${applied.enabled?`Enabled · beeps at or inside ${applied.threshold_cm} cm`:"Disabled"} · applied by ESP8266`;}
+ const imu=state.imu;
+ if(imu?.available&&imu.sample){
+  $("imuRoll").textContent=`${imu.sample.roll_deg.toFixed(1)}°`;
+  $("imuPitch").textContent=`${imu.sample.pitch_deg.toFixed(1)}°`;
+  $("imuYawRate").textContent=`${imu.sample.gyro_z_dps.toFixed(1)}°/s`;
+  $("imuState").textContent=`MPU-6050 · ${imu.age_ms} ms old`;
+ }else{
+  for(const id of ["imuRoll","imuPitch","imuYawRate"])$(id).textContent="—";
+  $("imuState").textContent=`MPU-6050 unavailable${imu?.error?`: ${imu.error}`:""}`;
+ }
 }
 async function video(){
  while(true){

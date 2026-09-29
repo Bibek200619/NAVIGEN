@@ -4,6 +4,9 @@ This is the runnable implementation for the hardware confirmed on 2026-09-29:
 Raspberry Pi + Pi Camera, ESP8266, one L298N, four motors without encoders,
 one rear ultrasonic sensor, motor-power switch, and batteries. **No IMU or wheel
 encoders are required. ROS is not required for this runtime.**
+An optional MPU-6050 on the Pi I2C header adds acceleration, gyro turn rate,
+and sensor-axis roll/pitch to the dashboard. It does not provide wheel travel,
+absolute compass heading, or a position estimate, and it does not arm motors.
 
 Features: live camera view, browser hold-to-drive controls, forward/reverse/pivot,
 software e-stop, conservative command limiting, live rear distance telemetry,
@@ -23,6 +26,7 @@ ROS/Gazebo vision-autonomy roadmap remains separate.
 - `app.py`: local HTTP API and process lifecycle.
 - `controller.py`: serial worker, motion leases, stop/release handshake and rear guard.
 - `camera.py`: Picamera2 capture, acquisition-age checks, JPEG frames.
+- `imu.py`: optional MPU-6050 I2C reader with reconnect and stale-data handling.
 - `static/`: desktop/mobile browser controls.
 - `test/`: controller and HTTP integration tests.
 - `OPERATIONS.md`: current Pi login, live checks, and motor commissioning sequence.
@@ -40,7 +44,7 @@ describes the camera software. No trained AI model is needed for manual driving.
 
 ```bash
 sudo apt update
-sudo apt install -y python3-picamera2 python3-opencv python3-serial python3-pytest
+sudo apt install -y python3-picamera2 python3-opencv python3-serial python3-pytest python3-smbus2
 sudo usermod -aG dialout "$USER"
 # Re-login for serial group membership. From the NAVIGEN repository root:
 python3 navigen_ugv/pi_controller/app.py --mock
@@ -109,6 +113,36 @@ isolated Picamera2 environment and serves fresh camera JPEGs. See the
 [Ubuntu 24.04 camera setup](ubuntu24-camera.md) to reproduce that setup.
 Firmware hardware-configuration lockout remains active until the motor wiring
 is verified; a working camera does not release it.
+
+## Optional MPU-6050 on the Pi
+
+Power off the Pi before adding wires. Use the **physical header pin numbers**:
+See the official [Raspberry Pi GPIO reference](https://www.raspberrypi.com/documentation/computers/raspberry-pi.html#gpio-and-the-40-pin-header)
+and [MPU-6050 electrical specifications](https://product.tdk.com/en/search/sensor/mortion-inertial/imu/info?part_no=MPU-6050).
+
+| MPU-6050 breakout | Raspberry Pi 5 header |
+|---|---|
+| VCC | Pin 1, 3.3 V |
+| GND | Pin 6, GND |
+| SDA | Pin 3, GPIO2 / SDA1 |
+| SCL | Pin 5, GPIO3 / SCL1 |
+| AD0 | GND for address `0x68`, unless already pulled low on the breakout |
+| INT | Leave disconnected for polling |
+
+Check the breakout's own power pinout; the MPU-6050 chip and Pi GPIO use 3.3 V
+logic. Never pull Pi SDA/SCL to 5 V. The camera ribbon uses CSI and does not
+occupy these header pins. On this Ubuntu Pi, `/dev/i2c-1` already exists and
+the `lenin` service account has access. Install `smbus2` in the camera-stack
+venv, then the service automatically retries the sensor at address `0x68`:
+
+```bash
+/home/lenin/camera-stack/venv/bin/pip install 'smbus2==0.6.1'
+```
+
+Use `--imu-address 0x69` if AD0 is intentionally tied to 3.3 V. `--no-imu`
+disables polling. The dashboard shows sensor-axis tilt and Z angular rate only
+when the sample is fresh; mounting orientation and gyro bias are not calibrated.
+The IMU is never used as a substitute for wheel encoders or for motor safety.
 
 ## Stop behavior
 

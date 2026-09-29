@@ -58,6 +58,7 @@ sudo ninja -C build install
 
 python3 -m venv --system-site-packages ~/camera-stack/venv
 ~/camera-stack/venv/bin/pip install 'picamera2==0.3.37'
+~/camera-stack/venv/bin/pip install 'smbus2==0.6.1'
 ```
 
 The extra `cpp_args` include path is required because the installed

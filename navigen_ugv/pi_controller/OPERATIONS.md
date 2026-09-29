@@ -3,8 +3,10 @@
 The deployed Pi 5 runs the OV5647 Pi Camera, dashboard, and USB-connected
 ESP8266. The ESP8266 reports one rear ultrasonic distance; it drives one L298N
 for four motors only after the motor-power configuration is confirmed. There
-are no wheel encoders, IMU, autonomous route planner, or front range sensor in
-this vehicle. The operator must watch the camera for forward obstacles.
+are no wheel encoders, autonomous route planner, or front range sensor in this
+vehicle. An optional MPU-6050 can display sensor tilt and turn rate after it
+is wired, but cannot supply wheel distance or absolute heading. The operator
+must watch the camera for forward obstacles.
 
 ## Open and check the dashboard
 
@@ -21,6 +23,12 @@ this vehicle. The operator must watch the camera for forward obstacles.
    The drive controls remain unavailable because the measured 12.6 V motor
    supply exceeds the motors' marked 3–6 V range. The supply must be corrected,
    measured, and the firmware explicitly configured and flashed for propulsion.
+
+For MPU-6050 wiring use Pi header **pin 1 → VCC (3.3 V), pin 6 → GND,
+pin 3/GPIO2 → SDA, and pin 5/GPIO3 → SCL**. AD0 to GND selects address `0x68`;
+INT is unused. The [runtime guide](README.md#optional-mpu-6050-on-the-pi)
+has setup details. Its dashboard card shows “unavailable” until wiring and
+I2C communication are verified.
 
 On the Pi, `systemctl status navigen-dashboard` checks the service. The stable
 USB port currently used is
