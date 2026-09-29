@@ -7,6 +7,7 @@
 
 #include "navigen_control.hpp"
 #include "navigen_protocol.hpp"
+#include "rear_guard.hpp"
 
 namespace {
 
@@ -69,6 +70,26 @@ void testSequenceOrderingAcrossRollover() {
   assert(navigen::protocol::isNewerSequence(0, 0xFFFF));
 }
 
+void testBuzzerConfigCommand() {
+  const uint8_t payload[] = {1, 0x2C, 0x01};  // enabled, 300 mm
+  std::array<uint8_t, navigen::protocol::MAX_FRAME_SIZE> encoded{};
+  const std::size_t size = navigen::protocol::encodeFrame(
+      navigen::protocol::MSG_CMD_BUZZER, 20, payload, sizeof(payload),
+      encoded.data(), encoded.size());
+  navigen::protocol::FrameParser parser;
+  navigen::protocol::Frame frame;
+  bool parsed = false;
+  for (std::size_t index = 0; index < size; ++index) {
+    parsed = parser.feed(encoded[index], frame) || parsed;
+  }
+  bool enabled = false;
+  uint16_t threshold_mm = 0;
+  assert(parsed);
+  assert(navigen::protocol::decodeBuzzerConfig(frame, enabled, threshold_mm));
+  assert(enabled);
+  assert(threshold_mm == 300);
+}
+
 void testTelemetryRoundTripFrame() {
   navigen::protocol::Telemetry telemetry;
   telemetry.left_velocity_mmps = 0;
@@ -82,10 +103,12 @@ void testTelemetryRoundTripFrame() {
   telemetry.acknowledged_sequence = 77;
   telemetry.command_age_ms = 301;
   telemetry.rx_crc_errors = 2;
+  telemetry.buzzer_enabled = true;
+  telemetry.buzzer_threshold_mm = 450;
   std::array<uint8_t, navigen::protocol::MAX_FRAME_SIZE> encoded{};
   const std::size_t size = navigen::protocol::encodeTelemetry(
       telemetry, 12, encoded.data(), encoded.size());
-  assert(size == 37);
+  assert(size == 40);
   navigen::protocol::FrameParser parser;
   navigen::protocol::Frame frame;
   bool parsed = false;
@@ -94,10 +117,12 @@ void testTelemetryRoundTripFrame() {
   }
   assert(parsed);
   assert(frame.message_id == navigen::protocol::MSG_TELEMETRY);
-  assert(frame.payload_size == 29);
+  assert(frame.payload_size == 32);
   assert(navigen::protocol::readInt16(frame.payload.data()) == 0);
   assert(navigen::protocol::readInt16(frame.payload.data() + 2) == 0);
   assert(navigen::protocol::readUint16(frame.payload.data() + 16) == 12100);
+  assert(frame.payload[29] == 1);
+  assert(navigen::protocol::readUint16(frame.payload.data() + 30) == 450);
 }
 
 void testOpenLoopVelocityMapping() {
@@ -125,15 +150,28 @@ void testWatchdogAndUnsignedRollover() {
   assert(rollover_watchdog.expired(60U));
 }
 
+void testRearObstacleGuard() {
+  using navigen::rearBlocks;
+  using navigen::protocol::ULTRASONIC_INVALID;
+  assert(rearBlocks(-0.1F, -0.1F, 200, 300));
+  assert(rearBlocks(-0.1F, 0.1F, 300, 300));
+  assert(rearBlocks(0.1F, -0.1F, ULTRASONIC_INVALID, 300));
+  assert(!rearBlocks(0.1F, 0.1F, 100, 300));
+  assert(!rearBlocks(-0.1F, -0.1F, 301, 300));
+  assert(!rearBlocks(0.0F, 0.0F, ULTRASONIC_INVALID, 300));
+}
+
 }  // namespace
 
 int main() {
   testGoldenVelocityFrame();
   testParserRejectsCrcAndRecovers();
   testSequenceOrderingAcrossRollover();
+  testBuzzerConfigCommand();
   testTelemetryRoundTripFrame();
   testOpenLoopVelocityMapping();
   testWatchdogAndUnsignedRollover();
+  testRearObstacleGuard();
   std::cout << "Firmware native tests passed\n";
   return 0;
 }

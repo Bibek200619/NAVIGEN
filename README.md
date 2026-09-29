@@ -1,5 +1,7 @@
 # NAVIGEN — SIH 2026 (SIH26126)
 
+> **Current physical hardware (2026-09-30):** Raspberry Pi + Pi Camera, NodeMCU ESP8266, one L298N, four motors without encoders, and one rear ultrasonic sensor. The runnable camera-driving code and setup are in [navigen_ugv/pi_controller/README.md](navigen_ugv/pi_controller/README.md). The ROS/Gazebo roadmap below predates this hardware profile.
+
 Vision-based GPS-denied autonomous navigation platform for an outdoor Unmanned Ground Vehicle.
 
 **CAMERA IS THE PRIMARY SENSOR. VISION DOES THE NAVIGATION. GPS IS NEVER A NAVIGATION INPUT.**

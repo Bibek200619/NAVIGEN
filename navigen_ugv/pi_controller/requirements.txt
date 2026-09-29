@@ -1,0 +1,2 @@
+pyserial>=3.5,<4
+# Install python3-picamera2 and python3-opencv through apt on the Pi.

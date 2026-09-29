@@ -30,6 +30,8 @@ class MockMotorController:
         self.battery_voltage = battery_voltage
         self.ultrasonic_left = ultrasonic_left
         self.ultrasonic_right = ultrasonic_right
+        self.buzzer_enabled = False
+        self.buzzer_threshold_mm = 300
         self.parser = protocol.FrameParser()
         self.target = (0.0, 0.0)
         self.applied_pwm = (0, 0)
@@ -51,6 +53,14 @@ class MockMotorController:
             elif frame.message_id == protocol.MSG_CMD_ESTOP:
                 try:
                     self.software_estop = protocol.decode_estop(frame.payload)
+                except ValueError:
+                    continue
+                self.last_command_sequence = frame.sequence
+            elif frame.message_id == protocol.MSG_CMD_BUZZER:
+                try:
+                    self.buzzer_enabled, self.buzzer_threshold_mm = (
+                        protocol.decode_buzzer_config(frame.payload)
+                    )
                 except ValueError:
                     continue
                 self.last_command_sequence = frame.sequence
@@ -95,6 +105,8 @@ class MockMotorController:
             acknowledged_command_sequence=self.last_command_sequence,
             command_age_ms=command_age_ms,
             rx_crc_errors=self.parser.crc_errors,
+            buzzer_enabled=self.buzzer_enabled,
+            buzzer_threshold_mm=self.buzzer_threshold_mm,
         )
 
     def exchange(self, data: bytes, dt: float, now: float) -> bytes:

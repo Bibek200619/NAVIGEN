@@ -13,6 +13,7 @@ MAX_PAYLOAD_SIZE = 64
 
 MSG_CMD_VELOCITY = 0x01
 MSG_CMD_ESTOP = 0x02
+MSG_CMD_BUZZER = 0x03
 MSG_TELEMETRY = 0x10
 
 FLAG_ESTOP = 0x01
@@ -23,7 +24,9 @@ US_INVALID = 0xFFFF
 
 _HEADER_STRUCT = struct.Struct('<BBHB')
 _VELOCITY_STRUCT = struct.Struct('<hh')
+_BUZZER_STRUCT = struct.Struct('<BH')
 _TELEMETRY_STRUCT = struct.Struct('<hhhhiiHHHBHHH')
+_TELEMETRY_WITH_BUZZER_STRUCT = struct.Struct('<hhhhiiHHHBHHHBH')
 
 
 def crc8(data: bytes) -> int:
@@ -95,6 +98,29 @@ def decode_estop(payload: bytes) -> bool:
     return bool(payload[0])
 
 
+def encode_buzzer_config(enabled: bool, threshold_mm: int, sequence: int) -> bytes:
+    if not isinstance(enabled, bool):
+        raise ValueError('buzzer enabled must be boolean')
+    if isinstance(threshold_mm, bool) or not isinstance(threshold_mm, int):
+        raise ValueError('buzzer threshold must be an integer number of millimetres')
+    if not 50 <= threshold_mm <= 4000:
+        raise ValueError('buzzer threshold must be between 50 and 4000 mm')
+    return encode_frame(
+        MSG_CMD_BUZZER,
+        sequence,
+        _BUZZER_STRUCT.pack(1 if enabled else 0, threshold_mm),
+    )
+
+
+def decode_buzzer_config(payload: bytes) -> tuple[bool, int]:
+    if len(payload) != _BUZZER_STRUCT.size:
+        raise ValueError('buzzer config payload has wrong size')
+    enabled, threshold_mm = _BUZZER_STRUCT.unpack(payload)
+    if enabled not in (0, 1) or not 50 <= threshold_mm <= 4000:
+        raise ValueError('buzzer config values are out of range')
+    return bool(enabled), threshold_mm
+
+
 @dataclass(frozen=True)
 class Telemetry:
     left_velocity: float
@@ -113,6 +139,8 @@ class Telemetry:
     acknowledged_command_sequence: int
     command_age_ms: int
     rx_crc_errors: int
+    buzzer_enabled: bool = False
+    buzzer_threshold_mm: int = 300
 
 
 def encode_telemetry(telemetry: Telemetry, sequence: int) -> bytes:
@@ -129,7 +157,7 @@ def encode_telemetry(telemetry: Telemetry, sequence: int) -> bytes:
     battery_mv = max(
         0, min(0xFFFF, int(round(telemetry.battery_voltage * 1000.0)))
     )
-    payload = _TELEMETRY_STRUCT.pack(
+    payload = _TELEMETRY_WITH_BUZZER_STRUCT.pack(
         _mm_per_second(telemetry.left_velocity),
         _mm_per_second(telemetry.right_velocity),
         max(-32768, min(32767, int(telemetry.left_pwm))),
@@ -143,13 +171,23 @@ def encode_telemetry(telemetry: Telemetry, sequence: int) -> bytes:
         _uint16(telemetry.acknowledged_command_sequence),
         min(0xFFFF, max(0, int(telemetry.command_age_ms))),
         min(0xFFFF, max(0, int(telemetry.rx_crc_errors))),
+        bool(telemetry.buzzer_enabled),
+        max(50, min(4000, int(telemetry.buzzer_threshold_mm))),
     )
     return encode_frame(MSG_TELEMETRY, sequence, payload)
 
 
 def decode_telemetry(payload: bytes) -> Telemetry:
-    if len(payload) != _TELEMETRY_STRUCT.size:
+    if len(payload) not in (
+        _TELEMETRY_STRUCT.size,
+        _TELEMETRY_WITH_BUZZER_STRUCT.size,
+    ):
         raise ValueError('telemetry payload has wrong size')
+    values = (
+        _TELEMETRY_WITH_BUZZER_STRUCT
+        if len(payload) == _TELEMETRY_WITH_BUZZER_STRUCT.size
+        else _TELEMETRY_STRUCT
+    ).unpack(payload)
     (
         left_velocity,
         right_velocity,
@@ -164,7 +202,14 @@ def decode_telemetry(payload: bytes) -> Telemetry:
         acknowledged_sequence,
         command_age_ms,
         rx_crc_errors,
-    ) = _TELEMETRY_STRUCT.unpack(payload)
+        *buzzer_fields,
+    ) = values
+    buzzer_enabled, buzzer_threshold_mm = (buzzer_fields if buzzer_fields else (False, 300))
+    if buzzer_fields and (
+        buzzer_enabled not in (0, 1)
+        or not 50 <= buzzer_threshold_mm <= 4000
+    ):
+        raise ValueError('telemetry buzzer settings are out of range')
     return Telemetry(
         left_velocity=left_velocity / 1000.0,
         right_velocity=right_velocity / 1000.0,
@@ -186,6 +231,8 @@ def decode_telemetry(payload: bytes) -> Telemetry:
         acknowledged_command_sequence=acknowledged_sequence,
         command_age_ms=command_age_ms,
         rx_crc_errors=rx_crc_errors,
+        buzzer_enabled=bool(buzzer_enabled),
+        buzzer_threshold_mm=buzzer_threshold_mm,
     )
 
 

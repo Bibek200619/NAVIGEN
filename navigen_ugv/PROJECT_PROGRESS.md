@@ -1,5 +1,22 @@
 # NAVIGEN UGV Project Progress
 
+## 2026-09-30 current physical hardware and implementation
+
+The current controller is a NodeMCU ESP8266 with one rear ultrasonic sensor,
+one L298N, four motors without encoders, and a physical motor-power switch.
+The Raspberry Pi hosts the Pi Camera and [operator dashboard](pi_controller/README.md).
+The [ESP8266 firmware](firmware/esp8266_motor_controller/README.md) handles
+the motor watchdog, e-stop, rear reverse/pivot stop, and proximity buzzer.
+This is camera-assisted manual driving; autonomous A-to-B navigation is not complete.
+The older phase dashboard below is historical context.
+
+Software validation: **39 portable controller/protocol and HTTP tests passed**;
+native firmware tests and the pinned ESP8266 build passed. The Pi receives
+ESP8266 telemetry and buzzer settings over USB. The ultrasonic reading remains
+invalid until sensor wiring is verified; the Pi Camera is unavailable on the
+current Ubuntu 24.04 installation. Physical driving remains locked by the
+firmware configuration gate.
+
 This is the human-facing engineering log for the UGV programming team. It records completed work, evidence, missing work, and the next gate. It is not an instruction file for coding agents.
 
 - Last updated: **2026-09-05 (Asia/Kolkata)**

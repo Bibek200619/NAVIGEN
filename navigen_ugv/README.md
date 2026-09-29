@@ -1,5 +1,7 @@
 # NAVIGEN — Vision-Based Autonomous Navigation for an Outdoor UGV
 
+> **Current physical hardware (2026-09-29):** Raspberry Pi + Pi Camera, NodeMCU ESP8266, L298N, encoderless motors, and one **rear** ultrasonic sensor. The runnable camera-driving code and setup are in [pi_controller/README.md](pi_controller/README.md). The ROS/Gazebo roadmap below predates this revised hardware profile.
+
 Smart India Hackathon 2026 — Problem Statement **SIH26126**: Vision Based Autonomous Navigation for Unmanned Ground Vehicle for Outdoor Environment.
 
 **Core principle: CAMERA IS THE PRIMARY SENSOR. VISION DOES THE NAVIGATION. OTHER SENSORS IMPROVE ROBUSTNESS AND SAFETY. GPS IS NEVER A NAVIGATION INPUT.**
