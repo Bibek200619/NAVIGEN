@@ -1,337 +1,255 @@
-# NAVIGEN — Vision-Based Autonomous Navigation for an Outdoor UGV
+# NAVIGEN
 
-[![Smart India Hackathon 2026](https://img.shields.io/badge/SIH-2026-orange.svg)](https://www.sih.gov.in/)
-[![Problem Statement](https://img.shields.io/badge/Problem%20Statement-SIH26126-blue.svg)](#smart-india-hackathon-2026--sih26126)
-[![ROS 2](https://img.shields.io/badge/ROS%202-Jazzy-22314E.svg)](https://docs.ros.org/en/jazzy/)
-[![Gazebo](https://img.shields.io/badge/Gazebo-Harmonic-FF6F00.svg)](https://gazebosim.org/)
-[![Firmware](https://img.shields.io/badge/Firmware-ESP8266%20PlatformIO-orange.svg)](navigen_ugv/firmware/esp8266_motor_controller/)
-[![Tests](https://img.shields.io/badge/Core%20Tests-39%2F39%20Passing-brightgreen.svg)](navigen_ugv/scripts/validate_core.py)
-[![License](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
+**Camera-assisted ground vehicle today; GPS-denied autonomy as a research goal.** NAVIGEN brings a Raspberry Pi camera feed, rear obstacle distance, motion-sensor readings, and operator controls into a browser. The repository also contains a separate local 3D demonstration and a ROS 2/Gazebo navigation track. The physical vehicle has **not** demonstrated autonomous A-to-B driving.
 
-> **Smart India Hackathon 2026 — Problem Statement SIH26126**  
-> **Vision Based Autonomous Navigation for Unmanned Ground Vehicle for Outdoor Environment**
+The project addresses a practical gap in outdoor UGV development: an operator needs a view of the vehicle and trustworthy stop behavior before navigation algorithms can be tested on a real chassis. A single rear range sensor and an IMU cannot locate the vehicle or detect hazards ahead. NAVIGEN therefore presents the current vehicle as a **manual, camera-assisted prototype** and keeps simulation results distinct from field results. The repository identifies Smart India Hackathon problem statement SIH26126 as its original challenge context.
 
-NAVIGEN is a vision-first, GPS-denied autonomous navigation platform for a 4WD Unmanned Ground Vehicle (UGV) engineered for rugged outdoor environments. The system delivers reliable localization, obstacle avoidance, and point-to-point transit **without any reliance on GPS**.
+> **Physical-build gate (30 September 2026):** Motor output is locked in the checked-in ESP8266 firmware. A 3S pack was measured at **12.6 V** at the L298N, while the four TT motors are rated **3–6 V**; two motors share each driver channel. The 127/255 PWM duty limit does not lower the voltage of each pulse or prove that the driver can handle stall current. Keep the physical motor-power switch **off** until the supply, driver, and wiring have been corrected and measured. See [motor commissioning](navigen_ugv/firmware/esp8266_motor_controller/README.md#motor-power-and-active-lockout).
 
-> ⚡ **Core Engineering Principle:**  
-> **Camera / computer vision is the primary navigation sensor.** Auxiliary sensors (IMU, rear ultrasonic rangefinder, and proximity buzzer) improve localization robustness, fault detection, and collision prevention. **GPS is strictly excluded from the navigation pipeline.**
+## What is available
 
----
+| Track | Status | Verified in this repository | Boundary |
+|---|---|---|---|
+| **Physical Pi dashboard** | Implemented, propulsion gated | Token-protected HTTP interface, Pi Camera JPEG feed, rear HC-SR04 distance, MPU-6500-compatible IMU display, buzzer configuration, hold-to-drive commands, software e-stop, USB serial reconnection and ESP8266 watchdog. A mock mode runs without hardware. | The current firmware configuration inhibits motor output. There is no wheel encoder, forward range sensing, or position estimate. |
+| **Local 3D demo** | Implemented simulation | FastAPI/Three.js terrain simulation with preset and generated environments, guided patrol, simulated camera and telemetry, obstacle detour, and a React operator dashboard. | Its planner uses known simulated geometry. It is not a physical perception, SLAM, or dynamics result. |
+| **ROS 2 research** | In development | Jazzy packages for a vehicle description, serial hardware bridge, Gazebo Harmonic world, and known-map Nav2 simulation. | ROS is not required by the deployed Pi dashboard; autonomous physical navigation remains unvalidated. |
+| **Web application** | In development | React/TypeScript operator pages and a FastAPI REST/WebSocket backend with Supabase Auth/PostgREST and rosbridge adapters. The backend has tests using service fakes. | No database migration is committed, and the complete web-to-physical-UGV pipeline is not established. |
+| **Mobile application** | Planned | A planning README. | No mobile implementation is present. |
 
-## Table of Contents
+**Domain:** outdoor robotics and UGV operation; supporting domains are embedded/IoT control, computer vision, simulation, and operator software. Camera capture is implemented; learned vision inference on the physical vehicle is future work.
 
-- [Current Engineering Status](#current-engineering-status)
-- [Quick Start Guide](#quick-start-guide)
-  - [1. Run Core Validation (No ROS Required)](#1-run-core-validation-no-ros-required)
-  - [2. Interactive 3D Web Simulation & Guided Demo](#2-interactive-3d-web-simulation--guided-demo)
-  - [3. Standalone On-Robot Pi Controller (Hardware or Mock)](#3-standalone-on-robot-pi-controller-hardware-or-mock)
-  - [4. Full ROS 2 Jazzy & Gazebo Harmonic Simulation](#4-full-ros-2-jazzy--gazebo-harmonic-simulation)
-  - [5. Operator Web Dashboard](#5-operator-web-dashboard)
-- [System Architecture](#system-architecture)
-  - [Autonomous ROS 2 Navigation Pipeline](#autonomous-ros-2-navigation-pipeline)
-  - [On-Robot Pi Controller & ESP8266 Telemetry Loop](#on-robot-pi-controller--esp8266-telemetry-loop)
-- [Hardware Platform](#hardware-platform)
-  - [Component Overview](#component-overview)
-  - [Power & Electrical Isolation](#power--electrical-isolation)
-- [Repository Structure](#repository-structure)
-- [Development Phases & Milestones](#development-phases--milestones)
-- [Safety & Failsafe Architecture](#safety--failsafe-architecture)
-- [Contributors & Team](#contributors--team)
-- [Documentation Index](#documentation-index)
+## Try NAVIGEN
 
----
+The **local demo** is the quickest reproducible experience. It needs Python 3.11+, Node.js/npm, uv, Git, and internet access for the first dependency install. The launcher installs from committed lockfiles and binds both services to 127.0.0.1.
 
-## Current Engineering Status
-
-```
-[==================== 44% Overall Engineering Completion ====================]
-  Phase 1: ROS 2 Foundation & URDF         [████████████████████] 100% (Green)
-  Phase 2: Gazebo Harmonic Simulation      [████████████████████] 100% (Green)
-  Phase 3: Nav2 Simulation (Known Map)     [████████████████████] 100% (Green)
-  Phase 4: NodeMCU ESP8266 Firmware v2     [████████████████████] 100% (Green)
-  Phase 5: Real UGV Teleoperation          [████████████████    ]  80% (Software Green / Hardware Power Gate)
-  Phase 6-11: VIO, Traversability & Demo   [                    ]   0% (In Roadmap)
-```
-
-- **Core Tests:** **39/39 passing** via portable pytest test runner (`scripts/validate_core.py`) verifying serial protocol v2, packet parser, CRC-8 framing, kinematics, and controller HTTP API.
-- **Physical Hardware Runtime (`navigen_ugv/pi_controller`):** Standalone camera-assisted manual driving runtime complete on Raspberry Pi 5 with Picamera2 streaming, dead-man motion leases, software e-stop, rear-guard distance telemetry, browser-configurable proximity buzzer (30 cm default), and hardware-in-the-loop mock mode.
-- **Interactive 3D Web Simulation (`web_app/simulation`):** Standalone Three.js + FastAPI 3D off-road simulation featuring Alpine, Rocky, and Forest terrains, procedural generation, dynamic obstacle avoidance detour, and guided demonstration.
-- **Hardware Status:** Software validation is green. Physical wheel driving remains safely locked until physical electrical wiring, DC motor load switch insulation, and separate 3–6V battery rails are verified.
-
----
-
-## Quick Start Guide
-
-### 1. Run Core Validation (No ROS Required)
-
-Run the fast unit and integration tests covering the serial protocol v2, CRC-8 integrity, kinematics, mock controller, and HTTP API endpoints:
-
-```bash
-# Run 39 portable core tests in ~2 seconds
-python3 navigen_ugv/scripts/validate_core.py
-```
-
----
-
-### 2. Interactive 3D Web Simulation & Guided Demo
-
-Experience the off-road UGV patrolling uneven ground with dynamic obstacle rerouting:
-
-```bash
-cd web_app
+~~~bash
+git clone https://github.com/Bibek200619/NAVIGEN.git
+cd NAVIGEN/web_app
 ./simulation/start.sh
-```
+~~~
 
-- **3D World Viewer:** [http://127.0.0.1:8010](http://127.0.0.1:8010)
-- **Operator Dashboard:** [http://127.0.0.1:5174](http://127.0.0.1:5174)
-- Click **"Run guided demo"** to observe the rover navigate terrain, detect a boulder obstacle, take an autonomous detour, and return to base camp.
+Open [the 3D view](http://127.0.0.1:8010) and select **Run guided demo**; [the operator dashboard](http://127.0.0.1:5174) shows the same simulated run. Choose an environment, observe the patrol and obstacle detour, then stop both processes with Ctrl+C. This path needs no Pi, database, ROS installation, or credentials. The simulation's local demo token is intentionally public and must never be used as a production secret. [Demo controls and model assumptions](web_app/simulation/README.md).
 
----
+For a **hardware-free test of the Pi interface**, from the repository root:
 
-### 3. Standalone On-Robot Pi Controller (Hardware or Mock)
+~~~bash
+uv run --with numpy --with opencv-python --with pyserial python navigen_ugv/pi_controller/app.py --mock
+~~~
 
-The Pi controller provides camera streaming and keyboard/touch driving without requiring a full ROS 2 environment:
+Open http://127.0.0.1:8080, enter the token printed in the terminal, and select **Connect**. Mock mode labels its synthetic camera and does not open the motor serial port. The real Pi installation, Ubuntu camera build, systemd service, and lifted-wheel commissioning steps are in the [Pi runtime guide](navigen_ugv/pi_controller/README.md) and [operations guide](navigen_ugv/pi_controller/OPERATIONS.md). The previously configured Pi dashboard is reachable on its local network at http://Hexcore.local:8080; that address is a team setup, not a public deployment.
 
-```bash
-# Option A: Run in Mock Mode (no physical hardware or serial port needed)
-python3 navigen_ugv/pi_controller/app.py --mock
+## How the current vehicle works
 
-# Option B: Run on physical Raspberry Pi 5 connected to ESP8266
-python3 navigen_ugv/pi_controller/app.py \
-  --port /dev/serial/by-id/YOUR_ESP8266 \
-  --track-width 0.34
-```
+The browser requests frames and status from a small HTTP server on the Pi. The Pi reads the CSI camera and I²C motion module, exchanges CRC-protected commands and telemetry with the ESP8266 over USB, and rejects commands when its camera or controller data are stale. The ESP8266 owns the rear range sensor, buzzer, motor pins, command-loss watchdog, and firmware configuration lockout. The physical switch cuts motor power independently of the browser. A valid rear measurement can block reverse and pivot motion; the operator must still watch for forward obstacles.
 
-1. Open `http://127.0.0.1:8080`.
-2. Paste the session bearer token generated in the terminal.
-3. Drive with **W/A/S/D** or touch controls (hold-to-drive safety leases).
-4. Monitor rear ultrasonic telemetry and adjust buzzer thresholds in real time.
+~~~mermaid
+flowchart LR
+    OP[Operator] -->|token, hold-to-drive| UI[Pi browser dashboard]
+    CAM[Pi Camera 1] --> PI[Raspberry Pi 5 HTTP controller]
+    IMU[MPU-compatible I2C sensor] --> PI
+    UI <-->|status, camera JPEG, commands| PI
+    PI <-->|CRC USB serial| ESP[NodeMCU ESP8266]
+    US[Rear HC-SR04] --> ESP
+    ESP --> BUZ[Buzzer, default off]
+    ESP -->|locked pending commissioning| DRV[L298N]
+    SW[Physical motor switch] --> DRV
+    DRV --> MOT[Four TT motors]
+~~~
 
----
+This is the **overall operational workflow** for the physical prototype. The current motor lockout is a real output gate, not a diagram-only warning.
 
-### 4. Full ROS 2 Jazzy & Gazebo Harmonic Simulation
+### Architecture across tracks
 
-Launch the complete ROS 2 Gazebo Harmonic outdoor simulation with camera, IMU, and TF transforms:
+~~~mermaid
+flowchart TB
+    subgraph Deployed[Physical prototype]
+      PUI[Pi static dashboard] --> PAPI[Pi HTTP controller]
+      PAPI --> SERIAL[USB serial and ESP8266 firmware]
+      PCAM[Pi Camera and IMU] --> PAPI
+    end
+    subgraph Local[Independent local demo]
+      REACT[React operator UI] --> SIM[FastAPI simulation API]
+      VIEW[Three.js 3D view] --> SIM
+      SIM --> ENGINE[Terrain, kinematic rover and known-geometry planner]
+    end
+    subgraph Research[Separate integration and research]
+      WEB[React application] --> API[FastAPI operator backend]
+      API -->|designed integration| SB[Supabase Auth and PostgREST]
+      API -->|rosbridge adapter| ROS[ROS 2 and Gazebo packages]
+    end
+~~~
 
-```bash
-# In Ubuntu 24.04 with ROS 2 Jazzy:
-cd navigen_ugv/ros2_ws
-colcon build --symlink-install
-source install/setup.bash
+The Pi dashboard, local demo, and general web backend are different run modes. The backend routes through services and repositories; its configured UGV_ROBOT_ID enables a rosbridge ingestion task. The [database schema](web_app/docs/DATABASE_SCHEMA.md) is a **contract**, not proof of a deployed database: web_app/backend/app/db/migrations contains no SQL migration. The [web architecture document](web_app/docs/ARCHITECTURE.md) describes the intended integration boundary.
 
-# Launch outdoor world simulation with RViz
-ros2 launch navigen_bringup sim.launch.py
+### Data flow and stop path
 
-# Launch Phase 3 autonomous Nav2 point-to-point navigation
-ros2 launch navigen_navigation nav2_sim.launch.py
-```
+~~~mermaid
+flowchart LR
+    SRC[Camera, IMU and rear echo] --> CHECK[Pi and ESP freshness/validity checks]
+    CHECK --> STATUS[Authenticated status and camera responses]
+    STATUS --> RENDER[Browser cards and live view]
+    INPUT[Operator press or release] --> AUTH[Bearer-token check and input validation]
+    AUTH --> LEASE[Pi motion lease and software e-stop]
+    LEASE --> SERIAL[CRC serial command]
+    SERIAL --> GUARD[ESP watchdog, rear guard and configuration gate]
+    GUARD --> OUTPUT[Motor GPIO or zero output]
+    SWITCH[Physical switch] --> OUTPUT
+~~~
 
-*Prefer Docker?* Run headless or VNC-enabled containers:
-```bash
-./navigen_ugv/scripts/validate_in_docker.sh
-```
+The physical path has no database write or AI inference. A missing/stale rear reading is treated conservatively for reverse. The browser's **Release e-stop** action concerns the software latch; it cannot override the physical motor switch or firmware lockout.
 
----
+### Operator journey
 
-### 5. Operator Web Dashboard
+~~~mermaid
+flowchart TD
+    START[Open Pi dashboard] --> TOKEN[Enter Pi session token]
+    TOKEN --> HEALTH[Check fresh camera, rear distance and controller status]
+    HEALTH -->|unhealthy or lockout| STOP[Keep stopped; inspect fault]
+    HEALTH -->|commissioned hardware only| RELEASE[Release software e-stop]
+    RELEASE --> HOLD[Hold W/A/S/D or a drive control]
+    HOLD --> WATCH[Watch camera and surroundings]
+    WATCH -->|release, timeout or Space| STOP
+~~~
 
-The production React + TypeScript operator interface for monitoring telemetry and camera feeds:
+### Deployment boundary
 
-```bash
-# Frontend
-cd web_app/frontend
-npm install
-npm run dev
-# Dashboard accessible at http://127.0.0.1:5173
+~~~mermaid
+flowchart LR
+    LAPTOP[Laptop browser on local Wi-Fi] -->|local HTTP or SSH tunnel| PI[Raspberry Pi 5: Pi HTTP service]
+    PI -->|CSI and I2C| SENS[Camera and motion sensor]
+    PI -->|USB| MCU[ESP8266 firmware]
+    MCU -->|GPIO| HW[Rear sensor, buzzer and L298N]
+    DEV[Developer workstation] -->|localhost 5174| DEMOUI[React demo]
+    DEV -->|localhost 8010| DEMOAPI[FastAPI and Three.js demo]
+~~~
 
-# Backend
-cd web_app/backend
-uvicorn app.main:app --reload
-```
+No CDN, hosted web service, production database, or cloud deployment is configured by this repository. The Pi service can be enabled with the supplied [systemd template](navigen_ugv/pi_controller/navigen-dashboard@.service). Remote network access would need TLS, access control, and an explicit deployment design.
 
----
+## Components and technology
 
-## System Architecture
-
-NAVIGEN features a dual-track architectural design:
-1. **Autonomy Stack (ROS 2 Jazzy):** Designed for vision-based visual-inertial odometry (VIO), costmap generation, and Nav2 path planning.
-2. **On-Robot Executive Runtime (`pi_controller`):** Designed for direct, low-latency teleoperation, live video streaming, safety arbitration, and hardware protection directly on Raspberry Pi 5 + ESP8266.
-
-### Autonomous ROS 2 Navigation Pipeline
-
-```text
-                  ┌───────────────────────────────┐
-                  │   Raspberry Pi 5 (ROS 2)      │
-                  └───────────────┬───────────────┘
-                                  │
-          ┌───────────────────────┼───────────────────────┐
-          │                       │                       │
-     [Pi Camera]              [MPU6050]            [Rear HC-SR04]
-          │                       │                       │
-          ▼                       ▼                       ▼
-  Vision Perception        Visual-Inertial Odometry   Rear Range
-  Traversability Mask       (ORB-SLAM3 + EKF Fusion)  Telemetry
-          │                       │                       │
-          └───────────────┬───────┴───────────────────────┘
-                          ▼
-               Nav2 Costmaps (Local/Global)
-                          │
-                 SmacPlanner2D Global
-                          │
-               Regulated Pure Pursuit
-                          │
-                       /cmd_vel
-                          ▼
-                  Safety Supervisor
-               (Watchdog / E-Stop Gate)
-                          │
-                   USB Serial v2 (CRC-8)
-                          │
-                          ▼
-                 NodeMCU ESP8266
-             (Watchdog & Rear Guard)
-                          │
-                  L298N Motor Driver
-                          │
-                          ▼
-            4WD Skid-Steer Geared Motors
-```
-
-### On-Robot Pi Controller & ESP8266 Telemetry Loop
-
-```text
-  [Operator Browser] ──(HTTP / MJPEG)──> [Pi Controller app.py]
-          │                                      │
-     Hold-to-drive                           Picamera2
-     Motion Leases                               │
-          │                                      ▼
-          └──────> [controller.py] ──(USB Serial CRC-8 v2)──> [ESP8266 Firmware]
-                          │                                           │
-                   Active Leases                                 IN1-IN4 PWM
-                   Rear Distance                                 Watchdog (300ms)
-                   Buzzer Threshold                              Rear Proximity Buzzer
-                   Software E-Stop                               Motor-Power Sense
-```
-
----
-
-## Hardware Platform
-
-### Component Overview
-
-| Subsystem | Component | Specifications / Notes |
+| Layer | Technology in source | Responsibility |
 |---|---|---|
-| **SBC (Mission Computer)** | Raspberry Pi 5 (8 GB) | Ubuntu 24.04 LTS 64-bit / Raspberry Pi OS. Hosts perception, Picamera2, and bridge. |
-| **Vision Sensor** | Monocular Raspberry Pi Camera | Rigidly mounted forward-facing; primary sensor for odometry and traversability. |
-| **Motor Controller** | NodeMCU 1.0 (ESP8266 ESP-12E) | Executes realtime motor PWM, 300 ms watchdog, rear guard, and CRC-8 framing. |
-| **Motor Driver** | L298N Dual H-Bridge | Channel A drives Left pair; Channel B drives Right pair. |
-| **Drivetrain** | 4WD Skid-Steer Chassis | Four 3–6V 200 RPM BO geared motors (encoderless). |
-| **Inertial Measurement** | MPU6050 6-DOF IMU | Connected via I2C to Raspberry Pi; 3-axis gyro + 3-axis accelerometer for EKF fusion. |
-| **Rear Range & Alert** | HC-SR04 + Active Buzzer | Dedicated rear obstacle detection; active buzzer sounds within configurable threshold (default: 30 cm). |
-| **Communication** | High-speed USB Serial | 115,200 baud, versioned binary protocol with CRC-8 checksumming and sequence validation. |
+| Physical controller | Python HTTP server, Picamera2, OpenCV, pyserial, smbus2 | Camera/status API, authenticated operator commands, serial and IMU readers |
+| Embedded controller | C++ / PlatformIO, NodeMCU ESP8266 | Sensor sampling, watchdog, rear guard, buzzer and motor GPIO lockout |
+| General web UI | React 19, TypeScript, Vite, Tailwind CSS | Robot, camera, mission, sensor, log and settings pages |
+| Web API | FastAPI, Pydantic, httpx, WebSocket | Routes, command checks, telemetry delivery, camera relay, Supabase/rosbridge adapters |
+| Local demo | FastAPI, Three.js, Pillow | Procedural terrain, simulated rover/camera, guided route |
+| Robotics research | ROS 2 Jazzy, Gazebo Harmonic, Nav2 | Vehicle model, known-map simulation, hardware bridge |
+| Data design | Supabase Postgres schema document | Planned persistent robots, missions, telemetry, commands and logs; migration pending |
+| Verification | pytest, unittest, Vitest, TypeScript, ESLint, GitHub Actions | Component and integration tests; current CI covers web_app/frontend only |
 
-### Power & Electrical Isolation
+### Repository map
 
-To guarantee system stability, electrical noise immunity, and prevent brownouts:
-- **Logic Rail:** Powered independently via dedicated regulated 5V USB-C power bank for the Raspberry Pi 5.
-- **Motor Rail:** Dedicated 3–6V high-current battery pack feeding the L298N power terminal through a physical master power switch.
-- **Common Ground:** Logic ground and motor ground are tied at a single star point on the L298N driver board.
-- ⚠️ **High Voltage Notice:** Direct connection of 3S 18650 packs (11.1–12.6V) to 3–6V BO motors without a calibrated DC-DC buck converter is strictly forbidden.
-
----
-
-## Repository Structure
-
-```text
+~~~text
 NAVIGEN/
-├── navigen_ugv/                     # Autonomous UGV & Embedded Subsystem
-│   ├── pi_controller/               # Standalone on-robot web dashboard & driving service
-│   │   ├── app.py                   # HTTP API, auth tokens, lifecycle
-│   │   ├── controller.py            # Serial worker, motion leases, rear guard
-│   │   ├── camera.py                # Picamera2 capture & JPEG streaming
-│   │   ├── static/                  # Responsive browser driving controls
-│   │   └── navigen-dashboard@.service # Systemd service template
-│   ├── firmware/                    # Embedded microcontrollers
-│   │   └── esp8266_motor_controller/ # PlatformIO NodeMCU firmware (PWM, watchdog, buzzer)
-│   ├── ros2_ws/                     # Complete ROS 2 Jazzy workspace
-│   │   └── src/
-│   │       ├── navigen_bringup/     # Sim and real launch compositions
-│   │       ├── navigen_description/ # 4WD URDF/xacro, vehicle geometry, TF
-│   │       ├── navigen_gazebo/      # Gazebo Harmonic world & bridges
-│   │       ├── navigen_hardware/    # Kinematics, serial protocol v2, mock hardware
-│   │       ├── navigen_interfaces/  # Custom ROS 2 msg definitions
-│   │       ├── navigen_localization/# EKF & planned ORB-SLAM3 integration
-│   │       ├── navigen_navigation/  # Nav2 parameters, SmacPlanner2D, costmaps
-│   │       └── navigen_safety/      # Safety supervisor & command arbiter
-│   ├── simulation/                  # Gazebo Harmonic worlds, terrains & assets
-│   ├── docker/                      # Dockerized development environments
-│   ├── scripts/                     # validate_core.py, teleop.sh, estop.sh, etc.
-│   └── docs/                        # architecture.md, hardware.md, calibration.md
-│
-├── web_app/                         # Operator Command & Telemetry Subsystems
-│   ├── frontend/                    # React + TypeScript + Vite operator dashboard
-│   ├── backend/                     # FastAPI backend with WebSocket telemetry
-│   ├── simulation/                  # Interactive 3D Three.js off-road demo server
-│   ├── shared/                      # Versioned JSON contracts & example payloads
-│   └── docs/                        # LIVE_CAMERA.md, ARCHITECTURE.md, etc.
-│
-└── mobile_app/                      # Mobile companion application (spec & roadmap)
-```
+├── README.md
+├── .github/                   # Frontend CI and issue templates
+├── navigen_ugv/
+│   ├── pi_controller/         # Deployed Pi dashboard and tests
+│   ├── firmware/esp8266_motor_controller/
+│   ├── ros2_ws/src/          # ROS packages, launch, robot description and Nav2
+│   ├── docs/                 # Hardware, architecture and test notes
+│   └── scripts/              # Core and firmware validation
+├── web_app/
+│   ├── frontend/             # React operator application
+│   ├── backend/              # FastAPI, adapters and tests
+│   ├── simulation/           # Independent 3D local demo
+│   ├── shared/               # Versioned application contracts
+│   └── docs/                 # Web architecture and database contract
+└── mobile_app/               # Planning document only
+~~~
 
----
+The camera build and ESP8266 pin map live in the component guides. navigen_ugv/PROJECT_PROGRESS.md records earlier research phases; its historical percentages are not a measure of the current physical vehicle.
 
-## Development Phases & Milestones
+## Development paths
 
-The project follows a rigorous, gated phase progression where each phase requires verifiable test evidence:
+Use the component you intend to work on; the paths do not need to run together.
 
-| Phase | Milestone Scope | Status | Acceptance Evidence |
-|:---:|---|:---:|---|
-| **1** | Repository, ROS 2 Workspace, URDF, TF | ✅ **GREEN (100%)** | 8 packages build cleanly under ROS 2 Jazzy; URDF/xacro and TF tree verified. |
-| **2** | Gazebo Harmonic Simulation & Teleop | ✅ **GREEN (100%)** | Realistic outdoor world, terrain obstacles, simulated camera/IMU, bounded motion. |
-| **3** | Nav2 Point-to-Point Autonomous Simulation | ✅ **GREEN (100%)** | Known-map SmacPlanner2D + Regulated Pure Pursuit; collision-free 7m acceptance run. |
-| **4** | NodeMCU ESP8266 Firmware & Serial Protocol | ✅ **GREEN (100%)** | CRC-8 protocol v2, 300 ms watchdog, ultrasonic rear guard, and proximity buzzer. |
-| **5** | Real UGV Teleoperation & Pi Dashboard | 🟨 **80% (In Progress)** | Software stack & mock tests complete; physical power switch wiring validation in progress. |
-| **6** | MPU6050 IMU + Visual Odometry EKF | ⬜ **0% (Roadmap)** | robot_localization EKF fusion (strictly encoderless; no synthetic wheel ticks). |
-| **7** | Vision Traversability Segmentation | ⬜ **0% (Roadmap)** | On-device lightweight neural network for ground plane / terrain classification. |
-| **8** | Visual SLAM / Visual-Inertial Odometry | ⬜ **0% (Roadmap)** | ORB-SLAM3 mono/stereo-inertial integration without GPS. |
-| **9** | Traversability to Nav2 Costmap Layer | ⬜ **0% (Roadmap)** | Dynamic conversion of vision masks to local costmap obstacles. |
-| **10** | Safety Supervisor & Emergency Arbitrator | ⬜ **0% (Roadmap)** | Multi-channel safety supervisor overriding navigation commands. |
-| **11** | Full Outdoor A-to-B Autonomous Demo | ⬜ **0% (Final Target)** | GPS-denied autonomous point-to-point outdoor traversal. |
+| Path | Start and verify | Requirements |
+|---|---|---|
+| **Pi mock** | Run the uv command above; inspect camera/status and e-stop in the browser. | Python and uv; no real motor output. |
+| **Local demo** | cd web_app and run ./simulation/start.sh; open ports 8010 and 5174. | Python 3.11+, Node/npm, uv; installs locked dependencies. |
+| **React app** | cd web_app/frontend; run npm ci, npm run dev, npm test, npm run lint, npm run build. | Node.js 22 is used by CI. Live data needs a configured API or the demo launcher. |
+| **FastAPI backend** | cd web_app/backend; create/activate a Python venv, run pip install -e '.[dev]', copy .env.example to .env, then uvicorn app.main:app --reload; run pytest. | Python 3.11+. Real protected routes need a configured Supabase project and schema. Do not commit .env. |
+| **ROS simulation** | Follow the [Jazzy/Gazebo setup](navigen_ugv/README.md#4-ubuntu-setup-for-the-ros-research-track), then launch navigen_bringup or the known-map Nav2 simulation. | Ubuntu 24.04, ROS 2 Jazzy, Gazebo Harmonic and listed ROS dependencies. |
 
----
+For the application workspace, these are the commands represented by the table:
 
-## Safety & Failsafe Architecture
+~~~bash
+cd web_app/frontend
+npm ci
+npm run dev
+~~~
 
-1. **Strictly Encoderless Honesty:** Because the physical chassis uses encoderless BO motors, the system **never invents synthetic wheel odometry**. Odometry is derived solely from visual-inertial SLAM and simulation plugins.
-2. **Hardware Watchdog:** The ESP8266 firmware shuts down motor PWM if no valid CRC-8 command packet is received within **300 ms**.
-3. **Dead-Man Motion Leases:** In manual/teleop modes, command velocity leases automatically expire if the operator releases the key/control or if browser focus is lost.
-4. **Rear Obstacle Guard & Active Buzzer:** If the rear ultrasonic sensor detects an obstacle within the threshold (default: 30 cm), reverse drive is inhibited and an active buzzer sounds.
-5. **Physical E-Stop Isolation:** A physical dual-pole cutoff switch cuts direct battery power to the L298N driver regardless of software state.
+In another terminal from the repository root:
 
----
+~~~bash
+cd web_app/backend
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e '.[dev]'
+cp .env.example .env
+uvicorn app.main:app --reload
+~~~
 
-## Contributors & Team
+The backend requires valid external-service settings and an installed schema for authenticated data workflows; its public /health endpoint can be checked without those services. Run each directory's tests as listed above. The application workspace is separate from the local demo launcher.
 
-NAVIGEN is developed for **Smart India Hackathon 2026**:
+The backend example keys in [web_app/backend/.env.example](web_app/backend/.env.example) are placeholders. Set SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, SUPABASE_SERVICE_ROLE_KEY, FRONTEND_ORIGINS, and UGV_BRIDGE_URL for a real integration; set CAMERA_STREAM_URL for the backend camera relay. The service-role key belongs on the backend only. Frontend endpoint overrides are in [web_app/frontend/.env.example](web_app/frontend/.env.example). The backend has no reproducible database bootstrap yet, so its protected workflows cannot be demonstrated solely by following the install commands.
 
-- **Bibek Shah** ([@Bibek200619](https://github.com/Bibek200619)) — *Project Lead / Embedded & Full-Stack Developer*  
-  ESP8266 firmware development, CRC-8 protocol v2, Raspberry Pi driving runtime, 3D web simulation engine, operator dashboard UI.
-- **Nikhil Chhetri** ([@nikhi20-900](https://github.com/nikhi20-900)) — *AI / Robotics & DevOps Developer*  
-  Autonomous navigation development, computer vision & perception pipeline, Gazebo Harmonic UGV simulation, backend API integration, Docker deployment environments.
-- **Lenin Sarmah** ([@LeninSarmah](https://github.com/LeninSarmah)) — *Frontend & Documentation Contributor*  
-  Operator interface refinements, UI alignment, documentation, and progress logging.
+## Interfaces and data
 
----
+The **Pi API** uses one process-local or owner-readable-file bearer token:
 
-## Documentation Index
+| Method | Path | Purpose |
+|---|---|---|
+| GET | /api/status | Controller, rear distance, camera and IMU state |
+| GET | /api/camera.jpg | Latest camera JPEG |
+| POST | /api/command | Bounded manual velocity request |
+| POST | /api/estop | Engage or request release of software e-stop |
+| POST | /api/buzzer | Enable/disable buzzer and set distance threshold |
 
-- 📘 [UGV Engineering Guide](navigen_ugv/README.md) — Comprehensive build, ROS 2 configuration, and hardware bringup.
-- 📋 [Engineering Progress & Evidence](navigen_ugv/PROJECT_PROGRESS.md) — Detailed acceptance criteria, test reports, and blocker logs.
-- 🚗 [Pi Controller & Teleop Runtime](navigen_ugv/pi_controller/README.md) — Setup and operation of the standalone web dashboard.
-- ⚡ [ESP8266 Firmware & Pinout](navigen_ugv/firmware/esp8266_motor_controller/README.md) — Pin mapping, PlatformIO setup, and rear guard logic.
-- 🏗️ [System Architecture Specification](navigen_ugv/docs/architecture.md) — Node definitions, topics, TF tree, and contracts.
-- 🔌 [Hardware & Wiring Guide](navigen_ugv/docs/hardware.md) — Electrical connections, power rails, and sensor wiring.
-- 🌐 [Web Application Documentation](web_app/README.md) — Operator dashboard, backend APIs, and shared contracts.
-- 🎮 [3D Simulation & Demo Guide](web_app/simulation/README.md) — Interactive Three.js simulation setup and presentation script.
-- 📷 [Live Camera Setup](web_app/docs/LIVE_CAMERA.md) — Video streaming gateway and authenticated MJPEG configuration.
-- 🛠️ [Troubleshooting & FAQs](navigen_ugv/docs/troubleshooting.md) — Solutions to common hardware, serial, and ROS issues.
+The **web backend** exposes GET /health, GET /api/v1/status, robot/telemetry/safety/sensor/localization reads, mission and goal routes, POST /api/v1/robots/{robot_id}/commands, command/log reads, an admin role route, a camera relay, and WS /ws/v1/telemetry. Its [backend guide](web_app/backend/README.md#rest-api) lists exact paths and roles. Supabase Auth validates access tokens; the backend loads roles from user_roles. The source includes bounded WebSocket queues and command precondition checks. Full operation still depends on a deployed schema, rosbridge, and an end-to-end-tested UGV goal adapter.
+
+The **proposed database** groups robots, missions/mission_goals, telemetry and sensor status, commands, system_logs, and user roles around a robot ID. This is specified in the [schema contract](web_app/docs/DATABASE_SCHEMA.md); there is no migration to install it and no evidence here of production data. Database costs, retention, RLS policy, and backups must be decided before deploying it.
+
+## Engineering assessment
+
+| Constraint | Why it matters | Current approach | Next validation |
+|---|---|---|---|
+| Motor power and driver current | The measured 12.6 V rail exceeds the motors' 6 V rating, and paired stall currents may approach a driver channel limit. | Physical switch off; firmware arming flag and voltage record block output. | Fit a measured suitable motor rail and driver with thermal/current margin; conduct lifted-wheel and stop tests. |
+| Rear-only sensing | Forward obstacles cannot be measured by the HC-SR04. | Human camera supervision; conservative reverse guard. | Add and validate forward sensing and stopping-distance tests before autonomy. |
+| No wheel odometry | Commands, PWM and IMU tilt cannot establish distance or global pose. | Display only measured quantities; ROS navigation stays a separate simulation track. | Add an independently validated localization source and record field error. |
+| Camera and USB freshness | Stale frames or lost serial control can hide hazards or leave a command active. | Pi freshness checks, motion lease, latched stop and ESP watchdog. | Measure end-to-end latency and fault behavior outdoors. |
+| Web/database integration | Routes and UI exist, but the schema and physical command path are not reproducibly deployed. | Repository contracts, adapter code and fake-backed tests. | Commit migrations/RLS; test Auth, rosbridge and goal handoff against the real robot. |
+
+**Feasibility:** The manual camera/status workflow uses available parts and runs locally, while propulsion depends on electrical redesign. The local simulation is inexpensive to reproduce on a developer machine, but it is a presentation model. A deployable multiuser service needs a real Supabase project, schema migrations, TLS termination, secret storage, backups, and operations ownership; no verified cost estimate is available. Scaling the web backend would require shared event delivery and measured database retention/query plans, since its current WebSocket manager is process-local. Expanding to more vehicles or regions would also require connection isolation, authorization scopes, and network-failure testing. These changes do not make the physical control loop safe by themselves.
+
+**Security and privacy:** The Pi checks a bearer token before camera/status/command APIs and uses an owner-only token file when configured. The backend has token validation, trusted role lookup, command checks and restricted CORS configuration. The repository does **not** include production TLS, a deployed RLS policy, or a verified secret-management/backup setup. Camera frames and operator activity should be treated as access-controlled data. The local demo token is deliberately public; do not expose its server beyond loopback or reuse it for a real robot.
+
+**Limitations:** No tested physical autonomy, SLAM, AI model, forward collision protection, wheel speed/distance, cloud service, database migration, or mobile app is available. The ROS known-map simulation and 3D demo are evidence of software behavior in their respective environments, not field performance. The Pi dashboard permits software e-stop release only when its own checks pass, and the ESP firmware lockout remains the final motor-output gate until commissioning.
+
+## Roadmap and collaboration
+
+1. **Commission the manual prototype:** correct motor power and driver, verify wiring, record electrical/thermal and lifted-wheel stop tests, then perform controlled ground trials.
+2. **Make integration reproducible:** commit reviewed Supabase migrations/RLS and end-to-end tests for frontend, backend, rosbridge and the vehicle command adapter.
+3. **Develop localization and perception:** add measured forward obstacle sensing and a validated pose source before testing autonomous navigation outside simulation.
+4. **Harden operations:** define deployment, HTTPS/WSS, access scopes, observability, retention, backups and multi-vehicle behavior from measured demand.
+
+The differentiator is the explicit separation between a working operator/sensor loop, a reproducible visual demo, and a research autonomy stack. That separation lets collaborators evaluate each claim against its evidence and keeps unverified simulated success from being mistaken for an outdoor field result. A safe, affordable, remotely inspectable UGV could support future inspection or learning workflows, but impact and savings have not been quantified.
+
+Contributions should start with a focused GitHub issue, then a branch such as feature/camera-health or docs/wiring, relevant tests, and a pull request linked to the issue. Use a descriptive commit prefix (feat:, fix:, docs:, test:, chore:). Review hardware-impacting changes with a bench plan before applying them to the vehicle.
+
+~~~mermaid
+flowchart LR
+    IDEA[Issue and acceptance criteria] --> BRANCH[Focused branch]
+    BRANCH --> CHANGE[Implementation or documentation]
+    CHANGE --> TEST[Relevant tests and evidence]
+    TEST --> PR[Pull request and review]
+    PR --> MERGE[Merge to main]
+~~~
+
+There is currently no repository license file; contributors should agree on licensing before external reuse. Existing issue templates live in [.github/ISSUE_TEMPLATE/](.github/ISSUE_TEMPLATE/). The repository's CI currently validates only frontend changes.
+
+## Demo and further reading
+
+**Screenshot placeholder:** no verified product screenshots are committed. Capture the local demo, the Pi camera/dashboard, and the physical build after a reviewed demo run; do not substitute rendered simulation frames for field photos. For a live review, run the local demo or Pi mock above; [simulation guidance](web_app/simulation/README.md) describes the presentation sequence. Useful source documents are the [physical operations guide](navigen_ugv/pi_controller/OPERATIONS.md), [ESP8266 firmware and pin map](navigen_ugv/firmware/esp8266_motor_controller/README.md), [ROS research setup](navigen_ugv/README.md), and [web backend/API guide](web_app/backend/README.md).

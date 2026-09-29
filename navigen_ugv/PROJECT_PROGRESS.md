@@ -8,19 +8,25 @@ The Raspberry Pi hosts the Pi Camera and [operator dashboard](pi_controller/READ
 The [ESP8266 firmware](firmware/esp8266_motor_controller/README.md) handles
 the motor watchdog, e-stop, rear reverse/pivot stop, and proximity buzzer.
 This is camera-assisted manual driving; autonomous A-to-B navigation is not complete.
-The older phase dashboard below is historical context.
+The Pi Camera Module 1 serves live JPEGs through the dashboard, the rear
+ultrasonic sensor reports valid distance, and the Pi I²C module reports fresh
+MPU-6500-compatible motion data. The older phase dashboard below is historical
+context for the ROS/autonomy track, not the state of the deployed manual runtime.
 
-Software validation: **39 portable controller/protocol and HTTP tests passed**;
+Software validation: **43 portable controller/protocol and HTTP tests passed**;
 native firmware tests and the pinned ESP8266 build passed. The Pi receives
-ESP8266 telemetry and buzzer settings over USB. The ultrasonic reading remains
-invalid until sensor wiring is verified; the Pi Camera is unavailable on the
-current Ubuntu 24.04 installation. Physical driving remains locked by the
-firmware configuration gate.
+ESP8266 telemetry and buzzer settings over USB. Physical driving remains locked
+by the firmware configuration gate because the 3S pack measured 12.6 V directly
+at the L298N motor rail for 3–6 V motors.
 
 This is the human-facing engineering log for the UGV programming team. It records completed work, evidence, missing work, and the next gate. It is not an instruction file for coding agents.
 
-- Last updated: **2026-09-05 (Asia/Kolkata)**
-- Working branch: **`feature/ugv-l298n-hardware-adapter`**
+The phase percentages and entries from this point onward preserve the earlier
+autonomous-roadmap snapshot; use the current hardware summary above and the
+[Pi operations guide](pi_controller/OPERATIONS.md) for the deployed prototype.
+
+- Historical phase snapshot updated: **2026-09-05 (Asia/Kolkata)**
+- Historical working branch: **`feature/ugv-l298n-hardware-adapter`**
 - Baseline commit: **`420609f`**
 - Navigation invariant: **No GPS dependency. Camera/vision remains the primary navigation sensor.**
 
