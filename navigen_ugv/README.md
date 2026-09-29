@@ -1,53 +1,52 @@
-# NAVIGEN — Vision-Based Autonomous Navigation for an Outdoor UGV
+# NAVIGEN UGV — current hardware and ROS research track
 
-> **Current physical hardware (2026-09-29):** Raspberry Pi + Pi Camera, NodeMCU ESP8266, L298N, encoderless motors, and one **rear** ultrasonic sensor. The runnable camera-driving code and setup are in [pi_controller/README.md](pi_controller/README.md). The ROS/Gazebo roadmap below predates this revised hardware profile.
+> **Current physical prototype (2026-09-30):** Camera-assisted manual driving on a Raspberry Pi 5 and USB-connected NodeMCU ESP8266. The Pi Camera, rear ultrasonic telemetry, and MPU-6500-compatible motion readings work in the [operator dashboard](pi_controller/README.md). Motor output is locked because the 3S pack currently feeds 12.6 V directly to 3–6 V motors. Keep the physical motor switch off. The ROS/Gazebo autonomous-navigation plan below is separate from this deployed runtime.
 
 Smart India Hackathon 2026 — Problem Statement **SIH26126**: Vision Based Autonomous Navigation for Unmanned Ground Vehicle for Outdoor Environment.
 
-**Core principle: CAMERA IS THE PRIMARY SENSOR. VISION DOES THE NAVIGATION. OTHER SENSORS IMPROVE ROBUSTNESS AND SAFETY. GPS IS NEVER A NAVIGATION INPUT.**
+**Research goal:** camera-led navigation without GPS. The physical UGV currently depends on a human operator watching the camera; visual autonomy has not been deployed.
 
-## 1. System Architecture
+## 1. Planned autonomous architecture
 
 ```
-Camera ─> Preprocess ─> Traversability segmentation ─> Local costmap ─┐
-Camera + IMU ─> ORB-SLAM3 mono-inertial VIO ─> /visual_odom ──┐       │
-IMU + visual odom ─> robot_localization EKF ──────────────────┴─> /odometry/filtered
-                                                                      │
-Goal + pose + costmap ─> Nav2 (SmacPlanner2D + RegulatedPurePursuit) ─┘
-        ─> /cmd_vel ─> Safety supervisor ─> NodeMCU ESP8266 serial bridge
-        ─> bounded left/right open-loop PWM ─> one L298N ─> 4WD motors
+Camera ─> perception / traversability ─> costmap ─┐
+Camera + IMU ─> visual-inertial odometry ─> pose ──┼─> Nav2
+Goal ──────────────────────────────────────────────┘      │
+                                              safety supervisor
+                                                       │
+                                         ESP8266 serial motor bridge
+                                                       │
+                                            motor driver → 4WD UGV
 ```
 
-See [docs/architecture.md](docs/architecture.md) for the full node/topic/TF design.
+This diagram is the **planned autonomous architecture**, not the active Pi dashboard. See [docs/architecture.md](docs/architecture.md) for the research node/topic/TF design.
 
-## 2. Hardware Requirements
+## 2. Current hardware and research dependencies
 
-- Raspberry Pi 5 (8 GB recommended), Ubuntu 24.04 64-bit, ROS 2 Jazzy
+- Raspberry Pi 5 running Ubuntu 24.04 64-bit; ROS 2 Jazzy is for the research track, not the deployed dashboard
 - Raspberry Pi Camera (monocular, rigidly mounted)
 - NodeMCU 1.0 ESP8266 (`ESP8266MOD` / ESP-12E), USB serial to the Pi
 - 4WD skid-steer chassis with four encoderless 3-6 V, 200 RPM BO geared motors
 - one L298N: channel A drives the left pair, channel B drives the right pair
-- MPU6050 on Raspberry Pi I2C and one centered HC-SR04 on the ESP8266
+- Pi I²C motion module with MPU-6500-compatible ID `0x70` at address `0x68`, and one **rear** HC-SR04 on the ESP8266
 - one suitably rated physical motor-power cutoff switch
-- a known 3-6 V motor battery and a separate regulated USB-C supply/power bank for the Pi; the
-  current no-buck plan excludes the photographed three-cell 18650 holder from propulsion
+- a three-cell 18650 pack (3S) presently wired directly to the L298N, measured at **12.6 V**; this motor rail is unsafe for the 3–6 V motors and remains locked out
+- a separate regulated USB-C supply for the Pi; motor propulsion requires a measured ≤6 V rail and a driver with current margin
 
 Details and wiring assumptions: [docs/hardware.md](docs/hardware.md).
 
 ## 3. Wiring / Interface Assumptions
 
-- ESP8266 owns motor PWM/DIR, one ultrasonic, watchdog, and motor-power feedback.
+- ESP8266 owns motor PWM/direction, one rear ultrasonic sensor, and the watchdog. D0 is assigned to the buzzer, so motor-switch feedback is disabled; the physical switch must cut motor power independently.
 - Raspberry Pi talks to it through a versioned CRC-8 USB-serial protocol.
-- Camera and MPU6050 connect to the Raspberry Pi; the servos remain disconnected and the camera
-  stays fixed for SLAM.
+- Camera and MPU-6500-compatible sensor connect to the Raspberry Pi. The camera stays fixed; sensor tilt/turn rate is displayed but does not provide localization.
 - The reviewed NodeMCU pin map and arming flag are centralized in
   `firmware/esp8266_motor_controller/include/board_config.h`.
-- No encoder exists. Real/mock hardware never publishes fake `/wheel/odom`; visual-inertial pose
-  is mandatory before autonomous ground operation.
+- No encoder exists. Real/mock hardware never publishes fake `/wheel/odom`; camera/IMU telemetry does not make autonomous ground operation ready.
 
-## 4. Ubuntu Setup
+## 4. Ubuntu Setup for the ROS research track
 
-Flash Ubuntu 24.04 64-bit (server or desktop) to the Pi 5, then:
+The deployed Pi keeps its existing Ubuntu 24.04 card and uses a [source-built camera stack](pi_controller/ubuntu24-camera.md). The commands in sections 4–9 below describe the separate ROS research track; they are not required for the [manual-driving dashboard](pi_controller/README.md). For a new ROS installation, flash Ubuntu 24.04 64-bit (server or desktop), then:
 
 ```bash
 sudo apt update && sudo apt upgrade -y
@@ -118,11 +117,15 @@ with software e-stop asserted; release it only after the lifted-wheel checks in
 
 ## 10. NodeMCU ESP8266 Flashing
 
-Phase 4 now targets the photographed NodeMCU 1.0 and one L298N. The checked-in configuration is
-deliberately unarmed (`HARDWARE_CONFIGURATION_CONFIRMED=0`). Review wiring, divider voltages,
-power ratings, stop behavior, and measured limits before setting it to `1`. The product listing
-confirms 3-6 V motors, so the photographed three-cell 18650 holder must not feed the L298N motor
-rail directly. Because the current plan uses no buck converter, that holder is not used at all.
+The checked-in target is NodeMCU 1.0 with one L298N. Firmware was flashed and
+verified on the connected ESP8266 with `HARDWARE_CONFIGURATION_CONFIRMED=0`;
+USB telemetry and the rear sensor are live, but motor commands are inhibited.
+The 3S pack **is currently connected directly** to the L298N motor rail and
+was measured at 12.6 V. Keep its physical switch off. A 127/255 PWM duty cap
+does not make that supply safe for 3–6 V motors. Fit and measure a suitable
+lower-voltage motor rail, review driver current and thermal limits, then follow
+the [firmware commissioning guide](firmware/esp8266_motor_controller/README.md#configure-before-arming)
+before changing the confirmation flag.
 
 ```bash
 cd firmware/esp8266_motor_controller
@@ -130,12 +133,16 @@ cd firmware/esp8266_motor_controller
 pio run -e nodemcuv2 -t upload
 ```
 
-Keep ENA/ENB jumpers installed; firmware PWM-drives IN1–IN4. See
-[docs/hardware.md](docs/hardware.md) before connecting motor power.
+Keep ENA/ENB jumpers installed for the present L298N profile; firmware PWM-drives
+IN1–IN4. The present buzzer on D0 has not been electrically validated and stays
+off by default. See the [current pin map](firmware/esp8266_motor_controller/README.md#fixed-team-pin-profile)
+before changing wiring or connecting motor power.
 
-## 11. Real UGV Launch
+## 11. ROS Real-UGV Launch (research path)
 
-Test the complete physical composition against protocol-backed mock hardware first:
+This ROS launch is a separate research path; the currently deployed physical
+interface is the [Pi browser dashboard](pi_controller/README.md). Test the ROS
+composition against protocol-backed mock hardware first:
 
 ```bash
 ros2 launch navigen_bringup real.launch.py mock_hardware:=true rviz:=true
@@ -169,9 +176,10 @@ enter them in the IMU driver config. See [docs/calibration.md](docs/calibration.
 
 ## 14. Encoder Status
 
-The available motors have no encoders. Do not enter invented ticks/revolution and do not derive
-odometry from commands. Real localization will use camera + MPU6050 VIO. If encoders are added
-later, they require a separate reviewed controller/firmware profile.
+The available motors have no encoders. Do not enter invented ticks/revolution or derive
+odometry from commands. Camera/IMU localization is future research, not a deployed
+source of pose for the current manual vehicle. If encoders are added later,
+they require a separately reviewed controller/firmware profile.
 
 ## 15. Open-Loop PWM Calibration
 
@@ -208,15 +216,17 @@ See [docs/troubleshooting.md](docs/troubleshooting.md).
 ## 20. Safety Warnings
 
 - ALWAYS test in simulation first. Keep the physical e-stop reachable at all times.
-- Default speed limit is 0.4 m/s (configurable, keep it conservative for demos).
+- The current manual dashboard limits requested speed conservatively; the 0.4 m/s figure in older ROS simulation configurations is not a validated physical speed.
 - The ESP8266 watchdog stops PWM after ~300 ms without valid commands.
 - The physical switch must cut L298N motor power independently; GPIO feedback is additional.
-- The safety supervisor overrides navigation whenever any trigger is active; never bypass it.
+- The physical firmware has a rear guard and command-loss watchdog. The fuller ROS safety supervisor belongs to the research track and has not been validated for autonomous physical driving.
 - Lift wheels off the ground for the first powered motor test.
 
-## Development Phases
+## Historical autonomous-development phases
 
-The detailed evidence and activity log are maintained in [PROJECT_PROGRESS.md](PROJECT_PROGRESS.md).
+The table below is the older ROS/autonomy plan. It does not supersede the
+current manual-drive status at the top of this README. Detailed historical
+evidence and the activity log are in [PROJECT_PROGRESS.md](PROJECT_PROGRESS.md).
 
 | Phase | Scope | Status |
 |---|---|---|
@@ -225,7 +235,7 @@ The detailed evidence and activity log are maintained in [PROJECT_PROGRESS.md](P
 | 3 | Nav2 point-to-point (sim) | ✅ Green (see `PROJECT_PROGRESS.md`) |
 | 4 | NodeMCU ESP8266 open-loop firmware + serial bridge | ✅ Software green (see `PROJECT_PROGRESS.md`) |
 | 5 | Real teleop | 🟨 Software gate green; physical UGV validation pending |
-| 6 | MPU6050 + visual-odom-ready EKF (no wheel odom) | ⬜ |
+| 6 | Pi motion telemetry works; ROS visual-odometry-ready EKF remains future work | 🟨 |
 | 7 | Camera + perception | ⬜ |
 | 8 | ORB-SLAM3 | ⬜ |
 | 9 | Traversability → costmap | ⬜ |

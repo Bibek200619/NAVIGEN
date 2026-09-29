@@ -1,12 +1,16 @@
 # Raspberry Pi camera-driving runtime
 
-This is the runnable implementation for the hardware confirmed on 2026-09-29:
+This is the runnable implementation for the hardware verified on 2026-09-30:
 Raspberry Pi + Pi Camera, ESP8266, one L298N, four motors without encoders,
 one rear ultrasonic sensor, motor-power switch, and batteries. **No IMU or wheel
 encoders are required. ROS is not required for this runtime.**
-An optional MPU-6050 or MPU-6500 on the Pi I2C header adds acceleration, gyro turn rate,
+The connected Pi I²C motion module identifies as MPU-6500-compatible (`0x70`)
+at address `0x68`; it adds acceleration, gyro turn rate,
 and sensor-axis roll/pitch to the dashboard. It does not provide wheel travel,
 absolute compass heading, or a position estimate, and it does not arm motors.
+The measured 3S motor rail is still 12.6 V directly into the L298N, above the
+motors' 3–6 V rating. The firmware remains locked and the physical motor switch
+should remain off until power and current limits are corrected and measured.
 
 Features: live camera view, browser hold-to-drive controls, forward/reverse/pivot,
 software e-stop, conservative command limiting, live rear distance telemetry,
@@ -17,8 +21,8 @@ This is **camera-assisted manual driving**, not autonomous A-to-B navigation.
 A rear-only range sensor cannot protect forward motion. The operator watches
 the camera and keeps the physical power switch accessible. Commands are nominal
 open-loop effort targets: displayed PWM is real controller output, while metres
-travelled and actual speed are unavailable. This hardware profile has no IMU or
-wheel encoders, so this runtime publishes no pose or tracking state. The older
+travelled and actual speed are unavailable. The IMU cannot replace wheel
+encoders or visual localization, so this runtime publishes no pose or tracking state. The older
 ROS/Gazebo vision-autonomy roadmap remains separate.
 
 ## Files
@@ -85,6 +89,8 @@ beeps only when the sensor reading is valid and at or inside that threshold;
 with the default threshold, that means 30 cm. It stays silent beyond the chosen
 distance or when the buzzer is disabled. The Pi resends settings after a serial
 reconnect, and the dashboard shows the configuration reported by the ESP8266.
+On the current chassis the active buzzer is connected directly to D0; leave it
+off until its voltage/current are confirmed GPIO-safe or a transistor driver is fitted.
 
 The server binds to loopback by default. Camera and motor APIs require a bearer
 token, generated for each process unless `--token-file` is supplied. The browser

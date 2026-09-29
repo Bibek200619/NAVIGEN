@@ -1,239 +1,64 @@
-# NAVIGEN — Vision-Based Autonomous Navigation for an Outdoor UGV
+# NAVIGEN — camera-assisted 4WD UGV
 
+Smart India Hackathon 2026, problem statement **SIH26126**: vision-based navigation for an outdoor unmanned ground vehicle. The repository also contains a GPS-denied autonomous-navigation research track in ROS 2 and Gazebo. **The physical vehicle's current target is camera-assisted manual driving; autonomous A-to-B driving has not been demonstrated on the vehicle.**
 
-> **Current physical hardware (2026-09-30):** Raspberry Pi + Pi Camera, NodeMCU ESP8266, one L298N, four motors without encoders, and one rear ultrasonic sensor. The runnable camera-driving code and setup are in [navigen_ugv/pi_controller/README.md](navigen_ugv/pi_controller/README.md). The ROS/Gazebo roadmap below predates this hardware profile.
+## Current physical build
 
-Vision-based GPS-denied autonomous navigation platform for an outdoor Unmanned Ground Vehicle.
-=======
-**Smart India Hackathon 2026 — Problem Statement SIH26126**  
-**Vision Based Autonomous Navigation for Unmanned Ground Vehicle for Outdoor Environment**
+| Part | Installed role and status |
+|---|---|
+| Raspberry Pi 5, Ubuntu 24.04 | Runs the operator dashboard and Pi Camera Module 1 (OV5647). The camera works through a source-built libcamera/Picamera2 stack. |
+| NodeMCU ESP8266 over USB | Runs CRC-protected serial telemetry and commands, a command-loss watchdog, software e-stop, rear obstacle guard, and buzzer logic. |
+| One L298N and four 3–6 V TT/BO motors | Two motors share each driver channel. **Propulsion is locked out** pending corrected power and current validation. There are no wheel encoders. |
+| Rear HC-SR04 | Reports live distance to the dashboard; protects reverse and pivot commands when readings are valid. A missing/stale reading blocks reverse. |
+| Pi-connected motion sensor | Responds at I²C address `0x68` with identity `0x70` (MPU-6500-compatible). The dashboard shows fresh acceleration-derived roll/pitch and gyro Z turn rate. It does not provide position or wheel distance. |
+| Buzzer on ESP8266 D0 | Threshold is configurable in the dashboard, but the buzzer remains off until its GPIO load or a transistor driver is verified. |
+| 3S 18650 pack and physical motor switch | The measured L298N motor rail is **12.6 V** directly from the pack. Keep the motor switch off until the supply and driver are corrected. |
 
+The live dashboard is at **[http://Hexcore.local:8080](http://Hexcore.local:8080)** on the same Wi-Fi as the Pi. Read its private login token on the Pi with:
 
-NAVIGEN is a vision-first autonomous navigation platform for a 4WD Unmanned Ground Vehicle (UGV) designed to operate outdoors **without GPS as a navigation input**. The system is being developed around a Raspberry Pi 5, Raspberry Pi camera, MPU6050 IMU, NodeMCU ESP8266 motor controller, L298N motor driver, and a 4WD skid-steer chassis.
-
-> **Core principle:** Camera/vision is the primary navigation sensor. Other sensors improve localization, robustness, and safety. GPS is never part of the navigation pipeline.
-
-## Current Project Status
-
-**Overall engineering completion: 44%**  
-**Current milestone: Phase 5 — Real UGV teleoperation**  
-**Phase 5 status: Software green, physical wiring/power gate blocked**
-
-The software foundation and simulation stack are substantially implemented. The project has completed the repository/ROS foundation, Gazebo simulation, simulated Nav2 point-to-point navigation, and the ESP8266 motor-control/serial software stack. The next immediate work is to safely complete the physical motor-power and wiring validation before moving into IMU, perception, and visual SLAM.
-
-### Phase Progress
-
-| Phase | Scope | Status | Completion |
-|---|---|---:|---:|
-| 1 | Repository, ROS 2 packages, URDF, TF, configuration | ✅ GREEN | 100% |
-| 2 | Gazebo Harmonic simulation + teleoperation | ✅ GREEN | 100% |
-| 3 | Nav2 point-to-point autonomous simulation | ✅ GREEN | 100% |
-| 4 | NodeMCU ESP8266 firmware + Raspberry Pi serial bridge | ✅ GREEN | 100% |
-| 5 | Real UGV teleoperation | 🟨 SOFTWARE GREEN / HARDWARE BLOCKED | 80% |
-| 6 | MPU6050 + visual-odometry-ready EKF | ⬜ NOT STARTED | 0% |
-| 7 | Camera + traversability perception | ⬜ NOT STARTED | 0% |
-| 8 | Visual SLAM / visual-inertial odometry | ⬜ NOT STARTED | 0% |
-| 9 | Traversability → Nav2 costmap | ⬜ NOT STARTED | 0% |
-| 10 | Collision avoidance + safety supervisor | ⬜ NOT STARTED | 0% |
-| 11 | Full outdoor A→B autonomous demonstration | ⬜ NOT STARTED | 0% |
-
-Detailed engineering evidence and the acceptance gates are maintained in [`navigen_ugv/PROJECT_PROGRESS.md`](navigen_ugv/PROJECT_PROGRESS.md).
-
-## What Has Been Implemented
-
-### 1. ROS 2 / Robot Foundation — Complete
-
-- ROS 2 Jazzy workspace and eight project packages
-- 4WD skid-steer UGV URDF/xacro
-- Configurable robot, camera, IMU, and ultrasonic transforms
-- Real and simulation robot descriptions
-- TF validation and automated package tests
-- Reproducible build/test tooling
-
-### 2. Outdoor Gazebo Simulation — Complete
-
-- Gazebo Harmonic simulation
-- Self-contained outdoor environment with terrain/obstacles
-- Same robot xacro used for simulation and real hardware
-- Camera and IMU simulation
-- `/cmd_vel`, odometry, TF, joint states and sensor topics
-- RViz and headless launch modes
-- Deterministic simulation/integration tests
-
-### 3. Autonomous Navigation in Simulation — Complete
-
-The simulated UGV can perform point-to-point navigation using Nav2.
-
-- Known-map navigation baseline
-- `SmacPlanner2D` global planner
-- `RegulatedPurePursuitController`
-- Static and inflation costmaps for the Phase 3 known map
-- Recovery behavior tree and lifecycle management
-- RViz goal selection
-- Collision-free acceptance run to approximately 7 m in the test environment
-- Simulation-only `map → odom` bootstrap; **no GPS is used**
-
-> The current simulation navigation is a development baseline. The final system is intended to replace the simulation localization/bootstrap with visual-inertial localization and camera-derived environmental information.
-
-### 4. ESP8266 Motor-Control Stack — Software Complete
-
-The hardware controller has been adapted to the available **NodeMCU 1.0 / ESP8266 (`nodemcuv2`)** and one L298N motor driver.
-
-- Versioned CRC-8 serial protocol v2
-- Raspberry Pi ↔ ESP8266 communication
-- Bounded left/right open-loop PWM control
-- Direction control and configurable side trim
-- 300 ms communication watchdog
-- Software e-stop and startup inhibition
-- One centered HC-SR04 on the ESP8266
-- Motor-power feedback input
-- Protocol validation and reconnect handling
-- Honest encoderless telemetry — no fabricated wheel odometry
-- Native firmware and ROS integration tests
-
-The firmware intentionally remains safety-locked until the physical wiring and electrical configuration have been reviewed and confirmed.
-
-### 5. Real UGV Teleoperation — In Progress
-
-The real-hardware software path is implemented and tested through mock/protocol validation. A replacement ESP8266 has been flashed and verified to provide protocol-v2 telemetry with motor output disabled.
-
-The remaining physical gate includes:
-
-- Confirming a suitable, current-rated **3–6 V motor power source**
-- Using a separate regulated USB-C supply for the Raspberry Pi
-- Measuring/recording motor and L298N electrical limits
-- Reworking and insulating the physical power-switch wiring
-- Meter-checking motor-driver signals, common grounds, HC-SR04 ECHO divider, and motor-power feedback
-- Confirming the exact motor/chassis geometry
-- Arming the firmware only after the electrical review
-- Testing direction, PWM trim, software stop, physical power cut, watchdog stop, reconnect, and conservative lifted-wheel teleoperation
-
-The photographed three-cell 18650 holder is **not used for the motor rail** under the current no-buck configuration.
-
-## Planned Autonomous Architecture
-
-```text
-                    ┌──────────────────────────┐
-                    │   Raspberry Pi 5          │
-                    │   Ubuntu 24.04 + ROS 2    │
-                    │   Jazzy                    │
-                    └────────────┬─────────────┘
-                                 │
-              ┌──────────────────┼──────────────────┐
-              │                  │                  │
-          Camera              MPU6050          Other safety
-              │                  │              observations
-              ▼                  ▼                  │
-       Vision / Perception   Visual-Inertial        │
-       Traversability        Localization            │
-              │                  │                  │
-              └──────────┬───────┴──────────────────┘
-                         ▼
-                  Nav2 / Costmaps
-                         │
-                    Path Planning
-                         │
-                      /cmd_vel
-                         ▼
-                 Safety Supervisor
-                         │
-                  USB Serial v2
-                         │
-                         ▼
-                 NodeMCU ESP8266
-                         │
-                   L298N Motor Driver
-                         │
-                         ▼
-                     4WD UGV
+```bash
+ssh lenin@Hexcore.local 'cat ~/.config/navigen/dashboard.token'
 ```
 
-### Intended final navigation pipeline
+Paste the token into the page and select **Connect**. The camera, rear distance, and motion cards should update. Drive controls remain unavailable while the motor-configuration lockout is active. The Pi service starts with software e-stop engaged.
 
-**Camera → visual perception / traversability → visual-inertial localization → costmap → Nav2 planning/control → safety supervisor → ESP8266 motor controller → 4WD UGV**
+The current runtime is [`navigen_ugv/pi_controller/`](navigen_ugv/pi_controller/README.md); its [operating guide](navigen_ugv/pi_controller/OPERATIONS.md) covers login, checks, and first motor commissioning. The [ESP8266 firmware guide](navigen_ugv/firmware/esp8266_motor_controller/README.md) gives the NodeMCU pin map and build instructions. ROS is **not required** to run this dashboard.
 
-GPS is deliberately excluded from this pipeline.
+## Why the motors are locked
 
-## Repository Structure
+The motors are marked **3–6 V**, but the present 3S pack feeds **12.6 V** directly to the L298N. The firmware's 127/255 (49.8%) PWM cap limits average effort; it does **not** regulate the voltage of each pulse. Each side's two motors are reported to draw roughly 1.6–2 A together at stall, close to the L298's 2 A DC per-channel absolute limit. The checked-in firmware has `HARDWARE_CONFIGURATION_CONFIRMED=0` and records the unsafe measured voltage, so it cannot arm propulsion merely because the camera or sensors work. See the [motor-power analysis and commissioning gate](navigen_ugv/firmware/esp8266_motor_controller/README.md#motor-power-and-active-lockout).
 
-```text
-NAVIGEN/
-├── navigen_ugv/       # Autonomous UGV — main development area
-│   ├── ros2_ws/       # ROS 2 Jazzy workspace and packages
-│   ├── firmware/      # ESP8266 motor-controller firmware
-│   ├── simulation/    # Gazebo worlds and simulation assets
-│   ├── models/        # Robot/simulation models
-│   ├── config/        # Configuration files
-│   ├── scripts/       # Build, validation, teleop and safety scripts
-│   ├── tests/         # Cross-package/project tests
-│   ├── docs/          # Architecture, hardware, calibration and troubleshooting docs
-│   ├── README.md      # Detailed UGV setup and operation guide
-│   └── PROJECT_PROGRESS.md  # Engineering progress and acceptance evidence
-│
-├── web_app/           # Operator dashboard / telemetry tools
-└── mobile_app/        # Mobile companion / operator tools
+To finish manual driving, fit and **measure** a motor supply at or below 6 V across the battery's charge range, and use a driver with current and thermal margin for both motors on each side. Verify the battery protection, fuse, physical switch, common ground, and HC-SR04 ECHO level divider. Keep the Pi on its own regulated USB-C supply. Only then update the firmware's measured-voltage record and confirmation flag, flash it with the motor switch off, and perform the [lifted-wheel stop and direction tests](navigen_ugv/firmware/esp8266_motor_controller/README.md#first-lifted-wheel-test) before ground driving.
+
+Without encoders or a forward range sensor, the operator must watch the camera and surroundings. IMU tilt and gyro readings do not create reliable distance, heading, or obstacle detection.
+
+## Implemented software
+
+- **Physical runtime:** token-protected browser dashboard with live camera JPEGs, rear distance, motion readings, buzzer settings, hold-to-drive controls, and software e-stop. The Pi reconnects to the ESP8266 over USB serial. Firmware enforces a 300 ms command watchdog and a rear obstacle stop. Motor output remains locked by the current hardware profile.
+- **Mock mode:** exercises the dashboard and command path without moving hardware.
+- **Simulation track:** ROS 2 Jazzy packages, a 4WD description, Gazebo Harmonic world, and a known-map Nav2 point-to-point simulation. This is separate from the deployed Pi dashboard and does not prove autonomous operation on the physical UGV.
+
+From the repository root, the portable controller and HTTP checks run with:
+
+```bash
+uv run --with pytest --with numpy --with opencv-python --with pyserial python navigen_ugv/scripts/validate_core.py
+./navigen_ugv/scripts/validate_firmware.sh
 ```
 
-The web and mobile applications are intended as **operator interfaces only**. They consume UGV telemetry and are not part of the autonomous control loop. Safety and motor-control authority remain on the UGV side.
+The latest local core run passed **43 tests**; the ESP8266 native tests and pinned `nodemcuv2` build have also passed. These checks do not replace measured electrical and lifted-wheel validation.
 
-## Technology Stack
+## Repository guide
 
-- **Robot computer:** Raspberry Pi 5
-- **OS:** Ubuntu 24.04 64-bit
-- **Robotics framework:** ROS 2 Jazzy
-- **Simulation:** Gazebo Harmonic
-- **Navigation:** Nav2
-- **Primary navigation sensor:** Monocular Raspberry Pi Camera
-- **IMU:** MPU6050
-- **Motor controller:** NodeMCU 1.0 / ESP8266
-- **Motor driver:** L298N
-- **Drive:** 4WD skid-steer, encoderless geared motors
-- **Obstacle/safety sensor:** HC-SR04
-- **Planned visual localization:** ORB-SLAM3 / visual-inertial odometry adapter
-- **Communication:** USB serial with versioned CRC-8 protocol
+| Path | Purpose |
+|---|---|
+| [`navigen_ugv/pi_controller/`](navigen_ugv/pi_controller/README.md) | Deployed Pi camera/dashboard runtime and tests |
+| [`navigen_ugv/firmware/esp8266_motor_controller/`](navigen_ugv/firmware/esp8266_motor_controller/README.md) | Current ESP8266 firmware, wiring, and motor lockout |
+| [`navigen_ugv/ros2_ws/`](navigen_ugv/README.md) | ROS 2 packages and simulation setup |
+| [`navigen_ugv/pi_controller/ubuntu24-camera.md`](navigen_ugv/pi_controller/ubuntu24-camera.md) | Tested Ubuntu 24.04 Pi Camera build |
+| [`navigen_ugv/PROJECT_PROGRESS.md`](navigen_ugv/PROJECT_PROGRESS.md) | Historical phase plan and engineering evidence; older percentages do not describe the deployed manual-drive product |
 
-## Safety and Engineering Principles
+The original autonomous-navigation goal remains future work: camera perception, localization, costmaps, a safety supervisor, and a physical outdoor A-to-B acceptance run. None of these is presented as active physical autonomy.
 
-- **No GPS navigation dependency.**
-- Test autonomous behavior in simulation before physical autonomous operation.
-- Physical e-stop/power cutoff must remain reachable during testing.
-- ESP8266 watchdog stops motor output when valid commands are lost.
-- Navigation commands pass through a safety layer before reaching the motor controller.
-- Real hardware must never publish invented encoder/wheel odometry when encoders are absent.
-- Physical electrical measurements and wiring verification are required before arming the motor controller.
-- Initial motor tests are performed with the wheels lifted from the ground.
-- Camera remains rigidly mounted for visual localization.
+## Contributors
 
-## Current Development Direction
-
-The project is intentionally being developed in gated phases rather than treating the final autonomous demo as already complete.
-
-**Completed foundation:** ROS/URDF → simulation → Nav2 simulation → ESP8266 motor-control software.
-
-**Current priority:** safely complete real UGV teleoperation and hardware validation.
-
-**Next major software stages:** MPU6050 integration → camera/perception → visual-inertial localization → traversability costmap → safety supervisor → full outdoor autonomous A→B demonstration.
-
-## Documentation
-
-- [Detailed UGV README](navigen_ugv/README.md) — setup, build, simulation, hardware, calibration and operation
-- [Project Progress Log](navigen_ugv/PROJECT_PROGRESS.md) — phase gates, evidence, blockers and engineering history
-- [Architecture](navigen_ugv/docs/architecture.md)
-- [Hardware](navigen_ugv/docs/hardware.md)
-- [Calibration](navigen_ugv/docs/calibration.md)
-- [Troubleshooting](navigen_ugv/docs/troubleshooting.md)
-
-## Contributors / Team Contributions
-
-**Nikhil Chhetri** — AI / Full-Stack / DevOps Developer
-
-- Worked on autonomous navigation system development
-- Computer vision and perception pipeline
-- Gazebo-based UGV simulation and testing
-- Backend/API integration
-- Docker-based deployment
-- Integration and testing of the overall system
-
-## Status Note
-
-This README describes the **actual current engineering state**, not the intended final feature set. The full autonomous outdoor demonstration is a future acceptance target and is not yet complete. Phase status and completion estimates should be updated in `navigen_ugv/PROJECT_PROGRESS.md` as new gates are passed.
+**Nikhil Chhetri** — AI / full-stack / DevOps development, Gazebo simulation, backend integration, and testing.
