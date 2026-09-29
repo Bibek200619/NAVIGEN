@@ -206,9 +206,10 @@ bool validateConfiguration() {
       motorPinSafe(PIN_MOTOR_RIGHT_A) && motorPinSafe(PIN_MOTOR_RIGHT_B);
   const bool control_configured =
       MAX_WHEEL_VELOCITY_MPS > 0.0F && OPEN_LOOP_DEADBAND_MPS >= 0.0F &&
-      OPEN_LOOP_DEADBAND_MPS < MAX_WHEEL_VELOCITY_MPS && MAX_PWM > 0 &&
-      MAX_PWM <= 1023 && MIN_EFFECTIVE_PWM >= 0 &&
-      MIN_EFFECTIVE_PWM <= MAX_PWM && PWM_FREQUENCY_HZ >= 100 &&
+      OPEN_LOOP_DEADBAND_MPS < MAX_WHEEL_VELOCITY_MPS && PWM_RANGE > 0 &&
+      PWM_RANGE <= 1023 && PWM_DUTY_LIMIT > 0 &&
+      PWM_DUTY_LIMIT * 2 <= PWM_RANGE && MIN_EFFECTIVE_PWM >= 0 &&
+      MIN_EFFECTIVE_PWM <= PWM_DUTY_LIMIT && PWM_FREQUENCY_HZ >= 100 &&
       PWM_FREQUENCY_HZ <= 40000 && MOTOR_CONTROL_RATE_HZ >= 50 &&
       TELEMETRY_RATE_HZ >= 20 && WATCHDOG_TIMEOUT_MS > 0 &&
       LEFT_PWM_SCALE > 0.0F && LEFT_PWM_SCALE <= 1.0F &&
@@ -288,7 +289,7 @@ void configureAuxiliaryHardware() {
 }
 
 void configureHardware() {
-  analogWriteRange(MAX_PWM);
+  analogWriteRange(PWM_RANGE);
   analogWriteFreq(PWM_FREQUENCY_HZ);
   configureMotor(motor_left);
   configureMotor(motor_right);
@@ -307,7 +308,7 @@ void writeMotor(const MotorChannel& motor, int16_t requested_pwm) {
   if (!hardware_ready) {
     return;
   }
-  int value = navigen::control::clamp<int>(requested_pwm, -MAX_PWM, MAX_PWM);
+  int value = navigen::control::limitPwm(requested_pwm, PWM_DUTY_LIMIT);
   if (motor.inverted) {
     value = -value;
   }
@@ -356,10 +357,10 @@ void runControl(uint32_t now_ms) {
   }
   left_pwm = navigen::control::openLoopVelocityToPwm(
       left_target_mps * LEFT_PWM_SCALE, MAX_WHEEL_VELOCITY_MPS,
-      MIN_EFFECTIVE_PWM, MAX_PWM, OPEN_LOOP_DEADBAND_MPS);
+      MIN_EFFECTIVE_PWM, PWM_DUTY_LIMIT, OPEN_LOOP_DEADBAND_MPS);
   right_pwm = navigen::control::openLoopVelocityToPwm(
       right_target_mps * RIGHT_PWM_SCALE, MAX_WHEEL_VELOCITY_MPS,
-      MIN_EFFECTIVE_PWM, MAX_PWM, OPEN_LOOP_DEADBAND_MPS);
+      MIN_EFFECTIVE_PWM, PWM_DUTY_LIMIT, OPEN_LOOP_DEADBAND_MPS);
   writeMotor(motor_left, left_pwm);
   writeMotor(motor_right, right_pwm);
 }

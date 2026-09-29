@@ -45,13 +45,22 @@ ESP8266 GPIO, or add the appropriate transistor driver.
 ## Motor power and active lockout
 
 On 2026-09-30, the measured voltage at the L298N motor-supply terminal with the switch on was
-**12.6 V**, while the motors are marked **3–6 V**. The four cells were described as parallel,
-but that description has not been reconciled with the 12.6 V terminal reading; individual-cell
-voltage and any intervening converter are still unknown. Motor stall current and L298N
-logic-power wiring are also unverified. **The current direct
-motor supply is unsuitable. Keep the motor switch open and
+**12.6 V** from three 18650 cells in series (3S), wired directly to the driver. The four yellow
+TT/BO motors are marked **3–6 V**; each is reported to stall at about 0.8–1 A. Two motors share
+each L298N channel, so the stated stall currents sum to about **1.6–2 A per channel**, before
+allowing for measurement uncertainty or driver heating. **The current direct motor supply is
+unsuitable for an unattended or ground-driving product. Keep the motor switch open and
 `HARDWARE_CONFIGURATION_CONFIRMED=0`.** The L298N's voltage drop and PWM do not regulate a
 12.6 V supply down to a guaranteed safe motor voltage.
+
+As requested, firmware now caps each motor output at **127/255 (49.8% duty)**, including the
+bench-test path. The PWM hardware range remains 255; changing the range to 127 would still
+allow 100% duty. A 50% duty cycle changes the **average** applied voltage, but not the voltage
+of each on-pulse. The theoretical 12.6 V × 50% = 6.3 V is already above a 6 V rating before
+considering battery variation, the L298N's variable drop, motor current ripple, or a stalled
+wheel. [Microchip's brushed-motor note](https://ww1.microchip.com/downloads/en/appnotes/00905b.pdf)
+explains the PWM average-voltage relationship; it does not make PWM a regulated supply.
+
 The firmware also records the observed 12.6 V as `MOTOR_SUPPLY_MEASURED_MV`; setting
 `HARDWARE_CONFIGURATION_CONFIRMED=1` without first updating this value for a measured safe
 motor rail causes a build error. This static check is **not** a voltage sensor or substitute for
@@ -64,7 +73,8 @@ lower-voltage motor supply. Size the regulator, switch, wiring, battery, and eac
 for the combined startup/stall current of the two motors on that channel. The
 [L298 IC datasheet](https://www.st.com/resource/en/datasheet/l298.pdf) lists 2 A DC as an absolute
 maximum **per channel**, not a promise that a particular module can
-dissipate that load continuously. Confirm the L298N board's 5 V logic supply separately; its
+dissipate that load continuously. The reported 1.6–2 A pair stall current leaves essentially no
+margin at that absolute limit. Confirm the L298N board's 5 V logic supply separately; its
 onboard regulator/jumper behavior depends on the board and cannot be assumed at a 6 V motor
 rail. Power the Raspberry Pi separately through a properly regulated USB-C source.
 

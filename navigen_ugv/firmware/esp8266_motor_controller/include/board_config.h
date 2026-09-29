@@ -1,9 +1,10 @@
 // NAVIGEN NodeMCU ESP8266 open-loop hardware profile.
 // GPIO assignments are centralized here and may be changed for another wiring layout.
 // Propulsion stays disabled until the wiring has been reviewed and the confirmation flag is set.
-// On 2026-09-30 the L298N motor rail measured 12.6 V, while the motors are
-// marked 3-6 V. This is not an approved motor supply; keep the flag at 0 until
-// a correctly rated regulated motor rail and both channel currents are verified.
+// The motor battery is three 18650 cells in series (3S): 12.6 V was measured
+// at the L298N motor rail. The motors are marked 3-6 V, and two motors share
+// each L298N channel. PWM duty limiting does not validate peak voltage or
+// channel current; keep the flag at 0 until power/current are verified.
 #pragma once
 
 // Set to 1 only after the pin map, motor directions, voltage dividers, physical
@@ -37,10 +38,16 @@
 #error "Motor supply is outside the recorded motor voltage rating"
 #endif
 
-// ESP8266 Arduino software PWM. The range is set explicitly so core-version
-// defaults cannot silently change motor output.
+// ESP8266 Arduino software PWM. The full scale stays 255; limiting the motor
+// output to 127/255 yields a 49.8% maximum duty cycle. Setting the PWM range
+// itself to 127 would still allow 100% duty and must not be used as a cap.
+// This is a supplemental effort limit, not a 6 V regulator or current limit.
 #define PWM_FREQUENCY_HZ      1000
-#define MAX_PWM                255
+#define PWM_RANGE              255
+#define PWM_DUTY_LIMIT         127
+#if PWM_DUTY_LIMIT * 2 > PWM_RANGE
+#error "Motor PWM duty limit exceeds 50 percent"
+#endif
 #define MIN_EFFECTIVE_PWM        0  // Tune on stands; zero disables minimum boost.
 #define OPEN_LOOP_DEADBAND_MPS 0.01f
 #define MAX_WHEEL_VELOCITY_MPS 0.20f

@@ -11,6 +11,12 @@ constexpr T clamp(T value, T low, T high) {
   return value < low ? low : (value > high ? high : value);
 }
 
+constexpr int16_t limitPwm(int16_t requested_pwm, int16_t max_abs_pwm) {
+  return max_abs_pwm <= 0
+             ? 0
+             : clamp<int16_t>(requested_pwm, -max_abs_pwm, max_abs_pwm);
+}
+
 inline int16_t openLoopVelocityToPwm(float target_mps, float max_velocity_mps,
                                      int16_t minimum_pwm, int16_t maximum_pwm,
                                      float deadband_mps) {

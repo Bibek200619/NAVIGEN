@@ -8,6 +8,7 @@
 #include "navigen_control.hpp"
 #include "navigen_protocol.hpp"
 #include "rear_guard.hpp"
+#include "board_config.h"
 
 namespace {
 
@@ -137,6 +138,19 @@ void testOpenLoopVelocityMapping() {
   assert(openLoopVelocityToPwm(0.2F, 0.0F, 0, 255, 0.01F) == 0);
 }
 
+void testMotorPwmCeiling() {
+  static_assert(PWM_RANGE == 255);
+  static_assert(PWM_DUTY_LIMIT == 127);
+  static_assert(PWM_DUTY_LIMIT * 2 <= PWM_RANGE);
+  using navigen::control::limitPwm;
+  assert(limitPwm(255, PWM_DUTY_LIMIT) == 127);
+  assert(limitPwm(-255, PWM_DUTY_LIMIT) == -127);
+  assert(limitPwm(80, PWM_DUTY_LIMIT) == 80);
+  assert(navigen::control::openLoopVelocityToPwm(
+             MAX_WHEEL_VELOCITY_MPS, MAX_WHEEL_VELOCITY_MPS,
+             MIN_EFFECTIVE_PWM, PWM_DUTY_LIMIT, OPEN_LOOP_DEADBAND_MPS) == 127);
+}
+
 void testWatchdogAndUnsignedRollover() {
   navigen::control::CommandWatchdog watchdog(300);
   assert(watchdog.expired(0));
@@ -170,6 +184,7 @@ int main() {
   testBuzzerConfigCommand();
   testTelemetryRoundTripFrame();
   testOpenLoopVelocityMapping();
+  testMotorPwmCeiling();
   testWatchdogAndUnsignedRollover();
   testRearObstacleGuard();
   std::cout << "Firmware native tests passed\n";

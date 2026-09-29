@@ -34,14 +34,15 @@ control; otherwise a still-active command could restart the motors.
 
 ## Before enabling the motors
 
-The measured L298N motor-supply voltage is **12.6 V** with the switch on; the
-motors are marked **3–6 V**. Do not drive them from that supply. Fit a suitably
+The measured L298N motor-supply voltage is **12.6 V** from a 3S 18650 pack
+connected directly to the L298N; the motors are marked **3–6 V**. The requested
+firmware limit is 127/255 (49.8% PWM duty), but it does not limit pulse voltage
+or guarantee safe stall current. Do not drive the motors from that supply. Fit a suitably
 current-rated regulator or use a lower-voltage motor source, then measure no
 more than 6 V at the L298N motor-supply terminal throughout the battery's full
-charge range. The cells were described as parallel, but this does not yet explain
-the 12.6 V terminal reading; verify one-cell voltage and any intervening
-converter. Record the stall current for two motors
-in parallel on each L298N channel. Check the switch, connectors, wire size,
+charge range. Two motors in parallel on each channel are reported to draw
+roughly 1.6–2 A at stall, close to the L298 IC's 2 A DC/channel absolute limit.
+Check the switch, connectors, wire size,
 L298N logic power, and driver current/thermal limits. The Pi must have its own
 regulated supply. The ultrasonic ECHO signal must pass through a measured
 5 V to 3.3 V divider before NodeMCU D7.
