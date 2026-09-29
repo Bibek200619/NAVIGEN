@@ -1,5 +1,4 @@
 import React from 'react';
-import { Panel } from '../common/Panel';
 import { StatusBadge } from '../common/StatusBadge';
 import { useSafetyStatus } from '../../hooks/useSafetyStatus';
 import { useLocalizationStatus } from '../../hooks/useLocalizationStatus';
@@ -38,7 +37,6 @@ export const OperationalStatus: React.FC<OperationalStatusProps> = ({
   const isLocLoading = propLoadingLocalization !== undefined ? propLoadingLocalization : locHook.isLoading;
   const locError = propLocalizationError !== undefined ? propLocalizationError : locHook.error;
 
-  // Compute Safety visual state
   const getSafetyBadge = () => {
     if (!robotId || !safetyEvent) {
       return { label: 'UNAVAILABLE', variant: 'default' as const };
@@ -55,7 +53,6 @@ export const OperationalStatus: React.FC<OperationalStatusProps> = ({
     }
   };
 
-  // Compute Localization visual state
   const getLocalizationBadge = () => {
     if (!robotId || !localization) {
       return { label: 'Unavailable', variant: 'default' as const };
@@ -77,112 +74,87 @@ export const OperationalStatus: React.FC<OperationalStatusProps> = ({
   const safetyBadge = getSafetyBadge();
   const locBadge = getLocalizationBadge();
 
+  const safetyCardClass =
+    safetyEvent?.state === 'emergency_stop'
+      ? 'operational-card emergency'
+      : safetyEvent?.state === 'warning'
+        ? 'operational-card warning'
+        : 'operational-card';
+
+  const locCardClass =
+    localization?.state === 'lost'
+      ? 'operational-card emergency'
+      : localization?.state === 'relocalizing'
+        ? 'operational-card warning'
+        : 'operational-card';
+
   return (
-    <Panel title="Operational Status" className={className}>
-      <div className="space-y-4">
-        {/* Safety Section */}
-        <div
-          className={`p-3 rounded-md border text-xs space-y-2 transition-colors ${
-            safetyEvent?.state === 'emergency_stop'
-              ? 'bg-rose-950/30 border-rose-500/50 shadow-[0_0_12px_rgba(244,63,94,0.15)]'
-              : safetyEvent?.state === 'warning'
-              ? 'bg-amber-950/20 border-amber-500/40'
-              : 'bg-slate-950/60 border-slate-800'
-          }`}
-          data-testid="safety-status-card"
-        >
-          <div className="flex items-center justify-between">
-            <span className="font-semibold text-slate-200">Safety State</span>
-            {isSafetyLoading ? (
-              <span className="text-slate-400 font-mono">Loading...</span>
-            ) : safetyError ? (
-              <StatusBadge status="Error" variant="danger" />
-            ) : (
-              <StatusBadge status={safetyBadge.label} variant={safetyBadge.variant} />
-            )}
-          </div>
+    <section className={`telemetry-summary ${className}`}>
+      <header className="section-heading">
+        <h2>Operational status</h2>
+        <span className="eyebrow">03</span>
+      </header>
 
-          {safetyError ? (
-            <div className="text-rose-400 text-[11px]">Failed to load safety: {safetyError.message}</div>
-          ) : safetyEvent ? (
-            <div className="space-y-1.5 pt-1 border-t border-slate-800/80 text-[11px]">
-              {safetyEvent.description && (
-                <div className="text-slate-300">
-                  <span className="text-slate-500">Note: </span>
-                  {safetyEvent.description}
-                </div>
-              )}
-              {safetyEvent.active_triggers && safetyEvent.active_triggers.length > 0 && (
-                <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
-                  <span className="text-slate-400 font-medium">Triggers:</span>
-                  {safetyEvent.active_triggers.map((trigger) => (
-                    <span
-                      key={trigger}
-                      className="px-1.5 py-0.5 bg-rose-500/15 border border-rose-500/30 text-rose-300 rounded font-mono text-[10px]"
-                    >
-                      {trigger}
-                    </span>
-                  ))}
-                </div>
-              )}
-              <div className="flex justify-between text-slate-500 font-mono text-[10px] pt-1">
-                <span>Recorded</span>
-                <span>{formatSensorTimestamp(safetyEvent.recorded_at)}</span>
-              </div>
-            </div>
+      <div className={safetyCardClass} data-testid="safety-status-card">
+        <header>
+          <strong>Safety state</strong>
+          {isSafetyLoading ? (
+            <span className="meta">Loading…</span>
+          ) : safetyError ? (
+            <StatusBadge status="Error" variant="danger" />
           ) : (
-            <div className="text-slate-500 text-[11px]">
-              {!robotId ? 'No active robot' : 'No safety events reported'}
-            </div>
+            <StatusBadge status={safetyBadge.label} variant={safetyBadge.variant} />
           )}
-        </div>
+        </header>
 
-        {/* Localization Section */}
-        <div
-          className={`p-3 rounded-md border text-xs space-y-2 transition-colors ${
-            localization?.state === 'lost'
-              ? 'bg-rose-950/20 border-rose-500/30'
-              : localization?.state === 'relocalizing'
-              ? 'bg-amber-950/15 border-amber-500/30'
-              : 'bg-slate-950/60 border-slate-800'
-          }`}
-          data-testid="localization-status-card"
-        >
-          <div className="flex items-center justify-between">
-            <span className="font-semibold text-slate-200">Localization</span>
-            {isLocLoading ? (
-              <span className="text-slate-400 font-mono">Loading...</span>
-            ) : locError ? (
-              <StatusBadge status="Error" variant="danger" />
-            ) : (
-              <StatusBadge status={locBadge.label} variant={locBadge.variant} />
+        {safetyError ? (
+          <p className="meta">Failed to load safety: {safetyError.message}</p>
+        ) : safetyEvent ? (
+          <>
+            {safetyEvent.description && <p>{safetyEvent.description}</p>}
+            {safetyEvent.active_triggers && safetyEvent.active_triggers.length > 0 && (
+              <p className="meta">
+                Triggers: {safetyEvent.active_triggers.join(', ')}
+              </p>
             )}
-          </div>
-
-          {locError ? (
-            <div className="text-rose-400 text-[11px]">Failed to load localization: {locError.message}</div>
-          ) : localization ? (
-            <div className="grid grid-cols-2 gap-2 pt-1 border-t border-slate-800/80 text-[11px]">
-              <div>
-                <div className="text-slate-500">Features</div>
-                <div className="font-mono text-slate-200 mt-0.5" data-testid="tracked-features-val">
-                  {localization.tracked_features ?? '--'}
-                </div>
-              </div>
-              <div>
-                <div className="text-slate-500">Updated</div>
-                <div className="font-mono text-slate-200 mt-0.5">
-                  {formatSensorTimestamp(localization.recorded_at ?? localization.received_at)}
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="text-slate-500 text-[11px]">
-              {!robotId ? 'No active robot' : 'No localization data'}
-            </div>
-          )}
-        </div>
+            <p className="meta">Recorded {formatSensorTimestamp(safetyEvent.recorded_at)}</p>
+          </>
+        ) : (
+          <p className="meta">{!robotId ? 'No active robot' : 'No safety events reported'}</p>
+        )}
       </div>
-    </Panel>
+
+      <div className={locCardClass} data-testid="localization-status-card">
+        <header>
+          <strong>Localization</strong>
+          {isLocLoading ? (
+            <span className="meta">Loading…</span>
+          ) : locError ? (
+            <StatusBadge status="Error" variant="danger" />
+          ) : (
+            <StatusBadge status={locBadge.label} variant={locBadge.variant} />
+          )}
+        </header>
+
+        {locError ? (
+          <p className="meta">Failed to load localization: {locError.message}</p>
+        ) : localization ? (
+          <dl className="detail-list">
+            <div>
+              <dt>Features</dt>
+              <dd data-testid="tracked-features-val">{localization.tracked_features ?? '—'}</dd>
+            </div>
+            <div>
+              <dt>Updated</dt>
+              <dd>
+                {formatSensorTimestamp(localization.recorded_at ?? localization.received_at)}
+              </dd>
+            </div>
+          </dl>
+        ) : (
+          <p className="meta">{!robotId ? 'No active robot' : 'No localization data'}</p>
+        )}
+      </div>
+    </section>
   );
 };

@@ -1,5 +1,4 @@
 import React from 'react';
-import { Panel } from '../common/Panel';
 import { StatusBadge } from '../common/StatusBadge';
 import { useRobot } from '../../hooks/useRobot';
 import { useRobotData } from '../../hooks/useRobotData';
@@ -82,117 +81,102 @@ export const RobotStatus: React.FC<RobotStatusProps> = ({
 
   const gatewayConfig = getGatewayBadgeConfig(wsConnectionStatus);
   const robotStatusConfig = getRobotStatusBadgeConfig(robot?.status ?? robotState?.status);
-  const robotConnConfig = getRobotConnectionBadgeConfig(robot?.connection_status ?? robotState?.connectionStatus);
+  const robotConnConfig = getRobotConnectionBadgeConfig(
+    robot?.connection_status ?? robotState?.connectionStatus,
+  );
 
   const telemetryConfig =
     robotState === null || robotState.isStale === undefined
       ? { label: 'Unavailable', variant: 'default' as const }
       : robotState.isStale
-      ? { label: 'Stale', variant: 'warning' as const }
-      : { label: 'Live', variant: 'success' as const };
+        ? { label: 'Stale', variant: 'warning' as const }
+        : { label: 'Live', variant: 'success' as const };
 
   return (
-    <Panel title="Robot Status" className={className}>
-      <div className="space-y-4">
-        {/* Status header list */}
-        <div className="space-y-1.5 pb-3 border-b border-slate-800 text-xs">
-          <div className="flex items-center justify-between py-1 px-2.5 bg-slate-950/60 rounded border border-slate-800/80">
-            <span className="text-slate-400">Gateway:</span>
+    <section className={`telemetry-summary ${className}`}>
+      <header className="section-heading">
+        <h2>Robot Status</h2>
+        <span className="eyebrow">02</span>
+      </header>
+
+      <dl className="detail-list">
+        <div>
+          <dt>Gateway</dt>
+          <dd>
             <StatusBadge status={gatewayConfig.label} variant={gatewayConfig.variant} />
-          </div>
-          <div className="flex items-center justify-between py-1 px-2.5 bg-slate-950/60 rounded border border-slate-800/80">
-            <span className="text-slate-400">Robot link:</span>
-            <StatusBadge status={robotConnConfig.label} variant={robotConnConfig.variant} />
-          </div>
-          <div className="flex items-center justify-between py-1 px-2.5 bg-slate-950/60 rounded border border-slate-800/80">
-            <span className="text-slate-400">Robot status:</span>
-            <StatusBadge status={robotStatusConfig.label} variant={robotStatusConfig.variant} />
-          </div>
-          <div className="flex items-center justify-between py-1 px-2.5 bg-slate-950/60 rounded border border-slate-800/80">
-            <span className="text-slate-400">Telemetry:</span>
-            <StatusBadge status={telemetryConfig.label} variant={telemetryConfig.variant} />
-          </div>
+          </dd>
         </div>
+        <div>
+          <dt>Robot link</dt>
+          <dd>
+            <StatusBadge status={robotConnConfig.label} variant={robotConnConfig.variant} />
+          </dd>
+        </div>
+        <div>
+          <dt>Robot status</dt>
+          <dd>
+            <StatusBadge status={robotStatusConfig.label} variant={robotStatusConfig.variant} />
+          </dd>
+        </div>
+        <div>
+          <dt>Telemetry</dt>
+          <dd>
+            <StatusBadge status={telemetryConfig.label} variant={telemetryConfig.variant} />
+          </dd>
+        </div>
+      </dl>
 
-        {/* Content based on REST state */}
-        {isLoading ? (
-          <div className="py-8 px-4 flex flex-col items-center justify-center text-center bg-slate-950/40 rounded-lg border border-slate-800/80">
-            <div className="w-6 h-6 rounded-full border-2 border-slate-700 border-t-sky-400 animate-spin mb-2" />
-            <span className="text-xs font-medium text-slate-300">Loading robot metadata...</span>
-          </div>
-        ) : error ? (
-          <div className="py-6 px-4 flex flex-col items-center justify-center text-center bg-rose-500/10 rounded-lg border border-rose-500/20 text-xs">
-            <span className="font-semibold text-rose-400">Failed to load robot</span>
-            <p className="text-[11px] text-rose-300/80 mt-1 max-w-xs">{error.message}</p>
-            {handleRetry && (
-              <button
-                type="button"
-                onClick={handleRetry}
-                className="mt-3 px-3 py-1 bg-slate-800 hover:bg-slate-700 rounded text-[11px] font-medium text-slate-200 border border-slate-700 transition-colors focus:outline-none focus:ring-1 focus:ring-sky-500"
-              >
-                Retry
-              </button>
-            )}
-          </div>
-        ) : !robot ? (
-          <div className="py-8 px-4 flex flex-col items-center justify-center text-center bg-slate-950/40 rounded-lg border border-dashed border-slate-800">
-            <span className="text-sm font-medium text-slate-300">No robot registered</span>
-            <p className="text-xs text-slate-500 mt-1 max-w-xs">
-              No robot found in the fleet registry.
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {/* Real Robot Identity & Metadata */}
-            <div className="p-3 bg-slate-950/60 rounded-md border border-slate-800 text-xs space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-slate-400 font-medium">Robot Name</span>
-                <span className="font-semibold text-slate-200">{robot.name}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-slate-400">Robot ID</span>
-                <span className="font-mono text-slate-300 text-[11px] bg-slate-900 px-1.5 py-0.5 rounded border border-slate-800">
-                  {robot.id}
-                </span>
-              </div>
-              <div className="flex items-center justify-between pt-1.5 border-t border-slate-800/80 text-[11px]">
-                <span className="text-slate-400">Last seen</span>
-                <span className="text-slate-300 font-mono">
-                  {robot.last_seen_at ? new Date(robot.last_seen_at).toLocaleString() : 'Never'}
-                </span>
-              </div>
-              {robot.description && (
-                <div className="text-[11px] text-slate-400 pt-1.5 border-t border-slate-800/60 leading-relaxed">
-                  {robot.description}
-                </div>
-              )}
+      {isLoading ? (
+        <p className="dashboard-loading">Loading robot metadata...</p>
+      ) : error ? (
+        <div className="dashboard-error" role="alert">
+          <strong>Failed to load robot</strong>
+          <span>{error.message}</span>
+          {handleRetry && (
+            <button type="button" className="button" onClick={handleRetry}>
+              Retry
+            </button>
+          )}
+        </div>
+      ) : !robot ? (
+        <p className="dashboard-note">No robot registered</p>
+      ) : (
+        <>
+          <dl className="detail-list">
+            <div>
+              <dt>Robot name</dt>
+              <dd>{robot.name}</dd>
             </div>
-
-            {/* Live Velocities grid (from active telemetry) */}
-            <div className="grid grid-cols-2 gap-2.5">
-              <div className="p-2.5 bg-slate-950/60 rounded-md border border-slate-800">
-                <div className="text-[11px] text-slate-400 mb-0.5">Linear Velocity</div>
-                <div className="text-base font-semibold font-mono text-slate-100 flex items-baseline">
-                  {robotState?.velocity?.linear !== undefined
-                    ? robotState.velocity.linear.toFixed(2)
-                    : '--'}
-                  <span className="text-xs font-normal text-slate-500 ml-1">m/s</span>
-                </div>
-              </div>
-
-              <div className="p-2.5 bg-slate-950/60 rounded-md border border-slate-800">
-                <div className="text-[11px] text-slate-400 mb-0.5">Angular Velocity</div>
-                <div className="text-base font-semibold font-mono text-slate-100 flex items-baseline">
-                  {robotState?.velocity?.angular !== undefined
-                    ? robotState.velocity.angular.toFixed(2)
-                    : '--'}
-                  <span className="text-xs font-normal text-slate-500 ml-1">rad/s</span>
-                </div>
-              </div>
+            <div>
+              <dt>Robot ID</dt>
+              <dd className="mono">{robot.id}</dd>
             </div>
-          </div>
-        )}
-      </div>
-    </Panel>
+            <div>
+              <dt>Last seen</dt>
+              <dd className="mono">
+                {robot.last_seen_at ? new Date(robot.last_seen_at).toLocaleString() : 'Never'}
+              </dd>
+            </div>
+            <div>
+              <dt>Linear velocity</dt>
+              <dd>
+                {robotState?.velocity?.linear !== undefined
+                  ? `${robotState.velocity.linear.toFixed(2)} m/s`
+                  : '—'}
+              </dd>
+            </div>
+            <div>
+              <dt>Angular velocity</dt>
+              <dd>
+                {robotState?.velocity?.angular !== undefined
+                  ? `${robotState.velocity.angular.toFixed(2)} rad/s`
+                  : '—'}
+              </dd>
+            </div>
+          </dl>
+          {robot.description && <p className="dashboard-note">{robot.description}</p>}
+        </>
+      )}
+    </section>
   );
 };

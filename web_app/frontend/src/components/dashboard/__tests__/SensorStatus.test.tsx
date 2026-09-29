@@ -17,7 +17,7 @@ describe('SensorStatus Component', () => {
   it('renders default unavailable state when no robot is connected', () => {
     render(<SensorStatus robotId={null} />);
 
-    expect(screen.getByText('Sensor Health')).toBeInTheDocument();
+    expect(screen.getByText('Sensor health')).toBeInTheDocument();
     expect(screen.getByTestId('sensor-health-aggregate')).toHaveTextContent('-- / 5 reporting');
 
     const badges = screen.getAllByText('UNAVAILABLE');
@@ -97,7 +97,8 @@ describe('SensorStatus Component', () => {
     const error = new Error('Sensor telemetry network timeout');
     render(<SensorStatus robotId="robot-1" error={error} />);
 
-    expect(screen.getByText(/Failed to load sensor status: Sensor telemetry network timeout/)).toBeInTheDocument();
+    expect(screen.getByText('Failed to load sensor status')).toBeInTheDocument();
+    expect(screen.getByText('Sensor telemetry network timeout')).toBeInTheDocument();
     expect(screen.getByTestId('sensor-health-aggregate')).toHaveTextContent('Error');
   });
 
