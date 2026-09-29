@@ -68,10 +68,10 @@ async function refresh(){
   $("imuRoll").textContent=`${imu.sample.roll_deg.toFixed(1)}°`;
   $("imuPitch").textContent=`${imu.sample.pitch_deg.toFixed(1)}°`;
   $("imuYawRate").textContent=`${imu.sample.gyro_z_dps.toFixed(1)}°/s`;
-  $("imuState").textContent=`MPU-6050 · ${imu.age_ms} ms old`;
+  $("imuState").textContent=`${imu.model||"MPU sensor"} · ${imu.age_ms} ms old`;
  }else{
   for(const id of ["imuRoll","imuPitch","imuYawRate"])$(id).textContent="—";
-  $("imuState").textContent=`MPU-6050 unavailable${imu?.error?`: ${imu.error}`:""}`;
+  $("imuState").textContent=`${imu?.model||"MPU sensor"} unavailable${imu?.error?`: ${imu.error}`:""}`;
  }
 }
 async function video(){

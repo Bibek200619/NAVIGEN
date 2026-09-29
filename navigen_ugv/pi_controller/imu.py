@@ -1,13 +1,15 @@
-"""Optional MPU-6050 readings from the Pi's I2C bus; never used to arm motors."""
+"""Optional MPU-6050/6500 readings from Pi I2C; never used to arm motors."""
 import math
 import struct
 import threading
 import time
 
+SUPPORTED_IDS={0x68:'MPU-6050',0x70:'MPU-6500'}
+
 
 def decode_sample(data):
     if len(data) != 14:
-        raise ValueError('MPU-6050 sample must contain 14 bytes')
+        raise ValueError('MPU sample must contain 14 bytes')
     ax,ay,az,_,gx,gy,gz=struct.unpack('>hhhhhhh',bytes(data))
     ax,ay,az=(value/16384.0 for value in (ax,ay,az))
     gx,gy,gz=(value/131.0 for value in (gx,gy,gz))
@@ -27,7 +29,8 @@ class Imu:
         self.lock=threading.Lock()
         self.sample=None
         self.sample_time=None
-        self.error='Waiting for MPU-6050'
+        self.model=None
+        self.error='Waiting for MPU sensor'
 
     def _open_bus(self):
         from smbus2 import SMBus
@@ -37,9 +40,9 @@ class Imu:
         with self.lock:
             age=None if self.sample_time is None else max(0,int((time.monotonic()-self.sample_time)*1000))
             available=self.sample is not None and age is not None and age<=500
-            return dict(available=available,address=hex(self.address),age_ms=age,
+            return dict(available=available,address=hex(self.address),model=self.model,age_ms=age,
                         sample=self.sample.copy() if available else None,
-                        error='' if available else self.error or 'Stale MPU-6050 sample')
+                        error='' if available else self.error or 'Stale MPU sample')
 
     def run(self,stop_event):
         while not stop_event.is_set():
@@ -47,8 +50,10 @@ class Imu:
             try:
                 bus=self.bus_factory()
                 who=bus.read_byte_data(self.address,0x75)
-                if who != 0x68:
-                    raise ValueError(f'Expected MPU-6050 identity 0x68, got 0x{who:02x}')
+                if who not in SUPPORTED_IDS:
+                    raise ValueError(f'Unsupported MPU identity 0x{who:02x}')
+                with self.lock:
+                    self.model=SUPPORTED_IDS[who]
                 bus.write_byte_data(self.address,0x6B,0x01)  # wake; gyro X reference clock
                 bus.write_byte_data(self.address,0x1B,0x00)  # gyro ±250 deg/s
                 bus.write_byte_data(self.address,0x1C,0x00)  # accel ±2 g
@@ -63,6 +68,7 @@ class Imu:
                 with self.lock:
                     self.sample=None
                     self.sample_time=None
+                    self.model=None
                     self.error=str(error)
             finally:
                 if bus is not None:

@@ -31,7 +31,7 @@ def test_http_auth_validation_and_static_files():
         page=request('/',auth=False).read()
         assert b'UGV control' in page
         assert b'Rear distance' in page and b'Buzzer threshold' in page
-        assert b'MPU-6050' in page
+        assert b'MPU motion' in page
         with pytest.raises(HTTPError) as error:
             request('/api/status',auth=False)
         assert error.value.code == 401

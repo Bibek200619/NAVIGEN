@@ -16,7 +16,8 @@ def test_mpu6050_sample_uses_configured_full_scale():
         decode_sample(raw[:-1])
 
 
-def test_imu_retries_bus_failure_and_reports_fresh_sample():
+@pytest.mark.parametrize('identity,model',[(0x68,'MPU-6050'),(0x70,'MPU-6500')])
+def test_imu_retries_bus_failure_and_reports_fresh_sample(identity,model):
     class Stop:
         done=False
         def is_set(self):return self.done
@@ -31,7 +32,7 @@ def test_imu_retries_bus_failure_and_reports_fresh_sample():
         def read_byte_data(self,address,register):
             assert (address,register)==(0x68,0x75)
             if self.attempt==1:raise OSError('temporary I2C fault')
-            return 0x68
+            return identity
         def write_byte_data(self,address,register,value):
             assert address==0x68
         def read_i2c_block_data(self,address,register,length):
@@ -49,5 +50,6 @@ def test_imu_retries_bus_failure_and_reports_fresh_sample():
     status=imu.status()
     assert len(opens)==2
     assert status['available']
+    assert status['model']==model
     assert status['sample']['gyro_z_dps']==pytest.approx(1.0)
     assert status['error']==''
