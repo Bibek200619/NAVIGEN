@@ -1,5 +1,4 @@
 import React from 'react';
-import { Panel } from '../common/Panel';
 import { StatusBadge } from '../common/StatusBadge';
 import { ROS_TOPICS } from '../../constants/topics';
 import type { SensorStatusResponse } from '../../types/api';
@@ -37,14 +36,12 @@ export const SensorStatus: React.FC<SensorStatusProps> = ({
   onRetry,
   className = '',
 }) => {
-  // Use hook if props not explicitly provided
   const hookResult = useSensorStatus(robotId, { enabled: propsSensors === undefined });
   const sensors = propsSensors ?? hookResult.sensors;
   const isLoading = propsLoading ?? hookResult.isLoading;
   const error = propsError ?? hookResult.error;
   const handleRetry = onRetry ?? hookResult.refetch;
 
-  // Match each core sensor truthfully from backend data
   const matchedList = CORE_SENSORS.map((item) => {
     const matched = matchSensor(sensors, item.target);
     const topic = matched?.topic ?? item.defaultTopic;
@@ -72,7 +69,6 @@ export const SensorStatus: React.FC<SensorStatusProps> = ({
     };
   });
 
-  // Calculate reporting count strictly from real matched sensors
   const activeCount = matchedList.filter((m) => m.isActive).length;
   const reportingAggregate = !robotId
     ? '-- / 5 reporting'
@@ -83,58 +79,44 @@ export const SensorStatus: React.FC<SensorStatusProps> = ({
         : `${activeCount} / 5 reporting`;
 
   return (
-    <Panel className={`relative ${className}`}>
-      <div className="flex items-center justify-between mb-3 pb-2 border-b border-slate-800">
-        <h3 className="text-sm font-semibold text-slate-300">Sensor Health</h3>
-        <span
-          className="text-xs font-mono text-slate-300 bg-slate-950 px-2.5 py-0.5 rounded border border-slate-800"
-          data-testid="sensor-health-aggregate"
-        >
+    <section className={`telemetry-summary ${className}`}>
+      <header className="section-heading">
+        <h2>Sensor health</h2>
+        <span className="eyebrow" data-testid="sensor-health-aggregate">
           {reportingAggregate}
         </span>
-      </div>
+      </header>
 
       {isLoading ? (
-        <div className="py-6 text-center text-xs text-slate-400" data-testid="sensor-loading">
+        <p className="dashboard-loading" data-testid="sensor-loading">
           Loading sensor health...
-        </div>
+        </p>
       ) : error ? (
-        <div className="p-3 bg-rose-500/10 border border-rose-500/20 rounded-md text-xs text-rose-400 space-y-2">
-          <div>Failed to load sensor status: {error.message}</div>
+        <div className="dashboard-error">
+          <strong>Failed to load sensor status</strong>
+          <span>{error.message}</span>
           {handleRetry && (
-            <button
-              onClick={() => handleRetry()}
-              className="px-2 py-1 bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 rounded text-xs transition-colors focus:outline-none focus:ring-1 focus:ring-rose-400"
-            >
+            <button type="button" className="button" onClick={() => handleRetry()}>
               Retry
             </button>
           )}
         </div>
       ) : (
-        <div className="space-y-2">
+        <div className="sensor-list">
           {matchedList.map((sensor) => (
-            <div
-              key={sensor.name}
-              className="flex items-center justify-between p-2.5 bg-slate-950/60 rounded-md border border-slate-800 text-xs hover:border-slate-700/80 transition-colors"
-            >
-              <div className="flex flex-col min-w-0 pr-2">
-                <div className="flex items-center space-x-1.5">
-                  <span className="font-medium text-slate-200 truncate">{sensor.name}</span>
-                  {sensor.frequencyHz != null && (
-                    <span className="text-[10px] font-mono text-slate-400">
-                      ({sensor.frequencyHz} Hz)
-                    </span>
-                  )}
-                </div>
-                <span className="font-mono text-[11px] text-slate-500 truncate" title={sensor.topic}>
-                  {sensor.topic}
-                </span>
+            <div key={sensor.name} className="sensor-row">
+              <div>
+                <strong>
+                  {sensor.name}
+                  {sensor.frequencyHz != null ? ` (${sensor.frequencyHz} Hz)` : ''}
+                </strong>
+                <small title={sensor.topic}>{sensor.topic}</small>
               </div>
               <StatusBadge status={sensor.statusText} variant={sensor.variant} />
             </div>
           ))}
         </div>
       )}
-    </Panel>
+    </section>
   );
 };

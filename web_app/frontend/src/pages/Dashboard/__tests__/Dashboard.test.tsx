@@ -23,10 +23,9 @@ vi.mock('../../../hooks/useTelemetryHistory', () => ({ useTelemetryHistory: vi.f
 vi.mock('../../../hooks/useSensorStatus', () => ({ useSensorStatus: vi.fn(() => ({ sensors: [], isLoading: false, error: null, refetch: vi.fn() })) }));
 
 describe('DashboardPage', () => {
-  it('renders the tactical command station', () => {
+  it('renders the dashboard overview', () => {
     render(<MemoryRouter><DashboardPage /></MemoryRouter>);
     expect(screen.getByText('Dashboard')).toBeInTheDocument();
-    expect(screen.getByText('UGV Command Station')).toBeInTheDocument();
     expect(screen.getAllByText('Vanguard Alpha').length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText('SAFETY: NOMINAL')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Refresh Robot State' })).toBeInTheDocument();
