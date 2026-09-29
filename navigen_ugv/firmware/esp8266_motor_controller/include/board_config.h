@@ -1,6 +1,9 @@
 // NAVIGEN NodeMCU ESP8266 open-loop hardware profile.
 // GPIO assignments are centralized here and may be changed for another wiring layout.
 // Propulsion stays disabled until the wiring has been reviewed and the confirmation flag is set.
+// On 2026-09-30 the L298N motor rail measured 12.6 V, while the motors are
+// marked 3-6 V. This is not an approved motor supply; keep the flag at 0 until
+// a correctly rated regulated motor rail and both channel currents are verified.
 #pragma once
 
 // Set to 1 only after the pin map, motor directions, voltage dividers, physical
@@ -21,6 +24,18 @@
 #define PIN_MOTOR_RIGHT_ENABLE  -1  // ENB jumper installed; no GPIO used
 #define MOTOR_LEFT_INVERTED      0
 #define MOTOR_RIGHT_INVERTED     0
+
+// Static commissioning record, NOT live battery monitoring. Update the
+// measured value only after a suitable regulated rail is installed and its
+// maximum voltage is checked at the L298N motor-supply terminals. With the
+// present 12.6 V reading and 3-6 V motors, configuration remains invalid.
+#define MOTOR_SUPPLY_MEASURED_MV 12600
+#define MOTOR_RATED_MAX_MV        6000
+#if HARDWARE_CONFIGURATION_CONFIRMED && \
+    (MOTOR_SUPPLY_MEASURED_MV <= 0 || \
+     MOTOR_SUPPLY_MEASURED_MV > MOTOR_RATED_MAX_MV)
+#error "Motor supply is outside the recorded motor voltage rating"
+#endif
 
 // ESP8266 Arduino software PWM. The range is set explicitly so core-version
 // defaults cannot silently change motor output.

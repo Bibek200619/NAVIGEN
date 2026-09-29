@@ -18,8 +18,9 @@ this vehicle. The operator must watch the camera for forward obstacles.
    when a flat object is behind the sensor. A missing echo is shown as invalid,
    never as a clear path. The buzzer starts disabled, with a 30 cm threshold.
 5. The current firmware deliberately reports **ESP8266 motor lockout active**.
-   The drive controls remain unavailable until motor power is verified and the
-   firmware is explicitly configured and flashed for propulsion.
+   The drive controls remain unavailable because the measured 12.6 V motor
+   supply exceeds the motors' marked 3–6 V range. The supply must be corrected,
+   measured, and the firmware explicitly configured and flashed for propulsion.
 
 On the Pi, `systemctl status navigen-dashboard` checks the service. The stable
 USB port currently used is
@@ -33,13 +34,17 @@ control; otherwise a still-active command could restart the motors.
 
 ## Before enabling the motors
 
-Record the four battery cells' wiring (series/parallel), the **measured** voltage
-between the L298N motor-supply + and GND terminals with the switch on, and the
-voltage printed on every motor. Confirm actual motor voltage is in range and
-that two motors in parallel on each L298N channel cannot exceed that channel's
-stall-current rating. Check the switch, connectors, wire size, and L298N logic
-power wiring. The Pi must have its own regulated supply. The ultrasonic ECHO
-signal must pass through a measured 5 V to 3.3 V divider before NodeMCU D7.
+The measured L298N motor-supply voltage is **12.6 V** with the switch on; the
+motors are marked **3–6 V**. Do not drive them from that supply. Fit a suitably
+current-rated regulator or use a lower-voltage motor source, then measure no
+more than 6 V at the L298N motor-supply terminal throughout the battery's full
+charge range. The cells were described as parallel, but this does not yet explain
+the 12.6 V terminal reading; verify one-cell voltage and any intervening
+converter. Record the stall current for two motors
+in parallel on each L298N channel. Check the switch, connectors, wire size,
+L298N logic power, and driver current/thermal limits. The Pi must have its own
+regulated supply. The ultrasonic ECHO signal must pass through a measured
+5 V to 3.3 V divider before NodeMCU D7.
 
 Only after these checks, set `HARDWARE_CONFIGURATION_CONFIRMED=1` in the
 [firmware profile](../firmware/esp8266_motor_controller/include/board_config.h)

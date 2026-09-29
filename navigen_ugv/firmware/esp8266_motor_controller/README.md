@@ -44,14 +44,29 @@ ESP8266 GPIO, or add the appropriate transistor driver.
 
 ## Motor power and active lockout
 
-The present build uses four battery cells, but their series/parallel wiring, measured L298N
-motor-supply voltage, exact motor voltage rating, and combined stall current have not been
-recorded in this repository. **Keep motor power switched off and
-`HARDWARE_CONFIGURATION_CONFIRMED=0` until those values and the L298N logic-power arrangement
-are verified.** The L298N's voltage drop and PWM do not make an overvoltage battery safe for a
-lower-voltage motor. Both motors on one side share one L298N output; verify the current capability
-of each channel, wiring, connectors, switch, and battery under a stalled-wheel condition.
-Power the Raspberry Pi separately through a properly regulated USB-C source.
+On 2026-09-30, the measured voltage at the L298N motor-supply terminal with the switch on was
+**12.6 V**, while the motors are marked **3–6 V**. The four cells were described as parallel,
+but that description has not been reconciled with the 12.6 V terminal reading; individual-cell
+voltage and any intervening converter are still unknown. Motor stall current and L298N
+logic-power wiring are also unverified. **The current direct
+motor supply is unsuitable. Keep the motor switch open and
+`HARDWARE_CONFIGURATION_CONFIRMED=0`.** The L298N's voltage drop and PWM do not regulate a
+12.6 V supply down to a guaranteed safe motor voltage.
+The firmware also records the observed 12.6 V as `MOTOR_SUPPLY_MEASURED_MV`; setting
+`HARDWARE_CONFIGURATION_CONFIRMED=1` without first updating this value for a measured safe
+motor rail causes a build error. This static check is **not** a voltage sensor or substitute for
+electrical measurement. The optional bench motor-test mode now honors the same configuration
+lockout.
+
+Before enabling propulsion, fit a motor-supply regulator that keeps the L298N motor rail at or
+below the motors' 6 V maximum throughout the battery's full charge range, or use a properly rated
+lower-voltage motor supply. Size the regulator, switch, wiring, battery, and each L298N channel
+for the combined startup/stall current of the two motors on that channel. The
+[L298 IC datasheet](https://www.st.com/resource/en/datasheet/l298.pdf) lists 2 A DC as an absolute
+maximum **per channel**, not a promise that a particular module can
+dissipate that load continuously. Confirm the L298N board's 5 V logic supply separately; its
+onboard regulator/jumper behavior depends on the board and cannot be assumed at a 6 V motor
+rail. Power the Raspberry Pi separately through a properly regulated USB-C source.
 
 ## Physical stop with the available switch
 
@@ -76,9 +91,10 @@ Software e-stop, the command watchdog, and configuration lockout remain active. 
 the confirmation flag to `1`:
 
 1. Verify every connection against the NodeMCU board labels and L298N terminal labels.
-2. Record the battery-cell arrangement, voltage at the L298N motor-supply terminal with the
-   switch on, and each motor's printed voltage rating. Verify that actual motor voltage and
-   side-pair stall current stay within all component ratings.
+2. Replace the present 12.6 V direct motor feed with a regulated motor supply at or below 6 V,
+   then measure its output at the L298N terminal over the expected battery range. Recheck the
+   battery-cell arrangement and verify motor side-pair stall current and component ratings. Set
+   `MOTOR_SUPPLY_MEASURED_MV` to the highest verified motor-rail voltage.
 3. Verify the HC-SR04 ECHO divider with a multimeter; keep
    `ESTOP_INPUT_ENABLED=0` while D0 is assigned to the buzzer.
 4. Measure effective left/right track width and set the Pi runtime's `--track-width` value.

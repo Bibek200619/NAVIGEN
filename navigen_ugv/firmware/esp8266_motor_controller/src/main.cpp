@@ -224,9 +224,12 @@ bool validateConfiguration() {
   const bool battery_configured =
       BATTERY_MONITOR_ENABLED == 0 ||
       (ADC_FULL_SCALE_MV > 0 && BATTERY_DIVIDER > 0.0F);
+  const bool motor_supply_configured =
+      MOTOR_SUPPLY_MEASURED_MV > 0 &&
+      MOTOR_SUPPLY_MEASURED_MV <= MOTOR_RATED_MAX_MV;
   return HARDWARE_CONFIGURATION_CONFIRMED == 1 && pins_supported &&
          motor_pins_safe && pinsAreUnique() && control_configured &&
-      ultrasonic_configured && battery_configured;
+      ultrasonic_configured && battery_configured && motor_supply_configured;
 }
 
 bool auxiliaryPinsSupported() {
@@ -570,7 +573,7 @@ void loop() {
   const uint32_t now_us = micros();
   const uint32_t now_ms = millis();
 #if MOTOR_TEST_ENABLED
-  if (!motor_test_complete) {
+  if (configuration_valid && !motor_test_complete) {
     runMotorTest(now_ms);
     delay(5);
     return;
