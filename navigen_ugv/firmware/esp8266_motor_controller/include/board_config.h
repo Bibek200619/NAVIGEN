@@ -1,6 +1,10 @@
 // NAVIGEN NodeMCU ESP8266 open-loop hardware profile.
 // GPIO assignments are centralized here and may be changed for another wiring layout.
 // Propulsion stays disabled until the wiring has been reviewed and the confirmation flag is set.
+// The motor battery is three 18650 cells in series (3S): 12.6 V was measured
+// at the L298N motor rail. The motors are marked 3-6 V, and two motors share
+// each L298N channel. PWM duty limiting does not validate peak voltage or
+// channel current; keep the flag at 0 until power/current are verified.
 #pragma once
 
 // Set to 1 only after the pin map, motor directions, voltage dividers, physical
@@ -22,10 +26,28 @@
 #define MOTOR_LEFT_INVERTED      0
 #define MOTOR_RIGHT_INVERTED     0
 
-// ESP8266 Arduino software PWM. The range is set explicitly so core-version
-// defaults cannot silently change motor output.
+// Static commissioning record, NOT live battery monitoring. Update the
+// measured value only after a suitable regulated rail is installed and its
+// maximum voltage is checked at the L298N motor-supply terminals. With the
+// present 12.6 V reading and 3-6 V motors, configuration remains invalid.
+#define MOTOR_SUPPLY_MEASURED_MV 12600
+#define MOTOR_RATED_MAX_MV        6000
+#if HARDWARE_CONFIGURATION_CONFIRMED && \
+    (MOTOR_SUPPLY_MEASURED_MV <= 0 || \
+     MOTOR_SUPPLY_MEASURED_MV > MOTOR_RATED_MAX_MV)
+#error "Motor supply is outside the recorded motor voltage rating"
+#endif
+
+// ESP8266 Arduino software PWM. The full scale stays 255; limiting the motor
+// output to 127/255 yields a 49.8% maximum duty cycle. Setting the PWM range
+// itself to 127 would still allow 100% duty and must not be used as a cap.
+// This is a supplemental effort limit, not a 6 V regulator or current limit.
 #define PWM_FREQUENCY_HZ      1000
-#define MAX_PWM                255
+#define PWM_RANGE              255
+#define PWM_DUTY_LIMIT         127
+#if PWM_DUTY_LIMIT * 2 > PWM_RANGE
+#error "Motor PWM duty limit exceeds 50 percent"
+#endif
 #define MIN_EFFECTIVE_PWM        0  // Tune on stands; zero disables minimum boost.
 #define OPEN_LOOP_DEADBAND_MPS 0.01f
 #define MAX_WHEEL_VELOCITY_MPS 0.20f
@@ -47,20 +69,22 @@
 #define ULTRASONIC_REVERSE_STOP_MM 300
 
 // ---- Proximity buzzer ----
-// Suggested NodeMCU D0/GPIO16 drives an ACTIVE buzzer through a transistor
-// driver. Do not power a high-current buzzer directly from an ESP8266 GPIO.
+// NodeMCU D0/GPIO16 is wired directly to an active buzzer in the current build.
+// Keep the dashboard buzzer off until its GPIO load is verified, or fit a
+// suitable transistor driver for a buzzer whose current exceeds GPIO limits.
 #define BUZZER_ENABLED             1
 #define BUZZER_DEFAULT_ENABLED     0
-#define PIN_BUZZER                16  // D0 -> transistor driver input
+#define PIN_BUZZER                16  // D0 -> active buzzer or driver input
 #define BUZZER_ACTIVE_LEVEL        1
 #define BUZZER_NEAR_DISTANCE_MM  300  // Default threshold; configurable from Pi dashboard
 #define BUZZER_BEEP_ON_MS        120
 #define BUZZER_BEEP_PERIOD_MS    500
 
 // ---- Safety and battery status ----
-// Set to 1 only when the D0 motor-power feedback circuit is installed and
-// meter-verified. When disabled, D0 is not configured or used by firmware;
-// software e-stop, watchdog, and configuration lockout remain active.
+// Disabled while D0 is assigned to the buzzer. A future motor-power feedback
+// input needs a separate GPIO or a redesigned circuit; never drive one GPIO
+// with both the buzzer output and battery feedback. Software e-stop, watchdog,
+// and configuration lockout remain active.
 #define ESTOP_INPUT_ENABLED      0
 
 // D0 is GPIO16 and supports INPUT_PULLDOWN_16. Normal operation must present a

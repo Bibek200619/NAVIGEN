@@ -12,10 +12,14 @@ class Camera:
     def latest(self):
         return None
 
+class Imu:
+    def status(self):
+        return {'available':True,'sample':{'roll_deg':1.0},'error':''}
+
 
 def test_http_auth_validation_and_static_files():
     c=Controller(mock=True)
-    server=Server(('127.0.0.1',0),c,Camera(),'test-token')
+    server=Server(('127.0.0.1',0),c,Camera(),'test-token',Imu())
     thread=threading.Thread(target=server.serve_forever,daemon=True)
     thread.start()
     base=f'http://127.0.0.1:{server.server_port}'
@@ -27,10 +31,13 @@ def test_http_auth_validation_and_static_files():
         page=request('/',auth=False).read()
         assert b'UGV control' in page
         assert b'Rear distance' in page and b'Buzzer threshold' in page
+        assert b'MPU motion' in page
         with pytest.raises(HTTPError) as error:
             request('/api/status',auth=False)
         assert error.value.code == 401
-        assert json.load(request('/api/status'))['estop'] is True
+        status=json.load(request('/api/status'))
+        assert status['estop'] is True
+        assert status['imu']['sample']['roll_deg']==1.0
         assert json.load(request('/api/buzzer',{'enabled':True,'threshold_cm':30}))['ok']
         assert c.buzzer_enabled and c.buzzer_threshold_mm == 300
         with pytest.raises(HTTPError) as error:

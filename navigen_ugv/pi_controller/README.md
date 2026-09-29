@@ -4,6 +4,9 @@ This is the runnable implementation for the hardware confirmed on 2026-09-29:
 Raspberry Pi + Pi Camera, ESP8266, one L298N, four motors without encoders,
 one rear ultrasonic sensor, motor-power switch, and batteries. **No IMU or wheel
 encoders are required. ROS is not required for this runtime.**
+An optional MPU-6050 or MPU-6500 on the Pi I2C header adds acceleration, gyro turn rate,
+and sensor-axis roll/pitch to the dashboard. It does not provide wheel travel,
+absolute compass heading, or a position estimate, and it does not arm motors.
 
 Features: live camera view, browser hold-to-drive controls, forward/reverse/pivot,
 software e-stop, conservative command limiting, live rear distance telemetry,
@@ -23,8 +26,10 @@ ROS/Gazebo vision-autonomy roadmap remains separate.
 - `app.py`: local HTTP API and process lifecycle.
 - `controller.py`: serial worker, motion leases, stop/release handshake and rear guard.
 - `camera.py`: Picamera2 capture, acquisition-age checks, JPEG frames.
+- `imu.py`: optional MPU-6050/6500 I2C reader with reconnect and stale-data handling.
 - `static/`: desktop/mobile browser controls.
 - `test/`: controller and HTTP integration tests.
+- `OPERATIONS.md`: current Pi login, live checks, and motor commissioning sequence.
 - `../firmware/esp8266_motor_controller/`: ESP8266 firmware, sensor pin map, and serial protocol.
 
 The runtime imports the existing protocol, kinematics, mock and reconnecting
@@ -39,7 +44,7 @@ describes the camera software. No trained AI model is needed for manual driving.
 
 ```bash
 sudo apt update
-sudo apt install -y python3-picamera2 python3-opencv python3-serial python3-pytest
+sudo apt install -y python3-picamera2 python3-opencv python3-serial python3-pytest python3-smbus2
 sudo usermod -aG dialout "$USER"
 # Re-login for serial group membership. From the NAVIGEN repository root:
 python3 navigen_ugv/pi_controller/app.py --mock
@@ -90,7 +95,8 @@ For boot startup, install [navigen-dashboard@.service](navigen-dashboard@.servic
 as a systemd template and enable it for the Pi login user. It binds port 8080
 to the Wi-Fi network and keeps its login token in that user's
 `~/.config/navigen/dashboard.token` with owner-only permissions. The template
-expects the checkout at `~/navigen_dashboard` and the ESP8266 on `/dev/ttyUSB0`.
+expects the checkout at `~/navigen_dashboard`; set `ESP8266_PORT` to the stable
+`/dev/serial/by-id/...` path for the attached controller.
 The dashboard remains in e-stop until camera capture and controller telemetry
 are both healthy.
 
@@ -100,9 +106,52 @@ sudo systemctl enable --now navigen-dashboard@YOUR_USER.service
 cat ~/.config/navigen/dashboard.token
 ```
 
-The current Pi runs Ubuntu 24.04, whose camera stack does not support the Pi CSI
-camera according to the [Ubuntu Raspberry Pi support guide](https://ubuntu.com/hardware/docs/boards/how-to/ubuntu_supported/raspberry-pi/).
-A camera-capable OS is needed before driving can be released.
+The current Pi runs Ubuntu 24.04. Its packaged camera stack is too old for the
+Pi 5, but the original OV5647 Pi Camera now captures through a source-built
+Raspberry Pi stack under `/opt/navigen-camera`. The deployed dashboard uses an
+isolated Picamera2 environment and serves fresh camera JPEGs. See the
+[Ubuntu 24.04 camera setup](ubuntu24-camera.md) to reproduce that setup.
+Firmware hardware-configuration lockout remains active until the motor wiring
+is verified; a working camera does not release it.
+
+## Optional MPU-6050/6500 on the Pi
+
+Power off the Pi before adding wires. Use the **physical header pin numbers**:
+See the official [Raspberry Pi GPIO reference](https://www.raspberrypi.com/documentation/computers/raspberry-pi.html#gpio-and-the-40-pin-header)
+and [MPU-6050 electrical specifications](https://product.tdk.com/en/search/sensor/mortion-inertial/imu/info?part_no=MPU-6050).
+
+| MPU breakout | Raspberry Pi 5 header |
+|---|---|
+| VCC | Pin 1, 3.3 V |
+| GND | Pin 6, GND |
+| SDA | Pin 3, GPIO2 / SDA1 |
+| SCL | Pin 5, GPIO3 / SCL1 |
+| AD0 | GND for address `0x68`, unless already pulled low on the breakout |
+| INT | Leave disconnected for polling |
+
+Check the breakout's own power pinout; these MPU chips and Pi GPIO use 3.3 V
+logic. Never pull Pi SDA/SCL to 5 V. The camera ribbon uses CSI and does not
+occupy these header pins. On this Ubuntu Pi, `/dev/i2c-1` already exists and
+the `lenin` service account needs membership in the group that owns it (`i2c`
+after a reboot). Add the service user to that group and restart the service so
+it receives the new membership. Install `smbus2` in the camera-stack venv;
+the service then automatically retries the sensor at address `0x68`:
+
+```bash
+/home/lenin/camera-stack/venv/bin/pip install 'smbus2==0.6.1'
+sudo usermod -aG i2c lenin
+sudo systemctl restart navigen-dashboard.service
+```
+
+Use `--imu-address 0x69` if AD0 is intentionally tied to 3.3 V. `--no-imu`
+disables polling. The dashboard shows sensor-axis tilt and Z angular rate only
+when the sample is fresh; mounting orientation and gyro bias are not calibrated.
+The IMU is never used as a substitute for wheel encoders or for motor safety.
+The connected module identifies itself as `0x70`, matching the
+[MPU-6500 register map](https://invensense.tdk.com/wp-content/uploads/2015/02/MPU-6500-Register-Map2.pdf),
+rather than the MPU-6050 ID `0x68`. The reader accepts both IDs and shows the
+reported model in the dashboard. Both use the configured ±2 g and ±250°/s
+scales; see the [MPU-6500 specifications](https://invensense.tdk.com/wp-content/uploads/2020/06/PS-MPU-6500A-01-v1.3.pdf).
 
 ## Stop behavior
 
@@ -111,7 +160,8 @@ A camera-capable OS is needed before driving can be released.
 - Browser motion requests expire after 250 ms. Releasing a control commands zero
   immediately without a deceleration ramp. Pi sends bounded commands at 50 Hz.
 - Pi stops for camera frames older than 500 ms and controller telemetry older than
-  250 ms. Serial/controller faults latch e-stop and require operator release.
+  250 ms. Camera and serial/controller faults latch e-stop and require operator
+  release after recovery. Camera capture retries automatically.
 - Rear clearance at/below 0.35 m or invalid rear measurements blocks reverse and
   turns with a reversing wheel. Forward movement is not claimed to be collision-free.
 - ESP8266 adds a 300 ms command watchdog and independently blocks reverse/pivot motion

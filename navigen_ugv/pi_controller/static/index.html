@@ -2,13 +2,13 @@
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>NAVIGEN · UGV control</title><link rel="stylesheet" href="/style.css"></head>
 <body><main><header><div><small>NAVIGEN / ESP8266</small><h1>UGV control</h1></div><span id="mode">Disconnected</span></header>
-<section id="login"><label>Session token <input id="token" type="password" autocomplete="off" placeholder="Printed in the Pi terminal"></label><button id="connect">Connect</button></section>
-<div class="layout"><section><img id="camera" alt="Live Pi Camera view"><p id="cameraState">Waiting for camera</p><p>Manual driving · no position or speed feedback. The rear sensor protects reverse and turning; watch the camera for forward obstacles.</p></section>
+<section id="login"><label>Session token <input id="token" type="password" autocomplete="off" placeholder="Paste the token from the Pi"></label><button id="connect">Connect</button></section>
+<div class="layout"><section><img id="camera" alt="Live Pi Camera view"><p id="cameraState">Connect to view the camera</p><p>Manual driving · no position or speed feedback. The rear sensor protects reverse and turning; watch the camera for forward obstacles.</p></section>
 <section class="panel"><h2>Drive</h2><p>Hold a control or W/A/S/D. Releasing stops the vehicle.</p>
 <div class="pad"><button data-v="0.12" data-w="0" class="forward" disabled>↑<br>Forward</button><button data-v="0" data-w="0.35" class="left" disabled>←<br>Left</button><button id="stop" disabled>■<br>Stop</button><button data-v="0" data-w="-0.35" class="right" disabled>→<br>Right</button><button data-v="-0.08" data-w="0" class="back" disabled>↓<br>Reverse</button></div>
-<button id="estop" class="danger">EMERGENCY STOP · Space</button><button id="release" disabled>Release e-stop</button><div id="status" role="status">Enter the session token to connect.</div><dl><dt>Motor output (PWM)</dt><dd id="pwm">—</dd></dl>
-<section class="sensor panel"><h2>Rear distance</h2><strong id="range" class="range">—</strong><span id="rangeState">Waiting for sensor</span>
+<button id="estop" class="danger">EMERGENCY STOP · Space</button><button id="release" disabled>Release e-stop</button><div id="status" role="status">Enter the session token and click Connect to view the camera and distance.</div><dl><dt>Motor output (PWM)</dt><dd id="pwm">—</dd></dl>
+<section class="sensor panel"><h2>Rear distance</h2><strong id="range" class="range">—</strong><span id="rangeState">Connect to view the sensor</span>
 <label class="toggle"><input id="buzzerEnabled" type="checkbox" disabled> Enable buzzer</label>
 <label for="threshold">Buzzer threshold <output id="thresholdValue">30 cm</output><input id="threshold" type="range" min="5" max="400" step="1" value="30" disabled></label>
 <button id="saveBuzzer" disabled>Apply buzzer settings</button><p id="buzzerState" role="status">Connect to configure the buzzer. Default threshold: 30 cm.</p>
-</section></section></div><footer>Pi Camera → operator · Raspberry Pi → USB serial → ESP8266 → L298N</footer></main><script src="/app.js"></script></body></html>
+</section><section class="sensor panel"><h2>MPU motion</h2><dl><dt>Sensor roll</dt><dd id="imuRoll">—</dd><dt>Sensor pitch</dt><dd id="imuPitch">—</dd><dt>Sensor Z turn rate</dt><dd id="imuYawRate">—</dd></dl><span id="imuState">Waiting for MPU sensor</span><p>Acceleration tilt and turn rate only; no absolute heading or wheel distance.</p></section></section></div><footer>Pi Camera → operator · Raspberry Pi → USB serial → ESP8266 → L298N</footer></main><script src="/app.js"></script></body></html>

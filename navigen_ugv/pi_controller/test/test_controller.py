@@ -67,10 +67,12 @@ def test_camera_loss_stops_and_rejects_release():
     c.command_velocity(.1,0,2)
     tick(c,2,camera=False)
     assert c.mock.target == (0,0)
+    assert c.estop and not c.armed
     assert 'camera_stale' in c.reasons
-    c.engage()
     with pytest.raises(ValueError,match='camera'):
         c.release(2)
+    tick(c,2.02)
+    assert c.estop and c.mock.target == (0,0)
 
 
 @pytest.mark.parametrize('value',[math.nan,math.inf,-math.inf,True,'0.1',None])

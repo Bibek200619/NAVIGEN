@@ -16,7 +16,7 @@ async function command(){
   try{await api("/api/command",active);}catch(error){disconnected(error);}finally{sending=false;}
 }
 async function stop(){active=null;if(connected&&armed){try{await api("/api/command",{linear:0,angular:0});}catch(error){disconnected(error);}}}
-async function estop(){active=null;armed=false;controls();try{await api("/api/estop",{active:true});}catch(error){disconnected(error);}}
+async function estop(){active=null;armed=false;controls();if(!connected)return;try{await api("/api/estop",{active:true});}catch(error){disconnected(error);}}
 $("connect").onclick=async()=>{token=$("token").value.trim();try{await refresh();}catch(error){disconnected(error);}};
 $("release").onclick=async()=>{active=null;try{await api("/api/estop",{active:false});}catch(error){$("status").textContent=error.message;}};
 $("threshold").oninput=()=>{$("thresholdValue").textContent=`${Number($("threshold").value)} cm`;buzzerDraftDirty=true;};
@@ -63,6 +63,16 @@ async function refresh(){
  if(!telemetry){$("buzzerState").textContent="Waiting for ESP8266 telemetry.";}
  else if(!applied||applied.enabled!==state.buzzer.enabled||applied.threshold_mm!==state.buzzer.threshold_mm){$("buzzerState").textContent="Sending settings to the ESP8266…";}
  else{$("buzzerState").textContent=`${applied.enabled?`Enabled · beeps at or inside ${applied.threshold_cm} cm`:"Disabled"} · applied by ESP8266`;}
+ const imu=state.imu;
+ if(imu?.available&&imu.sample){
+  $("imuRoll").textContent=`${imu.sample.roll_deg.toFixed(1)}°`;
+  $("imuPitch").textContent=`${imu.sample.pitch_deg.toFixed(1)}°`;
+  $("imuYawRate").textContent=`${imu.sample.gyro_z_dps.toFixed(1)}°/s`;
+  $("imuState").textContent=`${imu.model||"MPU sensor"} · ${imu.age_ms} ms old`;
+ }else{
+  for(const id of ["imuRoll","imuPitch","imuYawRate"])$(id).textContent="—";
+  $("imuState").textContent=`${imu?.model||"MPU sensor"} unavailable${imu?.error?`: ${imu.error}`:""}`;
+ }
 }
 async function video(){
  while(true){

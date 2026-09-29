@@ -6,7 +6,8 @@ After=network.target
 Type=simple
 User=%i
 WorkingDirectory=/home/%i/navigen_dashboard
-ExecStart=/usr/bin/python3 /home/%i/navigen_dashboard/navigen_ugv/pi_controller/app.py --port /dev/ttyUSB0 --http-port 8080 --bind 0.0.0.0 --token-file /home/%i/.config/navigen/dashboard.token
+Environment=ESP8266_PORT=/dev/ttyUSB0
+ExecStart=/usr/bin/python3 /home/%i/navigen_dashboard/navigen_ugv/pi_controller/app.py --port ${ESP8266_PORT} --http-port 8080 --bind 0.0.0.0 --token-file /home/%i/.config/navigen/dashboard.token
 Restart=on-failure
 RestartSec=3
 Environment=PYTHONUNBUFFERED=1
