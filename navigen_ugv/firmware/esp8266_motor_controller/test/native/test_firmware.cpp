@@ -9,6 +9,7 @@
 #include "navigen_protocol.hpp"
 #include "rear_guard.hpp"
 #include "board_config.h"
+#include "bench_guard.hpp"
 
 namespace {
 
@@ -164,6 +165,19 @@ void testWatchdogAndUnsignedRollover() {
   assert(rollover_watchdog.expired(60U));
 }
 
+void testBenchWindowStopsAfterFirstOutput() {
+  navigen::BenchWindow window(30000);
+  window.noteOutput(1000, 0, 0);
+  assert(!window.expired(50000));
+  window.noteOutput(1000, 40, 0);
+  assert(!window.expired(30999));
+  assert(window.expired(31000));
+  navigen::BenchWindow rollover(30000);
+  rollover.noteOutput(std::numeric_limits<uint32_t>::max() - 100, 0, -40);
+  assert(!rollover.expired(29898));
+  assert(rollover.expired(29899));
+}
+
 void testRearObstacleGuard() {
   using navigen::rearBlocks;
   using navigen::protocol::ULTRASONIC_INVALID;
@@ -186,6 +200,7 @@ int main() {
   testOpenLoopVelocityMapping();
   testMotorPwmCeiling();
   testWatchdogAndUnsignedRollover();
+  testBenchWindowStopsAfterFirstOutput();
   testRearObstacleGuard();
   std::cout << "Firmware native tests passed\n";
   return 0;

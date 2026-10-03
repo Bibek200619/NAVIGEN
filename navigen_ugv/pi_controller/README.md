@@ -2,15 +2,17 @@
 
 This is the runnable implementation for the hardware verified on 2026-09-30:
 Raspberry Pi + Pi Camera, ESP8266, one L298N, four motors without encoders,
-one rear ultrasonic sensor, motor-power switch, and batteries. **No IMU or wheel
+one rear ultrasonic sensor, motor-power switch, and batteries. **No wheel
 encoders are required. ROS is not required for this runtime.**
-The connected Pi I²C motion module identifies as MPU-6500-compatible (`0x70`)
-at address `0x68`; it adds acceleration, gyro turn rate,
-and sensor-axis roll/pitch to the dashboard. It does not provide wheel travel,
+The installed MPU-6500-compatible module is connected to the Pi I2C bus at
+address `0x68`. Start the dashboard with `--imu-on-pi` to read it. The module adds
+acceleration, gyro turn rate, and sensor-axis roll/pitch to the dashboard. It
+does not provide wheel travel,
 absolute compass heading, or a position estimate, and it does not arm motors.
-The measured 3S motor rail is still 12.6 V directly into the L298N, above the
-motors' 3–6 V rating. The firmware remains locked and the physical motor switch
-should remain off until power and current limits are corrected and measured.
+The 3S motor rail has reached 12.6 V directly into the L298N; a later reading
+was about 12 V with no regulator. The owner confirmed 3.6 V is the maximum motor
+voltage. The firmware remains locked and the physical motor switch should remain
+off until the power and driver design is corrected and measured.
 
 Features: live camera view, browser hold-to-drive controls, forward/reverse/pivot,
 software e-stop, conservative command limiting, live rear distance telemetry,
@@ -38,6 +40,14 @@ ROS/Gazebo vision-autonomy roadmap remains separate.
 
 The runtime imports the existing protocol, kinematics, mock and reconnecting
 serial modules from `../ros2_ws/src/navigen_hardware`; keep the checkout together.
+
+## MPU connected to the Raspberry Pi
+
+The current chassis connects MPU VCC/GND/SDA/SCL to Pi header pins 1/6/3/5.
+The dashboard service uses `--imu-on-pi`; it reads address `0x68` on `/dev/i2c-1`
+and identifies the module as MPU-6500 (`WHO_AM_I=0x70`). The ESP8266's optional
+MPU reader is disabled in the installed pin profile. Motion samples do not
+control or arm the motors.
 
 ## Install on the Pi
 
@@ -70,7 +80,7 @@ requests e-stop. Keyboard controls: W forward, S reverse, A left, D right.
 
 ```bash
 python3 navigen_ugv/pi_controller/app.py \
-  --port /dev/serial/by-id/YOUR_ESP8266 --track-width 0.34
+  --port /dev/serial/by-id/YOUR_ESP8266 --track-width 0.34 --imu-on-pi
 ```
 
 Replace track width with the measured left/right wheel-centre distance; it

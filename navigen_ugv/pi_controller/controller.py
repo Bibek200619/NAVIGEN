@@ -1,5 +1,6 @@
 """Thread-safe motor session with command/camera/serial watchdogs and rear guard."""
 from dataclasses import asdict
+from pi_controller.imu import decode_sample
 import math
 import threading
 import time
@@ -21,6 +22,9 @@ class Controller:
         self.telemetry=None
         self.telemetry_time=None
         self.telemetry_sequence=None
+        self.imu_sample=None
+        self.imu_time=None
+        self.imu_model=None
         self.camera_time=None
         self.command_time=None
         self.command=(0.0,0.0)
@@ -110,6 +114,16 @@ class Controller:
             self.last_step=now
             data=self.mock.exchange(b'',dt,now) if self.mock else self.transport.read(now)
             for frame in self.parser.feed(data):
+                if frame.message_id == wire.MSG_IMU:
+                    if len(frame.payload) != 15 or frame.payload[0] not in (0x68,0x70):
+                        continue
+                    try:
+                        self.imu_sample=decode_sample(frame.payload[1:])
+                    except ValueError:
+                        continue
+                    self.imu_model='MPU-6050' if frame.payload[0] == 0x68 else 'MPU-6500'
+                    self.imu_time=now
+                    continue
                 if frame.message_id != wire.MSG_TELEMETRY:
                     continue
                 if self.telemetry_sequence is not None and not 0 < ((frame.sequence-self.telemetry_sequence)&0xffff) < 0x8000:
@@ -193,6 +207,15 @@ class Controller:
                             threshold_mm=self.telemetry.buzzer_threshold_mm,
                             threshold_cm=self.telemetry.buzzer_threshold_mm/10.0,
                         ) if self.telemetry else None))
+
+    def imu_status(self):
+        with self.lock:
+            now=time.monotonic()
+            age=None if self.imu_time is None else max(0,int((now-self.imu_time)*1000))
+            available=bool(self.imu_sample is not None and age is not None and age <= 500)
+            return dict(available=available,address=None,model=self.imu_model,
+                        age_ms=age,sample=self.imu_sample.copy() if available else None,
+                        error='' if available else 'ESP8266 MPU sample unavailable or stale')
 
     def close(self):
         with self.lock:

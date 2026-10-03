@@ -1,10 +1,12 @@
 #include <Arduino.h>
+#include <Wire.h>
 
 #include <array>
 #include <cmath>
 #include <cstdint>
 
 #include "board_config.h"
+#include "bench_guard.hpp"
 #include "navigen_control.hpp"
 #include "navigen_protocol.hpp"
 #include "rear_guard.hpp"
@@ -23,12 +25,14 @@ constexpr uint32_t TELEMETRY_PERIOD_US = 1000000UL / TELEMETRY_RATE_HZ;
 #define MOTOR_TEST_ENABLED 0
 #endif
 
+#if MOTOR_TEST_ENABLED
 // Bench diagnostic only.  With one L298N, each step exercises one H-bridge
 // channel, not one individual motor.  Motors wired in parallel must be
 // disconnected from the pair if they need to be tested individually.
 constexpr uint32_t MOTOR_TEST_STEP_MS = 900;
 constexpr uint32_t MOTOR_TEST_PAUSE_MS = 500;
 constexpr int16_t MOTOR_TEST_PWM = 80;
+#endif
 
 struct MotorChannel {
   int pin_a;
@@ -71,10 +75,21 @@ int16_t right_pwm = 0;
 uint32_t last_control_us = 0;
 uint32_t last_telemetry_us = 0;
 uint32_t last_ultrasonic_ms = 0;
+#if IMU_ENABLED
+uint32_t last_imu_ms = 0;
+uint32_t last_imu_probe_ms = 0;
+bool imu_ready = false;
+uint8_t imu_identity = 0;
+#endif
 uint32_t buzzer_cycle_started_ms = 0;
+#if MOTOR_TEST_ENABLED
 uint32_t motor_test_started_ms = 0;
 bool motor_test_complete = false;
 uint8_t motor_test_step = 0;
+#endif
+#if LIFTED_WHEEL_BENCH_ONLY
+navigen::BenchWindow bench_window(BENCH_DRIVE_WINDOW_MS);
+#endif
 #if BUZZER_ENABLED
 bool buzzer_enabled = BUZZER_DEFAULT_ENABLED != 0;
 uint16_t buzzer_threshold_mm = BUZZER_NEAR_DISTANCE_MM;
@@ -84,6 +99,7 @@ void writeMotor(const MotorChannel& motor, int16_t requested_pwm);
 void disablePropulsion();
 uint16_t ultrasonicDistanceMm(uint32_t now_us);
 
+#if MOTOR_TEST_ENABLED
 void runMotorTest(uint32_t now_ms) {
   static const char* const labels[] = {
       "MOTOR_TEST_LEFT_FORWARD",
@@ -122,6 +138,7 @@ void runMotorTest(uint32_t now_ms) {
     writeMotor(motor_right, -MOTOR_TEST_PWM);
   }
 }
+#endif
 
 bool supportedDigitalPin(int pin) {
   switch (pin) {
@@ -147,7 +164,7 @@ bool motorPinSafe(int pin) {
 }
 
 bool pinsAreUnique() {
-  const std::array<int, 9> pins{
+  const std::array<int, 11> pins{
       PIN_MOTOR_LEFT_A,  PIN_MOTOR_LEFT_B,    PIN_MOTOR_RIGHT_A,
       PIN_MOTOR_RIGHT_B, PIN_MOTOR_LEFT_ENABLE, PIN_MOTOR_RIGHT_ENABLE,
 #if ULTRASONIC_ENABLED
@@ -159,6 +176,11 @@ bool pinsAreUnique() {
       PIN_BUZZER,
 #else
       -1,
+#endif
+#if IMU_ENABLED
+      PIN_IMU_SDA, PIN_IMU_SCL,
+#else
+      -1, -1,
 #endif
   };
   for (std::size_t first = 0; first < pins.size(); ++first) {
@@ -197,6 +219,12 @@ bool validateConfiguration() {
 #if BUZZER_ENABLED
       supportedDigitalPin(PIN_BUZZER) &&
 #endif
+#if IMU_ENABLED
+      supportedDigitalPin(PIN_IMU_SDA) &&
+      supportedDigitalPin(PIN_IMU_SCL) &&
+      (IMU_I2C_ADDRESS == 0x68 || IMU_I2C_ADDRESS == 0x69) &&
+      IMU_SAMPLE_PERIOD_MS >= 20 &&
+#endif
 #if ESTOP_INPUT_ENABLED
       supportedDigitalPin(PIN_ESTOP_INPUT) &&
 #endif
@@ -227,7 +255,8 @@ bool validateConfiguration() {
       (ADC_FULL_SCALE_MV > 0 && BATTERY_DIVIDER > 0.0F);
   const bool motor_supply_configured =
       MOTOR_SUPPLY_MEASURED_MV > 0 &&
-      MOTOR_SUPPLY_MEASURED_MV <= MOTOR_RATED_MAX_MV;
+      (MOTOR_SUPPLY_MEASURED_MV <= MOTOR_RATED_MAX_MV ||
+       LIFTED_WHEEL_BENCH_ONLY == 1);
   return HARDWARE_CONFIGURATION_CONFIRMED == 1 && pins_supported &&
          motor_pins_safe && pinsAreUnique() && control_configured &&
       ultrasonic_configured && battery_configured && motor_supply_configured;
@@ -285,8 +314,75 @@ void configureAuxiliaryHardware() {
   pinMode(PIN_BUZZER, OUTPUT);
   digitalWrite(PIN_BUZZER, BUZZER_ACTIVE_LEVEL == HIGH ? LOW : HIGH);
 #endif
+#if IMU_ENABLED
+  Wire.begin(PIN_IMU_SDA, PIN_IMU_SCL);
+  Wire.setClock(100000);
+#endif
   auxiliary_hardware_ready = true;
 }
+
+#if IMU_ENABLED
+bool imuReadRegister(uint8_t reg, uint8_t* data, uint8_t size) {
+  Wire.beginTransmission(IMU_I2C_ADDRESS);
+  Wire.write(reg);
+  if (Wire.endTransmission(false) != 0 ||
+      Wire.requestFrom(static_cast<uint8_t>(IMU_I2C_ADDRESS), size) != size) {
+    return false;
+  }
+  for (uint8_t index = 0; index < size; ++index) {
+    data[index] = static_cast<uint8_t>(Wire.read());
+  }
+  return true;
+}
+
+bool imuWriteRegister(uint8_t reg, uint8_t value) {
+  Wire.beginTransmission(IMU_I2C_ADDRESS);
+  Wire.write(reg);
+  Wire.write(value);
+  return Wire.endTransmission() == 0;
+}
+
+void serviceImu(uint32_t now_ms) {
+  if (!auxiliary_hardware_ready) {
+    return;
+  }
+  if (!imu_ready) {
+    if (static_cast<uint32_t>(now_ms - last_imu_probe_ms) < 1000) {
+      return;
+    }
+    last_imu_probe_ms = now_ms;
+    uint8_t identity = 0;
+    if (!imuReadRegister(0x75, &identity, 1) ||
+        (identity != 0x68 && identity != 0x70) ||
+        !imuWriteRegister(0x6B, 0x01) ||
+        !imuWriteRegister(0x1B, 0x00) ||
+        !imuWriteRegister(0x1C, 0x00)) {
+      return;
+    }
+    imu_identity = identity;
+    imu_ready = true;
+  }
+  if (static_cast<uint32_t>(now_ms - last_imu_ms) < IMU_SAMPLE_PERIOD_MS) {
+    return;
+  }
+  last_imu_ms = now_ms;
+  uint8_t sample[14]{};
+  if (!imuReadRegister(0x3B, sample, sizeof(sample))) {
+    imu_ready = false;
+    return;
+  }
+  uint8_t payload[15]{};
+  payload[0] = imu_identity;
+  memcpy(payload + 1, sample, sizeof(sample));
+  std::array<uint8_t, navigen::protocol::MAX_FRAME_SIZE> output{};
+  const std::size_t size = navigen::protocol::encodeFrame(
+      0x11, telemetry_sequence++, payload, sizeof(payload), output.data(),
+      output.size());
+  if (size > 0) {
+    Serial.write(output.data(), size);
+  }
+}
+#endif
 
 void configureHardware() {
   analogWriteRange(PWM_RANGE);
@@ -351,6 +447,13 @@ bool stopRequired(uint32_t now_ms) {
 }
 
 void runControl(uint32_t now_ms) {
+#if LIFTED_WHEEL_BENCH_ONLY
+  if (bench_window.expired(now_ms)) {
+    configuration_valid = false;
+    disablePropulsion();
+    return;
+  }
+#endif
   if (stopRequired(now_ms)) {
     disablePropulsion();
     return;
@@ -361,6 +464,9 @@ void runControl(uint32_t now_ms) {
   right_pwm = navigen::control::openLoopVelocityToPwm(
       right_target_mps * RIGHT_PWM_SCALE, MAX_WHEEL_VELOCITY_MPS,
       MIN_EFFECTIVE_PWM, PWM_DUTY_LIMIT, OPEN_LOOP_DEADBAND_MPS);
+#if LIFTED_WHEEL_BENCH_ONLY
+  bench_window.noteOutput(now_ms, left_pwm, right_pwm);
+#endif
   writeMotor(motor_left, left_pwm);
   writeMotor(motor_right, right_pwm);
 }
@@ -526,6 +632,9 @@ void sendTelemetry(uint32_t now_us, uint32_t now_ms) {
 #endif
   telemetry.ultrasonic_right_mm = navigen::protocol::ULTRASONIC_INVALID;
   telemetry.flags = navigen::protocol::FLAG_OPEN_LOOP;
+#if LIFTED_WHEEL_BENCH_ONLY
+  telemetry.flags |= navigen::protocol::FLAG_BENCH_MODE;
+#endif
   if (software_estop || physicalEstopActive()) {
     telemetry.flags |= navigen::protocol::FLAG_ESTOP;
   }
@@ -585,6 +694,9 @@ void loop() {
     disablePropulsion();
   }
   serviceUltrasonic(now_ms);
+#if IMU_ENABLED
+  serviceImu(now_ms);
+#endif
   serviceBuzzer(now_ms, ultrasonicDistanceMm(now_us));
   if (static_cast<uint32_t>(now_us - last_control_us) >= CONTROL_PERIOD_US) {
     last_control_us = now_us;

@@ -1,10 +1,11 @@
 // NAVIGEN NodeMCU ESP8266 open-loop hardware profile.
 // GPIO assignments are centralized here and may be changed for another wiring layout.
 // Propulsion stays disabled until the wiring has been reviewed and the confirmation flag is set.
-// The motor battery is three 18650 cells in series (3S): 12.6 V was measured
-// at the L298N motor rail. The motors are marked 3-6 V, and two motors share
-// each L298N channel. PWM duty limiting does not validate peak voltage or
-// channel current; keep the flag at 0 until power/current are verified.
+// The 3S battery feeds the L298N motor rail directly: 12.6 V was measured
+// previously, and about 12 V was confirmed on 2026-10-03. The owner confirmed
+// 3.6 V is the motor's maximum voltage. Two motors are wired in parallel on each
+// L298N channel. A multimeter reading near 3 V at a motor does not establish
+// the voltage of each PWM on-pulse or the stall current. Keep propulsion locked.
 #pragma once
 
 // Set to 1 only after the pin map, motor directions, voltage dividers, physical
@@ -12,6 +13,10 @@
 #ifndef HARDWARE_CONFIGURATION_CONFIRMED
 #define HARDWARE_CONFIGURATION_CONFIRMED 0
 #endif
+#ifndef LIFTED_WHEEL_BENCH_ONLY
+#define LIFTED_WHEEL_BENCH_ONLY 0
+#endif
+#define BENCH_DRIVE_WINDOW_MS 30000UL
 
 // ---- One L298N, both motors on each side wired in parallel ----
 // Keep the L298N ENA and ENB jumpers INSTALLED. PWM is applied to one direction
@@ -26,13 +31,13 @@
 #define MOTOR_LEFT_INVERTED      0
 #define MOTOR_RIGHT_INVERTED     0
 
-// Static commissioning record, NOT live battery monitoring. Update the
-// measured value only after a suitable regulated rail is installed and its
-// maximum voltage is checked at the L298N motor-supply terminals. With the
-// present 12.6 V reading and 3-6 V motors, configuration remains invalid.
+// Static commissioning record, NOT live battery monitoring. Keep the highest
+// measured motor-supply voltage, not the PWM-averaged voltage at a motor.
+// The 3.6 V limit is the owner-confirmed motor maximum. Reassess
+// driver compatibility and current capacity before changing this profile.
 #define MOTOR_SUPPLY_MEASURED_MV 12600
-#define MOTOR_RATED_MAX_MV        6000
-#if HARDWARE_CONFIGURATION_CONFIRMED && \
+#define MOTOR_RATED_MAX_MV        3600
+#if HARDWARE_CONFIGURATION_CONFIRMED && !LIFTED_WHEEL_BENCH_ONLY && \
     (MOTOR_SUPPLY_MEASURED_MV <= 0 || \
      MOTOR_SUPPLY_MEASURED_MV > MOTOR_RATED_MAX_MV)
 #error "Motor supply is outside the recorded motor voltage rating"
@@ -41,16 +46,24 @@
 // ESP8266 Arduino software PWM. The full scale stays 255; limiting the motor
 // output to 127/255 yields a 49.8% maximum duty cycle. Setting the PWM range
 // itself to 127 would still allow 100% duty and must not be used as a cap.
-// This is a supplemental effort limit, not a 6 V regulator or current limit.
+// This is a supplemental effort limit, not a voltage or current regulator.
 #define PWM_FREQUENCY_HZ      1000
 #define PWM_RANGE              255
+#ifndef PWM_DUTY_LIMIT
 #define PWM_DUTY_LIMIT         127
+#endif
 #if PWM_DUTY_LIMIT * 2 > PWM_RANGE
 #error "Motor PWM duty limit exceeds 50 percent"
 #endif
+#if LIFTED_WHEEL_BENCH_ONLY && \
+    (PWM_DUTY_LIMIT > 80 || !HARDWARE_CONFIGURATION_CONFIRMED || BENCH_DRIVE_WINDOW_MS > 30000UL)
+#error "Lifted-wheel bench profile requires confirmation, <=80 PWM, and <=30 seconds"
+#endif
 #define MIN_EFFECTIVE_PWM        0  // Tune on stands; zero disables minimum boost.
 #define OPEN_LOOP_DEADBAND_MPS 0.01f
+#ifndef MAX_WHEEL_VELOCITY_MPS
 #define MAX_WHEEL_VELOCITY_MPS 0.20f
+#endif
 // Encoderless trim may only reduce a faster side; never use it to exceed limits.
 #define LEFT_PWM_SCALE          1.0f
 #define RIGHT_PWM_SCALE         1.0f
@@ -67,6 +80,16 @@
 #define ULTRASONIC_ECHO_TIMEOUT_US 24000
 #define ULTRASONIC_STALE_MS    250
 #define ULTRASONIC_REVERSE_STOP_MM 300
+
+// ---- Optional MPU-6050/6500 on ESP8266 I2C ----
+// The installed MPU is connected to the Raspberry Pi I2C bus, so leave this
+// off. D3/GPIO0 and D4/GPIO2 must both stay HIGH at boot if a future build
+// moves the module to the ESP8266. Use 3.3 V I2C pullups, never 5 V.
+#define IMU_ENABLED               0
+#define PIN_IMU_SDA               0   // D3
+#define PIN_IMU_SCL               2   // D4
+#define IMU_I2C_ADDRESS        0x68   // AD0 low; use 0x69 if AD0 high
+#define IMU_SAMPLE_PERIOD_MS     50
 
 // ---- Proximity buzzer ----
 // NodeMCU D0/GPIO16 is wired directly to an active buzzer in the current build.

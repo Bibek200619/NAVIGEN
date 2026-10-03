@@ -26,10 +26,16 @@ invalid-configuration lockout.
 | D8 | 15 | HC-SR04 TRIG |
 | D7 | 13 | HC-SR04 ECHO through a verified 5 V→3.3 V divider |
 | D0 | 16 | Active buzzer control (off by default; Pi dashboard configurable) |
+| D3 | 0 | Unused; MPU SDA is on Pi header pin 3 |
+| D4 | 2 | Unused; MPU SCL is on Pi header pin 5 |
 
 Keep the L298N **ENA and ENB jumpers installed**. PWM is applied to one direction input at a time,
 which saves two GPIOs. D8/GPIO15 is a boot-strap pin; connect it only to the HC-SR04's
 high-impedance TRIG input and do not add a pull-up. D7 receives ECHO only through a divider.
+D3/GPIO0 and D4/GPIO2 are boot-strap pins that must remain high during boot.
+The installed MPU is wired to the Pi at address `0x68`; the Pi dashboard reads
+it with `--imu-on-pi`. The optional ESP8266 I2C reader is disabled in
+`include/board_config.h`. Keep all MPU power and I2C pullups at 3.3 V.
 The rear sensor blocks reverse and pivot commands at or inside 30 cm, and also blocks reverse
 when its reading is missing or stale. The Pi applies a larger 35 cm margin before sending a
 reverse command. The Pi dashboard sends the buzzer enable setting and threshold to the ESP8266 over the framed
@@ -45,9 +51,13 @@ ESP8266 GPIO, or add the appropriate transistor driver.
 ## Motor power and active lockout
 
 On 2026-09-30, the measured voltage at the L298N motor-supply terminal with the switch on was
-**12.6 V** from three 18650 cells in series (3S), wired directly to the driver. The four yellow
-TT/BO motors are marked **3–6 V**; each is reported to stall at about 0.8–1 A. Two motors share
-each L298N channel, so the stated stall currents sum to about **1.6–2 A per channel**, before
+**12.6 V** from three 18650 cells in series (3S), wired directly to the driver. On 2026-10-03,
+the owner remeasured about **12 V** at the same terminal with no regulator, reported about
+**3 V** at each motor, and confirmed **3.6 V is the maximum motor voltage**. Earlier photos
+were described as showing a **3–6 V** marking; the firmware uses the owner's confirmed
+**3.6 V maximum**. Each motor is reported to stall at
+about 0.8–1 A. Two motors share each L298N channel, so the stated stall currents sum to about
+**1.6–2 A per channel**, before
 allowing for measurement uncertainty or driver heating. **The current direct motor supply is
 unsuitable for an unattended or ground-driving product. Keep the motor switch open and
 `HARDWARE_CONFIGURATION_CONFIRMED=0`.** The L298N's voltage drop and PWM do not regulate a
@@ -56,9 +66,11 @@ unsuitable for an unattended or ground-driving product. Keep the motor switch op
 As requested, firmware now caps each motor output at **127/255 (49.8% duty)**, including the
 bench-test path. The PWM hardware range remains 255; changing the range to 127 would still
 allow 100% duty. A 50% duty cycle changes the **average** applied voltage, but not the voltage
-of each on-pulse. The theoretical 12.6 V × 50% = 6.3 V is already above a 6 V rating before
-considering battery variation, the L298N's variable drop, motor current ripple, or a stalled
-wheel. [Microchip's brushed-motor note](https://ww1.microchip.com/downloads/en/appnotes/00905b.pdf)
+of each on-pulse. The theoretical 12.6 V × 50% = 6.3 V is already above the conservative
+3.6 V limit before considering the L298N's variable drop, motor current ripple, or a stalled
+wheel. A multimeter reading of 3 V while PWM is active can reflect an average; it does not
+establish the voltage of each energized pulse.
+[Microchip's brushed-motor note](https://ww1.microchip.com/downloads/en/appnotes/00905b.pdf)
 explains the PWM average-voltage relationship; it does not make PWM a regulated supply.
 
 The firmware also records the observed 12.6 V as `MOTOR_SUPPLY_MEASURED_MV`; setting
@@ -67,16 +79,20 @@ motor rail causes a build error. This static check is **not** a voltage sensor o
 electrical measurement. The optional bench motor-test mode now honors the same configuration
 lockout.
 
-Before enabling propulsion, fit a motor-supply regulator that keeps the L298N motor rail at or
-below the motors' 6 V maximum throughout the battery's full charge range, or use a properly rated
-lower-voltage motor supply. Size the regulator, switch, wiring, battery, and each L298N channel
-for the combined startup/stall current of the two motors on that channel. The
+Before enabling propulsion, revise the motor power and driver design so the voltage delivered
+to each motor stays within its verified rating, including energized pulses, across the battery's
+full charge range. A 3.6 V supply directly into the L298N is not a simple solution: the
+[L298 IC datasheet](https://www.st.com/resource/en/datasheet/cd00000240.pdf) specifies an
+operating motor supply of at least the input-high voltage plus 2.5 V. A motor driver rated for
+the intended low-voltage rail may be needed, and any driver change requires a review of this
+firmware's pin map and switching behavior. Size the regulator, switch, wiring, battery, and
+driver channels for the combined startup/stall current of the two motors on each channel. The
 [L298 IC datasheet](https://www.st.com/resource/en/datasheet/l298.pdf) lists 2 A DC as an absolute
 maximum **per channel**, not a promise that a particular module can
 dissipate that load continuously. The reported 1.6–2 A pair stall current leaves essentially no
 margin at that absolute limit. Confirm the L298N board's 5 V logic supply separately; its
-onboard regulator/jumper behavior depends on the board and cannot be assumed at a 6 V motor
-rail. Power the Raspberry Pi separately through a properly regulated USB-C source.
+onboard regulator/jumper behavior depends on the board. Power the Raspberry Pi separately
+through a properly regulated USB-C source.
 
 ## Physical stop with the available switch
 
@@ -101,9 +117,10 @@ Software e-stop, the command watchdog, and configuration lockout remain active. 
 the confirmation flag to `1`:
 
 1. Verify every connection against the NodeMCU board labels and L298N terminal labels.
-2. Replace the present 12.6 V direct motor feed with a regulated motor supply at or below 6 V,
-   then measure its output at the L298N terminal over the expected battery range. Recheck the
-   battery-cell arrangement and verify motor side-pair stall current and component ratings. Set
+2. Replace the present direct 12 V L298N feed with a motor supply and driver that are compatible
+   with the verified motor rating, then measure the driver rail and motor pulse voltage over the
+   expected battery range. Recheck the battery-cell arrangement and verify motor side-pair stall
+   current and component ratings. Update the driver pin profile if the driver changes, and set
    `MOTOR_SUPPLY_MEASURED_MV` to the highest verified motor-rail voltage.
 3. Verify the HC-SR04 ECHO divider with a multimeter; keep
    `ESTOP_INPUT_ENABLED=0` while D0 is assigned to the buzzer.

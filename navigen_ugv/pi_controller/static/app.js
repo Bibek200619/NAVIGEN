@@ -40,15 +40,15 @@ window.onblur=estop;
 document.addEventListener("visibilitychange",()=>{if(document.hidden)estop();});
 async function refresh(){
  const state=await(await api("/api/status")).json();connected=true;armed=state.armed&&!state.estop;if(!armed)active=null;controls();
- $("mode").textContent=(state.mock?"MOCK · ":"")+(armed?"Ready":"E-stop engaged");
+ $("mode").textContent=(state.mock?"MOCK · ":state.telemetry?.bench_mode?"LIFTED-WHEEL TEST · ":"")+(armed?"Ready":"E-stop engaged");
  const reasons=state.reasons.map(reason=>{
-  if(reason==="controller_unavailable")return state.telemetry&&!state.telemetry.configuration_valid?"ESP8266 motor lockout active":"ESP8266 unavailable";
+  if(reason==="controller_unavailable")return state.telemetry&&!state.telemetry.configuration_valid?(state.telemetry.bench_mode?"Wheel test ended or unavailable; reboot ESP8266":"ESP8266 motor lockout active"):"ESP8266 unavailable";
   if(reason==="camera_stale")return "Camera unavailable";
   if(reason==="command_stale")return "Waiting for drive command";
   if(reason==="estop")return "E-stop engaged";
   return reason.replaceAll("_"," ");
  });
- $("status").textContent=reasons.length?reasons.join(" · "):(active?"Driving":"Ready — hold a control to drive");
+ $("status").textContent=(state.telemetry?.bench_mode?"WHEELS LIFTED ONLY · 30 s total drive window · ":"")+(reasons.length?reasons.join(" · "):(active?"Driving":"Ready — hold a control to drive"));
  if(state.camera_error&&state.camera_error!=="starting")$("cameraState").textContent=`Camera unavailable: ${state.camera_error}`;
  const telemetry=state.telemetry;
  $("range").textContent=state.ultrasonic_valid&&telemetry?telemetry.ultrasonic_left.toFixed(2)+" m":"—";

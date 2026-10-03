@@ -1,6 +1,34 @@
 import math
+import struct
+import time
 import pytest
 from pi_controller.controller import Controller
+from navigen_hardware import serial_protocol as wire
+
+
+def test_esp8266_imu_frame_reaches_dashboard_status():
+    class Serial:
+        def __init__(self, data):
+            self.data=data
+        def read(self, _now):
+            data,self.data=self.data,b''
+            return data
+        def write(self, _data, _now):
+            return True
+        def close(self):
+            pass
+    sample=struct.pack('>hhhhhhh',0,0,16384,0,0,0,131)
+    frame=wire.encode_frame(wire.MSG_IMU,1,bytes((0x68,))+sample)
+    c=Controller(port='unused')
+    c.transport=Serial(frame)
+    try:
+        c.step(time.monotonic())
+        status=c.imu_status()
+        assert status['available'] and status['model']=='MPU-6050'
+        assert status['sample']['accel_z_g']==1.0
+        assert status['sample']['gyro_z_dps']==1.0
+    finally:
+        c.close()
 
 
 def tick(c,now,camera=True):

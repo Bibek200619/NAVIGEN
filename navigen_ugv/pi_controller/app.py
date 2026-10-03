@@ -44,8 +44,9 @@ class Server(ThreadingHTTPServer):
     daemon_threads=True
     allow_reuse_address=True
 
-    def __init__(self,address,controller,camera,token,imu=None):
+    def __init__(self,address,controller,camera,token,imu=None,imu_disabled=False):
         self.controller,self.camera,self.token,self.imu=controller,camera,token,imu
+        self.imu_disabled=imu_disabled
         super().__init__(address,Handler)
 
 
@@ -79,8 +80,10 @@ class Handler(BaseHTTPRequestHandler):
         if self.path == '/api/status':
             status=self.server.controller.status()
             status['camera_error']=self.server.camera.error
-            status['imu']=(self.server.imu.status() if self.server.imu else
-                           {'available':False,'sample':None,'error':'Disabled'})
+            status['imu']=({'available':False,'sample':None,'error':'Disabled'}
+                           if self.server.imu_disabled else
+                           self.server.imu.status() if self.server.imu else
+                           self.server.controller.imu_status())
             return self.reply(200,status)
         if self.path == '/api/camera.jpg':
             frame=self.server.camera.latest()
@@ -137,7 +140,8 @@ def main():
     parser.add_argument('--bind',default='127.0.0.1',help='Use SSH forwarding for remote access')
     parser.add_argument('--track-width',type=float,default=0.34,help='Measured effective track width in metres')
     parser.add_argument('--mock',action='store_true',help='Explicit camera and motor simulation; no physical outputs')
-    parser.add_argument('--no-imu',action='store_true',help='Disable optional MPU-6050 polling')
+    parser.add_argument('--no-imu',action='store_true',help='Hide MPU readings in the dashboard')
+    parser.add_argument('--imu-on-pi',action='store_true',help='Read MPU from Pi I2C instead of ESP8266 telemetry')
     parser.add_argument('--imu-bus',type=int,default=1,help='MPU-6050 I2C bus number')
     parser.add_argument('--imu-address',type=lambda value:int(value,0),default=0x68,
                         help='MPU-6050 I2C address: 0x68 or 0x69')
@@ -145,9 +149,9 @@ def main():
     args=parser.parse_args()
     controller=Controller(args.port,args.mock,args.track_width)
     camera=Camera(controller,args.mock)
-    imu=None if args.mock or args.no_imu else Imu(args.imu_bus,args.imu_address)
+    imu=Imu(args.imu_bus,args.imu_address) if args.imu_on_pi and not args.mock and not args.no_imu else None
     token=load_or_create_token(args.token_file)
-    server=Server((args.bind,args.http_port),controller,camera,token,imu)
+    server=Server((args.bind,args.http_port),controller,camera,token,imu,args.no_imu)
     stop_event=threading.Event()
     control_thread=threading.Thread(target=run_loop,args=(controller,stop_event),daemon=True)
     camera_thread=threading.Thread(target=camera.run,args=(stop_event,),daemon=True)

@@ -71,6 +71,13 @@ def test_telemetry_round_trip_and_invalid_ultrasonic() -> None:
     assert telemetry.buzzer_threshold_mm == 300
 
 
+def test_lifted_wheel_mode_is_visible_in_telemetry() -> None:
+    [frame] = protocol.FrameParser().feed(
+        protocol.encode_telemetry(make_telemetry(bench_mode=True), sequence=10)
+    )
+    assert protocol.decode_telemetry(frame.payload).bench_mode is True
+
+
 def test_extended_telemetry_round_trips_buzzer_configuration() -> None:
     telemetry = protocol.Telemetry(
         left_velocity=0.0,
