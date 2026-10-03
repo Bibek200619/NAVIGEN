@@ -59,12 +59,15 @@ were described as showing a **3–6 V** marking; the firmware uses the owner's c
 about 0.8–1 A. Two motors share each L298N channel, so the stated stall currents sum to about
 **1.6–2 A per channel**, before
 allowing for measurement uncertainty or driver heating. **The current direct motor supply is
-unsuitable for an unattended or ground-driving product. Keep the motor switch open and
-`HARDWARE_CONFIGURATION_CONFIRMED=0`.** The L298N's voltage drop and PWM do not regulate a
+unsuitable for an unattended product.** The normal firmware profile keeps
+`HARDWARE_CONFIGURATION_CONFIRMED=0`. The separate `supervised_continuous`
+profile is an explicit attended manual-drive override with an 80/255 PWM cap
+and no total time window. Keep the physical motor switch within reach. The L298N's voltage drop and PWM do not regulate a
 12.6 V supply down to a guaranteed safe motor voltage.
 
-As requested, firmware now caps each motor output at **127/255 (49.8% duty)**, including the
-bench-test path. The PWM hardware range remains 255; changing the range to 127 would still
+The normal profile caps each motor output at **127/255 (49.8% duty)**; both
+explicit test profiles cap output at **80/255 (31.4% duty)**. The PWM hardware
+range remains 255; changing the range to 127 would still
 allow 100% duty. A 50% duty cycle changes the **average** applied voltage, but not the voltage
 of each on-pulse. The theoretical 12.6 V × 50% = 6.3 V is already above the conservative
 3.6 V limit before considering the L298N's variable drop, motor current ripple, or a stalled
@@ -73,13 +76,12 @@ establish the voltage of each energized pulse.
 [Microchip's brushed-motor note](https://ww1.microchip.com/downloads/en/appnotes/00905b.pdf)
 explains the PWM average-voltage relationship; it does not make PWM a regulated supply.
 
-The firmware also records the observed 12.6 V as `MOTOR_SUPPLY_MEASURED_MV`; setting
-`HARDWARE_CONFIGURATION_CONFIRMED=1` without first updating this value for a measured safe
-motor rail causes a build error. This static check is **not** a voltage sensor or substitute for
-electrical measurement. The optional bench motor-test mode now honors the same configuration
-lockout.
+The firmware also records the observed 12.6 V as `MOTOR_SUPPLY_MEASURED_MV`.
+The normal build rejects motor arming above the recorded motor rating; only the
+explicit bench and supervised profiles bypass that static check. This check is
+**not** a voltage sensor or substitute for electrical measurement.
 
-Before enabling propulsion, revise the motor power and driver design so the voltage delivered
+For a motor-supply-compatible build, revise the motor power and driver design so the voltage delivered
 to each motor stays within its verified rating, including energized pulses, across the battery's
 full charge range. A 3.6 V supply directly into the L298N is not a simple solution: the
 [L298 IC datasheet](https://www.st.com/resource/en/datasheet/cd00000240.pdf) specifies an

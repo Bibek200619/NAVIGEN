@@ -256,7 +256,8 @@ bool validateConfiguration() {
   const bool motor_supply_configured =
       MOTOR_SUPPLY_MEASURED_MV > 0 &&
       (MOTOR_SUPPLY_MEASURED_MV <= MOTOR_RATED_MAX_MV ||
-       LIFTED_WHEEL_BENCH_ONLY == 1);
+       LIFTED_WHEEL_BENCH_ONLY == 1 ||
+       SUPERVISED_CONTINUOUS_DRIVE == 1);
   return HARDWARE_CONFIGURATION_CONFIRMED == 1 && pins_supported &&
          motor_pins_safe && pinsAreUnique() && control_configured &&
       ultrasonic_configured && battery_configured && motor_supply_configured;
@@ -634,6 +635,9 @@ void sendTelemetry(uint32_t now_us, uint32_t now_ms) {
   telemetry.flags = navigen::protocol::FLAG_OPEN_LOOP;
 #if LIFTED_WHEEL_BENCH_ONLY
   telemetry.flags |= navigen::protocol::FLAG_BENCH_MODE;
+#endif
+#if SUPERVISED_CONTINUOUS_DRIVE
+  telemetry.flags |= navigen::protocol::FLAG_SUPERVISED_CONTINUOUS;
 #endif
   if (software_estop || physicalEstopActive()) {
     telemetry.flags |= navigen::protocol::FLAG_ESTOP;

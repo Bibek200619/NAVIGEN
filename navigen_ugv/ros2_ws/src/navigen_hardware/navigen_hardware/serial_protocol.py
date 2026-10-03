@@ -22,6 +22,7 @@ FLAG_WATCHDOG = 0x02
 FLAG_CONFIG_INVALID = 0x04
 FLAG_OPEN_LOOP = 0x08
 FLAG_BENCH_MODE = 0x10
+FLAG_SUPERVISED_CONTINUOUS = 0x20
 US_INVALID = 0xFFFF
 
 _HEADER_STRUCT = struct.Struct('<BBHB')
@@ -144,6 +145,7 @@ class Telemetry:
     buzzer_enabled: bool = False
     buzzer_threshold_mm: int = 300
     bench_mode: bool = False
+    supervised_continuous: bool = False
 
 
 def encode_telemetry(telemetry: Telemetry, sequence: int) -> bytes:
@@ -159,6 +161,8 @@ def encode_telemetry(telemetry: Telemetry, sequence: int) -> bytes:
         flags |= FLAG_OPEN_LOOP
     if telemetry.bench_mode:
         flags |= FLAG_BENCH_MODE
+    if telemetry.supervised_continuous:
+        flags |= FLAG_SUPERVISED_CONTINUOUS
     battery_mv = max(
         0, min(0xFFFF, int(round(telemetry.battery_voltage * 1000.0)))
     )
@@ -234,6 +238,7 @@ def decode_telemetry(payload: bytes) -> Telemetry:
         configuration_valid=not bool(flags & FLAG_CONFIG_INVALID),
         open_loop_mode=bool(flags & FLAG_OPEN_LOOP),
         bench_mode=bool(flags & FLAG_BENCH_MODE),
+        supervised_continuous=bool(flags & FLAG_SUPERVISED_CONTINUOUS),
         acknowledged_command_sequence=acknowledged_sequence,
         command_age_ms=command_age_ms,
         rx_crc_errors=rx_crc_errors,

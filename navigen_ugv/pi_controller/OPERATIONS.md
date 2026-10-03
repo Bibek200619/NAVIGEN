@@ -20,10 +20,11 @@ obstacles.
 4. Check that the live camera updates and **Rear distance** shows a fresh reading
    when a flat object is behind the sensor. A missing echo is shown as invalid,
    never as a clear path. The buzzer starts disabled, with a 30 cm threshold.
-5. The lifted-wheel bench image permits up to 30 seconds of motor output per
-   reboot. After that its configuration lockout holds both sides off. The
-   unrestricted image stays locked because the measured 12 V motor rail
-   exceeds the owner-confirmed 3.6 V motor maximum.
+5. The supervised continuous image has no total drive window. The dashboard
+   labels it `SUPERVISED DRIVE` and retains camera, e-stop, serial watchdog,
+   and rear guard interlocks. Its 80/255 PWM cap does not regulate the 12 V
+   rail down to the motor's stated 3.6 V maximum. Keep the physical switch
+   within reach and directly watch the vehicle while driving.
 
 For the MPU breakout wiring use Pi header **pin 1 → VCC (3.3 V), pin 6 → GND,
 pin 3/GPIO2 → SDA, and pin 5/GPIO3 → SCL**. AD0 to GND selects address `0x68`;

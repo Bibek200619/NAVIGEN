@@ -78,6 +78,17 @@ def test_lifted_wheel_mode_is_visible_in_telemetry() -> None:
     assert protocol.decode_telemetry(frame.payload).bench_mode is True
 
 
+def test_supervised_continuous_mode_is_visible_in_telemetry() -> None:
+    [frame] = protocol.FrameParser().feed(
+        protocol.encode_telemetry(
+            make_telemetry(supervised_continuous=True), sequence=11
+        )
+    )
+    decoded = protocol.decode_telemetry(frame.payload)
+    assert decoded.supervised_continuous is True
+    assert decoded.bench_mode is False
+
+
 def test_extended_telemetry_round_trips_buzzer_configuration() -> None:
     telemetry = protocol.Telemetry(
         left_velocity=0.0,

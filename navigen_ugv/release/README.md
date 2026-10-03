@@ -88,3 +88,21 @@ rear obstacle guard still apply. The dashboard labels this build
    unexpected. The 30-second window ends the test automatically. Open the motor
    switch before rebooting for another test. Ground driving requires a
    separately validated motor power and driver configuration.
+
+## Supervised continuous manual drive
+
+`ugv_esp8266_supervised_continuous.bin` is a separate image requested by the
+owner for the current 12 V L298N wiring. SHA-256:
+`293d59731eb54bebb817201755ea51ed269781523d1b4666560970f1261a7026`.
+It removes the 30-second total output window while retaining the 80/255 PWM
+cap, camera gate, software e-stop, 300 ms command watchdog, and rear obstacle
+guard. The dashboard identifies it as `SUPERVISED DRIVE`. Only hold a drive
+control while directly watching the vehicle with the physical motor switch
+within reach. Release the control and open the switch if the driver, motor,
+switch, wiring, or batteries heat or movement becomes unexpected. This image
+does not measure motor voltage, winding current, or driver temperature; its PWM
+cap does not turn the 12 V motor rail into a regulated 3.6 V supply.
+
+To build this image, use `pio run --project-dir
+navigen_ugv/firmware/esp8266_motor_controller --environment
+supervised_continuous`. Keep the motor-power switch open while flashing.

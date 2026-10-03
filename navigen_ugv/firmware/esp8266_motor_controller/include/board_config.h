@@ -5,7 +5,8 @@
 // previously, and about 12 V was confirmed on 2026-10-03. The owner confirmed
 // 3.6 V is the motor's maximum voltage. Two motors are wired in parallel on each
 // L298N channel. A multimeter reading near 3 V at a motor does not establish
-// the voltage of each PWM on-pulse or the stall current. Keep propulsion locked.
+// the voltage of each PWM on-pulse or the stall current. The supervised
+// continuous profile accepts this rail only for attended manual operation.
 #pragma once
 
 // Set to 1 only after the pin map, motor directions, voltage dividers, physical
@@ -15,6 +16,12 @@
 #endif
 #ifndef LIFTED_WHEEL_BENCH_ONLY
 #define LIFTED_WHEEL_BENCH_ONLY 0
+#endif
+#ifndef SUPERVISED_CONTINUOUS_DRIVE
+#define SUPERVISED_CONTINUOUS_DRIVE 0
+#endif
+#if SUPERVISED_CONTINUOUS_DRIVE && LIFTED_WHEEL_BENCH_ONLY
+#error "Select only one motor-test profile"
 #endif
 #define BENCH_DRIVE_WINDOW_MS 30000UL
 
@@ -38,6 +45,7 @@
 #define MOTOR_SUPPLY_MEASURED_MV 12600
 #define MOTOR_RATED_MAX_MV        3600
 #if HARDWARE_CONFIGURATION_CONFIRMED && !LIFTED_WHEEL_BENCH_ONLY && \
+    !SUPERVISED_CONTINUOUS_DRIVE && \
     (MOTOR_SUPPLY_MEASURED_MV <= 0 || \
      MOTOR_SUPPLY_MEASURED_MV > MOTOR_RATED_MAX_MV)
 #error "Motor supply is outside the recorded motor voltage rating"
@@ -58,6 +66,10 @@
 #if LIFTED_WHEEL_BENCH_ONLY && \
     (PWM_DUTY_LIMIT > 80 || !HARDWARE_CONFIGURATION_CONFIRMED || BENCH_DRIVE_WINDOW_MS > 30000UL)
 #error "Lifted-wheel bench profile requires confirmation, <=80 PWM, and <=30 seconds"
+#endif
+#if SUPERVISED_CONTINUOUS_DRIVE && \
+    (PWM_DUTY_LIMIT > 80 || !HARDWARE_CONFIGURATION_CONFIRMED)
+#error "Supervised continuous profile requires confirmation and <=80 PWM"
 #endif
 #define MIN_EFFECTIVE_PWM        0  // Tune on stands; zero disables minimum boost.
 #define OPEN_LOOP_DEADBAND_MPS 0.01f

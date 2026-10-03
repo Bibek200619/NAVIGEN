@@ -25,6 +25,7 @@ constexpr uint8_t FLAG_WATCHDOG = 0x02;
 constexpr uint8_t FLAG_CONFIG_INVALID = 0x04;
 constexpr uint8_t FLAG_OPEN_LOOP = 0x08;
 constexpr uint8_t FLAG_BENCH_MODE = 0x10;
+constexpr uint8_t FLAG_SUPERVISED_CONTINUOUS = 0x20;
 constexpr uint16_t ULTRASONIC_INVALID = 0xFFFF;
 
 inline uint8_t crc8(const uint8_t* data, std::size_t size) {
